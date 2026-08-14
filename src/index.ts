@@ -393,6 +393,17 @@ function buildApi(
         if (response.status === 405 || response.status === 501) {
           response = await fetch(parsed, { method: 'GET', redirect: 'follow', signal: controller.signal })
         }
+        // Some servers (e.g. aliyun consoles) answer HEAD without the
+        // X-Frame-Options / CSP headers that only their GET response
+        // carries. Without those signals the embeddability check below
+        // would wrongly report the site as embeddable and the plain iframe
+        // would surface the browser's misleading "refused to connect".
+        // Retry once as GET when both signals are absent (body discarded).
+        const hasEmbedSignals = response.headers.get('content-security-policy') !== null
+          || response.headers.get('x-frame-options') !== null
+        if (!hasEmbedSignals && response.status !== 405 && response.status !== 501) {
+          response = await fetch(parsed, { method: 'GET', redirect: 'follow', signal: controller.signal })
+        }
         const csp = response.headers.get('content-security-policy')
         const frameAncestors = extractFrameAncestors(csp)
         const xFrameOptions = response.headers.get('x-frame-options')
