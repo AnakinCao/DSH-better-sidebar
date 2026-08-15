@@ -209,7 +209,7 @@ export function ExplorerView(props: {
             setRefreshTick(tick => tick + 1)
           }}
         >
-          <IconRefreshOutline16 />
+          <IconRefreshOutline16 size={14} />
         </button>
       </div>
       <div className={css.explorerBody}>

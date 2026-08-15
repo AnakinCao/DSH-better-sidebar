@@ -27,7 +27,7 @@ import { t } from './locales.ts'
 import { openWhenSized } from './open-when-sized.ts'
 import type { SessionScope } from './api.ts'
 import { agentUuidOf, isAgentTabId, type SidebarStore } from './state.ts'
-import { isDarkScheme, subscribeColorScheme, tokenValue } from './theme.ts'
+import { isDarkScheme, subscribeColorScheme, effectiveTokenValue, tokenValue } from './theme.ts'
 import { resolveTerminalFont } from './terminal-font.ts'
 import css from './sidebar.module.css'
 
@@ -61,8 +61,14 @@ const ANSI_LIGHT: Record<string, string> = {
 /** The xterm theme for the current scheme (surface from tokens, ANSI curated). */
 function xtermTheme(): ITheme {
   const dark = isDarkScheme()
-  const background = tokenValue('--dsw-alias-bg-base') || (dark ? '#111114' : '#ffffff')
-  const foreground = tokenValue('--dsw-alias-label-primary') || (dark ? '#e6e6e6' : '#1a1a1a')
+  // Skin systems set --dsw-alias-bg-base to `transparent` or translucent
+  // glass values (the dsh-web-ui skins use rgba 0.16–0.7); effectiveTokenValue
+  // treats those as unset below the opacity floor, so the opaque fallback
+  // engages and the terminal never renders see-through over the skin's
+  // backdrop (issue #90). Effectively opaque scoped surfaces (e.g. a skin's
+  // 0.96 porcelain) pass through — the skin still controls the terminal.
+  const background = effectiveTokenValue('--dsw-alias-bg-base') || (dark ? '#111114' : '#ffffff')
+  const foreground = effectiveTokenValue('--dsw-alias-label-primary') || (dark ? '#e6e6e6' : '#1a1a1a')
   return {
     background,
     foreground,

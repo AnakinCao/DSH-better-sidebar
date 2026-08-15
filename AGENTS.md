@@ -560,7 +560,26 @@ interface OpenTabSeed {
 
 ---
 
-## 8. 完整最小示例
+## 8. 皮肤兼容（令牌驱动）
+
+> 侧边栏的皮肤兼容是**令牌驱动**的：所有视觉值都消费 DSH 的 `--dsw-alias-*` / `--dsw-font-*` / `--ds-*` 令牌（无硬编码颜色），皮肤系统覆盖什么令牌我们就跟随什么——**不做任何每皮肤适配**。当前已与 dsh-web-ui 皮肤中心兼容：其 10 款皮肤全部覆盖 `--dsw-alias-*` 层，换肤后面板自动跟随（测试：`tests/e2e/mount.e2e.ts` 断言布局变量随面板挂载生效；`tests/theme.spec.ts` 守护令牌读取）。
+
+### 8.1 规则
+
+- **面板表面**：右/底面板背景 = `var(--dsw-alias-bg-layer-1)`（通用卡片表面）。**绝不消费 `--dsw-specific-sidebar-fill`**——那是宿主左侧导航列专属令牌，皮肤系统按左导航语义覆盖它（dsh-web-ui 皮肤把它做成半透明玻璃或主题色，Aqua 设成 `transparent`），面板消费它会失去填充或与标签令牌冲突。皮肤要整体换面板表面：覆写 `--dsw-alias-bg-layer-1` 即可（dsh-web-ui 10 款皮肤都已覆盖，无需任何额外工作）。
+- **终端/编辑器表面**：经 `effectiveTokenValue` 读取 `--dsw-alias-bg-base`——`transparent` 与 alpha < 0.9 的半透明玻璃值（dsh-web-ui 皮肤用 rgba 0.16–0.7）一律回退不透明底色，文字永不叠在皮肤背景画上滚动（issue #90）；≥ 0.9 的近不透明值（如皮肤作用域内 0.96 的瓷器玻璃）放行，皮肤仍能控制终端表面。
+- **根锚点**：宿主 div 带 `data-dsh-better-sidebar` 属性（append 到 `document.body`），面板是其 fixed 直接子级。皮肤若要做作用域覆盖（deep-whale 的做法），限定在 `[data-dsh-better-sidebar]` 内即可，避免全局改写影响宿主。
+- **布局变量**（写在 `<html>` 上，面板打开时有效）：`--dsh-sidebar-width` / `--dsh-sidebar-height`（面板几何；拖拽期间逐帧更新）。
+- **z-index**：面板 40、折叠按钮簇 45（角手柄在面板内层叠，z-index 2 仅面板内有效）——全部低于 DSH 浮层栈（100/1000+），任何浮层天然盖住侧边栏。
+
+### 8.2 注意事项
+
+- 类名是 CSS Modules 哈希（`[hash]_[local]`），**不是契约**——皮肤不要依赖类名寻址；需要精确命中单表面时，用 `[data-dsh-better-sidebar]` 属性选择器配合子串类名（如 `[class*='panel']`）或 DOM 结构。
+- 改动本契约（面板表面令牌、透明度阈值、z-index 层级）必须同步更新本文档、设计文档与 `tests/theme.spec.ts`。
+
+---
+
+## 9. 完整最小示例
 
 > 假设插件 `my-plugin` 要加一个"Database 浏览器" tab + `.csv` 文件预览器。
 
@@ -636,7 +655,7 @@ function parseCsv(text: string): string[][] { /* ... */ }
 
 ---
 
-## 9. 参考实现
+## 10. 参考实现
 
 better-sidebar 自己的内置 tab 和 viewer 就是参考实现（"吃狗粮"）：
 
