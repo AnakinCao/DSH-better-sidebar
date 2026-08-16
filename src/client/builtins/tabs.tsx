@@ -69,8 +69,27 @@ export function builtinTabs(ctx: Context): readonly TabDescriptor[] {
       order: -1,
       hidden: true,
       dedupeKey: (tab) => tab.path,
-      component: ({ ctx, store, scope, tab }) => (
-        <EditorHost ctx={ctx} store={store} scope={scope} path={tab.path ?? ''} title={tab.title} />
+      // Declarative settings: the merged-mode switch (file preview + docked
+      // file tree) renders under the editor card's gear in the Side card
+      // settings page.
+      settings: {
+        toggles: [{
+          key: 'editorExplorer',
+          title: () => t('editorExplorer'),
+          desc: () => t('editorExplorerDesc'),
+        }],
+      },
+      component: ({ ctx, store, scope, tab, expanded, onToggleDir, onReferenceFile }) => (
+        <EditorHost
+          ctx={ctx}
+          store={store}
+          scope={scope}
+          tab={tab}
+          expanded={expanded ?? []}
+          onToggleDir={onToggleDir ?? (() => { /* no-op */ })}
+          onOpenFile={(path) => { openSidebarFile(ctx, store, scope.sessionId, path) }}
+          onReferenceFile={onReferenceFile ?? (() => { /* no-op */ })}
+        />
       ),
     },
     {

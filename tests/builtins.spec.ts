@@ -49,6 +49,14 @@ describe('built-in tab registrations', () => {
     expect(toggles.map(t => t.key)).toEqual(['autoOpenSubagent', 'autoOpenJobs'])
   })
 
+  it('the editor tab declares its merged-mode (embedded file tree) setting', () => {
+    const { service } = setup()
+    const toggles = service.getTab('editor')?.settings?.toggles ?? []
+    expect(toggles.map(t => t.key)).toEqual(['editorExplorer'])
+    expect(toggles[0]?.title).toBeDefined()
+    expect(toggles[0]?.desc).toBeDefined()
+  })
+
   it('the terminal tab declares the model terminal-tools, auto-terminal and custom-font settings', () => {
     const { service } = setup()
     const toggles = service.getTab('terminal')?.settings?.toggles ?? []

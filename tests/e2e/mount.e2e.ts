@@ -191,7 +191,9 @@ test('plugin mounts into the DSH shell and survives a built-in tab sweep', async
     (response) => response.url().includes('/sidebar/bundle/editor.js'),
     { timeout: 30_000 },
   )
-  const fileRow = sidebar.locator(`[role="button"][title$="${SEEDED_FILE}"]`)
+  // Inactive tabs stay mounted (display:none), and the seeded editor-home
+  // tab's embedded tree lists the same workspace — match the VISIBLE row.
+  const fileRow = sidebar.locator(`[role="button"][title$="${SEEDED_FILE}"]:visible`)
   await expect(fileRow, `the seeded "${SEEDED_FILE}" file must appear in the Explorer tree`).toHaveCount(1, { timeout: 30_000 })
   await fileRow.click()
   await editorChunk

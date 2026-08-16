@@ -10,6 +10,34 @@ import {
 describe('sidebar state', () => {
   const state = (): SidebarState => makeDefaultState()
 
+  it('makeDefaultState seeds per the seed enum (explorer / editor-home / none)', () => {
+    // Default and explicit 'explorer' seed the explorer tab.
+    for (const s of [makeDefaultState(), makeDefaultState(400, true, 'explorer')]) {
+      const leaf = s.splits as { tabs: SidebarTab[]; active: string | null }
+      expect(leaf.tabs.map(tab => tab.type)).toEqual(['explorer'])
+      expect(leaf.tabs[0]!.title).toBe('Explorer')
+      expect(leaf.active).toBe(leaf.tabs[0]!.id)
+    }
+    // 'editor-home' seeds an EMPTY editor tab with the tree panel pinned open.
+    const home = makeDefaultState(400, true, 'editor-home')
+    const homeLeaf = home.splits as { tabs: SidebarTab[]; active: string | null }
+    expect(homeLeaf.tabs).toHaveLength(1)
+    expect(homeLeaf.tabs[0]!.type).toBe('editor')
+    expect(homeLeaf.tabs[0]!.title).toBe('Files')
+    expect(homeLeaf.tabs[0]!.path).toBeUndefined()
+    expect(homeLeaf.tabs[0]!.meta).toEqual({ treeOpen: true })
+    expect(homeLeaf.active).toBe(homeLeaf.tabs[0]!.id)
+    // The seeded home tab survives the persist round-trip (meta intact).
+    const restored = sanitizeState(JSON.parse(JSON.stringify(home)))
+    const restoredLeaf = restored!.splits as { tabs: SidebarTab[] }
+    expect(restoredLeaf.tabs[0]!.meta).toEqual({ treeOpen: true })
+    // 'none' seeds an empty pane.
+    const bare = makeDefaultState(400, true, 'none')
+    const bareLeaf = bare.splits as { tabs: SidebarTab[]; active: string | null }
+    expect(bareLeaf.tabs).toHaveLength(0)
+    expect(bareLeaf.active).toBeNull()
+  })
+
   it('opens tabs into the active pane and dedupes by id (safety net)', () => {
     let s = state()
     const gitTab = { id: 'git', type: 'git' as const, title: 'Git' }

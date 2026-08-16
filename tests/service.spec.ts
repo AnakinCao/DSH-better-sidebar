@@ -347,6 +347,9 @@ describe('service.openTab dedupe', () => {
 
   it('a caller-provided title wins over the descriptor title (editor shows the file name)', () => {
     const store = createSidebarStore()
+    // Keep the legacy explorer seed: the merged-mode editor-home seed would
+    // itself be an editor tab and pollute the find-by-type assertions.
+    store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
     const service = createBetterSidebarService(store)
     service.registerTab({ id: 'editor', title: () => 'Editor', component: () => null })
     store.setSession('s1')
@@ -635,6 +638,8 @@ describe('service.openTab auto-expand for content opens', () => {
 
   it('expands on a wide viewport even when the open focuses an existing tab (id dedupe)', () => {
     const store = createSidebarStore()
+    // Keep the legacy explorer seed (see the title test above).
+    store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
     const service = createBetterSidebarService(store)
     service.registerTab({ id: 'editor', title: 'Editor', component: () => null })
     store.setSession('s1')
@@ -778,6 +783,8 @@ describe('targeted openTab (v0.12.0)', () => {
 describe('openFile (v0.12.0)', () => {
   it('opens the file in the editor tab of the scope session with a basename title', () => {
     const store = createSidebarStore()
+    // Keep the legacy explorer seed (see the title test above).
+    store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
     const service = createBetterSidebarService(store)
     service.registerTab({ id: 'editor', title: () => 'Editor', component: () => null })
     store.setSession('s1')
@@ -892,7 +899,7 @@ describe('tab meta (v0.12.0)', () => {
   })
 
   it('older persisted tabs (no meta) sanitize unchanged', () => {
-    const state = makeDefaultState(400, true, true)
+    const state = makeDefaultState(400, true, 'explorer')
     const sanitized = sanitizeState(JSON.parse(JSON.stringify(state)))
     const tabs = allLeaves(sanitized!.splits).flatMap(l => l.tabs)
     expect(tabs[0]?.meta).toBeUndefined()

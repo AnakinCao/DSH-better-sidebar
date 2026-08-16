@@ -139,17 +139,28 @@ function maxCounterId(parsed: unknown): number {
   return max
 }
 
-/** A fresh default state: one explorer tab in one pane, open per the caller's
+/** The default tab a fresh session seeds. */
+export type DefaultSeed = 'explorer' | 'editor-home' | 'none'
+
+/** A fresh default state: one seeded tab in one pane, open per the caller's
  * preference. `width` is the caller's preferred panel width (default
  * PANEL_DEFAULT) and `panelOpen` whether the panel starts expanded (default
  * true); the store seeds new sessions from the user's side card prefs.
- * `seedExplorer` places the default explorer tab — the store passes false
- * when the user disabled the explorer tab type in settings, so a fresh
- * session starts with an empty pane instead of a tab they turned off. */
-export function makeDefaultState(width = PANEL_DEFAULT, panelOpen = true, seedExplorer = true): SidebarState {
+ * `seed` picks the seeded tab: 'explorer' places the default explorer tab,
+ * 'editor-home' (merged editor-explorer mode) an EMPTY editor tab whose
+ * tree panel starts open (`meta.treeOpen: true`), and 'none' starts with an
+ * empty pane — the store passes it when the user disabled the explorer tab
+ * type in settings, so a fresh session never starts with a tab they turned
+ * off. */
+export function makeDefaultState(width = PANEL_DEFAULT, panelOpen = true, seed: DefaultSeed = 'explorer'): SidebarState {
   const leaf: SidebarLeaf = { kind: 'leaf', id: uid('pane'), tabs: [], active: null }
-  if (seedExplorer) {
+  if (seed === 'explorer') {
     leaf.tabs = [{ id: uid('tab'), type: 'explorer', title: 'Explorer' }]
+    leaf.active = leaf.tabs[0]!.id
+  } else if (seed === 'editor-home') {
+    // No path: the editor host renders its empty-state hint and the docked
+    // tree panel (treeOpen defaults open for path-less tabs; meta pins it).
+    leaf.tabs = [{ id: uid('tab'), type: 'editor', title: 'Files', meta: { treeOpen: true } }]
     leaf.active = leaf.tabs[0]!.id
   }
   // The bottom panel starts closed with an empty pane (its welcome cards
@@ -764,19 +775,26 @@ function loadState(sessionId: string, prefs: SidebarPrefs): SidebarState {
   // New sessions seed from the user's side card prefs: the width is the
   // chosen percent of the window (clamped to the panel floor and the
   // viewport so a huge percent can never crush the app shell), the panel
-  // starts open only when the preference says so, and the default explorer
-  // tab is skipped when the user disabled the explorer tab type. On a
-  // NARROW viewport a brand-new session starts collapsed instead — the
-  // panel is a full-screen drawer there, and auto-opening it on first
-  // paint would cover the conversation before the user asked. Only the
-  // first seeding is affected: once the user expands the drawer,
+  // starts open only when the preference says so, and the seed tab follows
+  // the merged-mode preference — with editorExplorer on (and the editor
+  // type enabled) a fresh session seeds an EMPTY editor tab with its tree
+  // panel open instead of the explorer tab; a disabled explorer type seeds
+  // nothing. On a NARROW viewport a brand-new session starts collapsed
+  // instead — the panel is a full-screen drawer there, and auto-opening it
+  // on first paint would cover the conversation before the user asked.
+  // Only the first seeding is affected: once the user expands the drawer,
   // `panelOpen: true` persists like any other state.
   const viewport = typeof window !== 'undefined' ? window.innerWidth : undefined
   const width = viewport === undefined
     ? PANEL_DEFAULT
     : defaultWidthFor(viewport, prefs.defaultWidthPercent)
   const openByDefault = prefs.openByDefault && (viewport === undefined || !isNarrowWidth(viewport))
-  return makeDefaultState(width, openByDefault, prefs.tabsEnabled['explorer'] !== false)
+  const seed: DefaultSeed = prefs.tabsEnabled['explorer'] === false
+    ? 'none'
+    : prefs.editorExplorer && prefs.tabsEnabled['editor'] !== false
+      ? 'editor-home'
+      : 'explorer'
+  return makeDefaultState(width, openByDefault, seed)
 }
 
 /**
