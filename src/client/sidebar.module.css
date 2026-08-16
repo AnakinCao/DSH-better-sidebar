@@ -1305,6 +1305,65 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The node-pty dependency failure banner (issue #140): a taller warn block
+   carrying the pasteable repair command (bash / cmd / PowerShell). */
+.terminalDepsBanner {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  font: var(--dsw-font-xxs-12);
+  color: var(--dsw-alias-state-warn-label);
+  background: var(--dsw-alias-state-warn-tertiary);
+}
+
+.terminalDepsTitle {
+  font: var(--dsw-font-xxs-strong-12);
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.terminalDepsHint {
+  opacity: 0.9;
+}
+
+.terminalDepsCommandRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* The command the user pastes into a terminal / cmd. Selectable, wrapping,
+   and scrollable when long (Windows paths can get very long). */
+.terminalRepairCommand {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 6px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 4px;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.terminalDepsNote {
+  opacity: 0.85;
+}
+
+.terminalDepsActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* The PER-TAB error strip: fills one tab's content area (unlike
    .boundaryError, the full-height fixed rail for shell-level crashes), so a
    crashing viewer/editor never hides the toggle cluster or the other tabs. */

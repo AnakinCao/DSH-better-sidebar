@@ -79,6 +79,21 @@ export interface JobOutputResult {
   read: boolean
 }
 
+/** Terminal dependency status (mirror of the host's depsStatus; issue #140). */
+export type TerminalDepsStatus =
+  | { ok: true }
+  | {
+    ok: false
+    /** The require-time error message (module missing, native binding broken…). */
+    cause: string
+    /** The pasteable repair command (terminal/cmd). */
+    command: string
+    /** The detected profile name (null when undetected → the command defaults to web). */
+    profile: string | null
+    /** Optional supplementary hint (fallback command only). */
+    note?: string
+  }
+
 async function call<T>(method: string, payload: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   let response: Response
   try {
@@ -164,6 +179,11 @@ export const api = {
   /** Release an agent terminal by uuid (tab closed while WS was down). */
   agentPtyClose: (uuid: string) =>
     call<{ ok: true }>('agent-pty.close', { uuid }),
+  /** Terminal dependency status (issue #140): after a WS close 1011 with
+   *  reason `pty-deps-missing` the view fetches the full repair details here
+   *  (the close reason itself is capped at 123 bytes). */
+  terminalDeps: () =>
+    call<TerminalDepsStatus>('terminal.deps', {}),
   /**
    * The output the model has read so far for one background job (replayed
    * from the owner session's event log — never the model's job_output
