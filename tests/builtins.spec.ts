@@ -55,6 +55,11 @@ describe('built-in tab registrations', () => {
     expect(toggles.map(t => t.key)).toEqual(['editorExplorer'])
     expect(toggles[0]?.title).toBeDefined()
     expect(toggles[0]?.desc).toBeDefined()
+    // The merged mode is an iconed select (merged vs separate), not a switch.
+    expect(toggles[0]?.type).toBe('select')
+    const options = toggles[0]?.options ?? []
+    expect(options.map(o => o.value)).toEqual([true, false])
+    expect(options.every(o => o.icon !== undefined && o.title !== undefined)).toBe(true)
   })
 
   it('the terminal tab declares the model terminal-tools, auto-terminal and custom-font settings', () => {

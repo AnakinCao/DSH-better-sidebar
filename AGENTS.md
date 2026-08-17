@@ -168,8 +168,12 @@ interface TabDescriptor {
    * 声明式设置（v0.4.1+）：每个注册的 tab 都会在 Side card 设置页获得一行
    * 开关（图标 + 标题 + 类型 id），`settings.toggles` 在其行下追加嵌套设置行，
    * 绑定 SidebarPrefs 字段。嵌套设置仅父级启用时显示（v0.11.0 起行控件不限于
-   * 布尔开关：`type: 'switch' | 'text' | 'number'`，缺省 'switch'；text/number
-   * 行 blur/Enter 提交，number 行按 min/max 钳制，unit 渲染单位后缀）。
+   * 布尔开关：`type: 'switch' | 'text' | 'number' | 'select'`，缺省 'switch'；
+   * text/number 行 blur/Enter 提交，number 行按 min/max 钳制，unit 渲染单位后缀；
+   * select 行是下拉选择：options 声明 `{ value, title, desc?, icon? }`，任一
+   * 选项带 icon 时下拉渲染大图标选项卡、收起态同样显示图标，否则单行文本；
+   * `multi: true`（缺省 false）多选，存储值为选中 value 的数组，按 options
+   * 顺序提交）。
    * v0.12.0 起增加两个插件自有扩展（详见 §5 声明式设置）：
    * `pluginToggles`（插件自有 key，持久化在 pluginSettings[id]，无需宿主 schema 字段）
    * 与 `render`（自定义设置面板，替代行列表）。
@@ -181,7 +185,7 @@ interface TabDescriptor {
       title: string | (() => string)
       desc?: string | (() => string)
       /** 行控件类型；缺省 'switch'（向后兼容）。 */
-      type?: 'switch' | 'text' | 'number'
+      type?: 'switch' | 'text' | 'number' | 'select'
       /** number 行的提交钳制下限。 */
       min?: number
       /** number 行的提交钳制上限。 */
@@ -190,6 +194,15 @@ interface TabDescriptor {
       placeholder?: string
       /** 输入框后的单位后缀（如 'px'）。 */
       unit?: string
+      /** select 行的选项（value 为提交值：string | number | boolean）。 */
+      options?: readonly {
+        value: string | number | boolean
+        title: string | (() => string)
+        desc?: string | (() => string)
+        icon?: ReactNode | ((size: number) => ReactNode)
+      }[]
+      /** select 行是否多选（缺省 false；存储值为 value 数组）。 */
+      multi?: boolean
     }[]
     /** 插件自有设置行（v0.12.0+）：形状同 toggles，但 key 是插件局部的，
      *  持久化在 `pluginSettings[<descriptor id>]`——不需要宿主 PrefsSchema 字段。 */
@@ -197,11 +210,18 @@ interface TabDescriptor {
       key: string
       title: string | (() => string)
       desc?: string | (() => string)
-      type?: 'switch' | 'text' | 'number'
+      type?: 'switch' | 'text' | 'number' | 'select'
       min?: number
       max?: number
       placeholder?: string
       unit?: string
+      options?: readonly {
+        value: string | number | boolean
+        title: string | (() => string)
+        desc?: string | (() => string)
+        icon?: ReactNode | ((size: number) => ReactNode)
+      }[]
+      multi?: boolean
     }[]
     /** 自定义设置面板（v0.12.0+）：给出时齿轮弹窗渲染它而非行列表。
      *  props 含 store/service/prefs、本 descriptor 的 pluginSettings blob、
@@ -510,7 +530,7 @@ interface BetterSidebarService {
   readonly version: string
   /** 单调能力清单（只增不删）：'badge' | 'tabLifecycle' | 'updateTab' |
    *  'openFile' | 'targetedOpen' | 'stateSubscription' | 'tabMeta' |
-   *  'pluginSettings' | 'urlTarget'——消费插件用 `features.includes('xxx')` 按能力 gate。 */
+   *  'pluginSettings' | 'urlTarget' | 'settingSelect'——消费插件用 `features.includes('xxx')` 按能力 gate。 */
   readonly features: readonly string[]
   /** 当前快照：激活 sessionId + 其状态（面板几何/打开的 tabs/展开集）+ prefs。
    *  session 未激活时 state/sessionId 为 undefined。 */
@@ -541,7 +561,7 @@ interface OpenTabSeed {
 }
 ```
 
-> **声明式设置（v0.4.1+）**：每个注册的 tab/viewer 自动出现在 DSH 设置页「侧边卡片」分区的清单里——响应式网格中的**小卡片**（图标 + 标题 + 类型 id + **高亮 = 启用**，勾选徽标钉在卡片最右端，viewer 卡片还显示扩展名），开关持久化到 `SidebarPrefs.tabsEnabled / viewersEnabled`（开放 map，缺省 = 启用）。关闭语义：tab 从 `+` 菜单消失、`openTab` 拒绝新开、子代理自动展开 / agent 终端自动补 tab 等派生流程停止，**已打开的 tab 保留**；viewer 被 `matchFileViewer` 跳过，文件落到下一个匹配。`settings.toggles` 声明的相关设置（如子代理的 `autoOpenSubagent`、终端的 `terminalFontFamily`/`terminalFontSize`）通过卡片右下角的齿轮按钮在**原生弹窗**中编辑——`type: 'switch'` 行是复选框，`type: 'text'`/`'number'` 行是输入框（v0.11.0+）——父级卡片关闭时齿轮隐藏；`settings.toggles` 的 **key 必须是宿主 PrefsSchema 的字段**（内置键：`autoOpenSubagent` / `agentTerminalTools` / `terminalFontFamily` / `terminalFontSize` / `editorExplorer` / `htmlViewerNoSandbox` / `htmlViewerDefaultUnsafe` / `browserNoSandbox` / `browserInterceptLinks` / `browserInterceptHttp` / `browserInterceptHttps`）。**v0.12.0 起设置 seam 已开放**：外部插件用 `settings.pluginToggles`（同款行控件，key 插件局部）或 `settings.render`（自定义面板）声明自己的设置，值持久化在 prefs 文档的 `pluginSettings[<descriptor id>]`（开放 map，宿主 schema 已有字段，无需注册）——齿轮弹窗对 tab 与 viewer 都可用（viewer 卡片 v0.12.0 起也有齿轮）。
+> **声明式设置（v0.4.1+）**：每个注册的 tab/viewer 自动出现在 DSH 设置页「侧边卡片」分区的清单里——响应式网格中的**小卡片**（图标 + 标题 + 类型 id + **高亮 = 启用**，勾选徽标钉在卡片最右端，viewer 卡片还显示扩展名），开关持久化到 `SidebarPrefs.tabsEnabled / viewersEnabled`（开放 map，缺省 = 启用）。关闭语义：tab 从 `+` 菜单消失、`openTab` 拒绝新开、子代理自动展开 / agent 终端自动补 tab 等派生流程停止，**已打开的 tab 保留**；viewer 被 `matchFileViewer` 跳过，文件落到下一个匹配。`settings.toggles` 声明的相关设置（如子代理的 `autoOpenSubagent`、终端的 `terminalFontFamily`/`terminalFontSize`）通过卡片右下角的齿轮按钮在**原生弹窗**中编辑——`type: 'switch'` 行是复选框，`type: 'text'`/`'number'` 行是输入框（v0.11.0+），`type: 'select'` 行是下拉选择（options 带 icon 时为大图标选项卡，`multi: true` 多选存 value 数组）——父级卡片关闭时齿轮隐藏；`settings.toggles` 的 **key 必须是宿主 PrefsSchema 的字段**（内置键：`autoOpenSubagent` / `agentTerminalTools` / `terminalFontFamily` / `terminalFontSize` / `editorExplorer` / `htmlViewerNoSandbox` / `htmlViewerDefaultUnsafe` / `browserNoSandbox` / `browserInterceptLinks` / `browserInterceptHttp` / `browserInterceptHttps`）。**v0.12.0 起设置 seam 已开放**：外部插件用 `settings.pluginToggles`（同款行控件，key 插件局部）或 `settings.render`（自定义面板）声明自己的设置，值持久化在 prefs 文档的 `pluginSettings[<descriptor id>]`（开放 map，宿主 schema 已有字段，无需注册）——齿轮弹窗对 tab 与 viewer 都可用（viewer 卡片 v0.12.0 起也有齿轮）。
 
 ---
 

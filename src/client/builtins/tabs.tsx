@@ -6,7 +6,7 @@
  * and mints `terminal:<n>` ids through `createTab`; the browser mints
  * `browser:<n>` the same way (no quota).
  */
-import { IconBranchOutline16, IconCodeOutline16, IconFolderOpen16, IconThinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconBranchOutline16, IconCodeOutline16, IconFolderOpen16, IconPanelLeftOutline16, IconThinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../../context-types.ts'
 import { allLeaves, isAgentTabId, type SidebarState } from '../state.ts'
 import { t } from '../locales.ts'
@@ -69,14 +69,29 @@ export function builtinTabs(ctx: Context): readonly TabDescriptor[] {
       order: -1,
       hidden: true,
       dedupeKey: (tab) => tab.path,
-      // Declarative settings: the merged-mode switch (file preview + docked
-      // file tree) renders under the editor card's gear in the Side card
-      // settings page.
+      // Declarative settings: the merged-mode picker (file preview + docked
+      // file tree vs separate tabs) renders as an iconed select row under
+      // the editor card's gear in the Side card settings page.
       settings: {
         toggles: [{
           key: 'editorExplorer',
+          type: 'select',
           title: () => t('editorExplorer'),
           desc: () => t('editorExplorerDesc'),
+          options: [
+            {
+              value: true,
+              icon: (size: number) => <IconPanelLeftOutline16 size={size} />,
+              title: () => t('editorExplorerMerged'),
+              desc: () => t('editorExplorerMergedDesc'),
+            },
+            {
+              value: false,
+              icon: (size: number) => <IconCodeOutline16 size={size} />,
+              title: () => t('editorExplorerSplit'),
+              desc: () => t('editorExplorerSplitDesc'),
+            },
+          ],
         }],
       },
       component: ({ ctx, store, scope, tab, expanded, onToggleDir, onReferenceFile }) => (

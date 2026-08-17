@@ -48,14 +48,32 @@ export type { SessionScope } from './api.ts'
 export type { SidebarPrefs } from '../prefs-shared.ts'
 
 /** The row control a declarative setting renders as in the settings popup. */
-export type SidebarSettingToggleType = 'switch' | 'text' | 'number'
+export type SidebarSettingToggleType = 'switch' | 'text' | 'number' | 'select'
+
+/** One option of a `type: 'select'` setting row. */
+export interface SidebarSettingSelectOption {
+  /** The value written to the setting key when this option is picked
+   *  (JSON-serializable: string / number / boolean). */
+  value: string | number | boolean
+  /** Option title (i18n friendly: string or () => string). */
+  title: string | (() => string)
+  /** Option description (i18n friendly); rendered under the title in the
+   *  icon dropdown. */
+  desc?: string | (() => string)
+  /** Option icon: when ANY option declares one, the dropdown renders
+   *  big-icon option cards and the closed control shows the selected
+   *  option's icon too; without icons both are a single line of text. */
+  icon?: ReactNode | ((size: number) => ReactNode)
+}
 
 /** One declarative setting of a tab/viewer, rendered as a nested row in the
  *  Side card settings page (e.g. the Subagent page's "auto-open when a
  *  subagent appears" switch, or the terminal's custom font rows). `type`
  *  selects the control: 'switch' (default) renders the custom switch,
  *  'text' a free-form input committed on blur/Enter, 'number' a numeric
- *  input clamped to `min`/`max`. */
+ *  input clamped to `min`/`max`, 'select' a dropdown over the declared
+ *  `options` (single-pick writes the option's value; `multi: true` writes
+ *  the array of picked values and defaults to false). */
 export interface SidebarSettingToggle {
   /** The SidebarPrefs field this toggle reads and writes ('autoOpenSubagent'). */
   key: string
@@ -73,6 +91,11 @@ export interface SidebarSettingToggle {
   placeholder?: string
   /** Unit suffix rendered after the input (e.g. 'px' for a size row). */
   unit?: string
+  /** Options of a `type: 'select'` row. */
+  options?: readonly SidebarSettingSelectOption[]
+  /** Whether a `type: 'select'` row allows picking several options (the
+   *  stored value is then an array of option values); defaults to false. */
+  multi?: boolean
 }
 
 /** Props of a descriptor's custom settings panel (`settings.render`). */
@@ -434,6 +457,7 @@ export const SIDEBAR_SERVICE_VERSION = '0.12.3'
  * - 'tabMeta': SidebarTab.meta (seeds, createTab, updateTab, persistence)
  * - 'pluginSettings': SidebarSettingsDeclaration.pluginToggles/render
  * - 'urlTarget' (v0.13.0): TabDescriptor.urlTarget (external-link claims)
+ * - 'settingSelect': SidebarSettingToggle type 'select' (options/multi)
  */
 export const SIDEBAR_FEATURES = [
   'badge',
@@ -445,6 +469,7 @@ export const SIDEBAR_FEATURES = [
   'tabMeta',
   'pluginSettings',
   'urlTarget',
+  'settingSelect',
 ] as const
 
 /** Run one plugin callback; a throw is logged and never breaks the caller. */
