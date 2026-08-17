@@ -263,6 +263,33 @@ export interface FileViewerProps {
   mediaUrl?: string
   /** custom load() return value (fetchStrategy='custom'). */
   customData?: unknown
+  /** Internal (built-in text editor): 'host' asks the viewer to skip its own
+   *  toolbar row — the editor host's merged-mode header renders it instead,
+   *  fed through the two callbacks below. Viewers that ignore these fields
+   *  render exactly as before. */
+  toolbar?: 'self' | 'host'
+  /** Internal: the viewer reports its toolbar state (mode/dirty/save). */
+  onToolbarState?: (state: EditorToolbarState) => void
+  /** Internal: the viewer registers its toolbar commands on mount (null on
+   *  unmount). */
+  onToolbarControls?: (controls: EditorToolbarControls | null) => void
+}
+
+/** The toolbar state a text editor reports to the host's merged-mode header. */
+export interface EditorToolbarState {
+  /** Whether the preview/edit mode toggle applies (markdown/html). */
+  modes: boolean
+  mode: 'preview' | 'edit'
+  dirty: boolean
+  /** Whether saving applies (text content loaded). */
+  editable: boolean
+  saveState: 'idle' | 'saving' | 'saved' | 'failed'
+}
+
+/** The commands the host's merged-mode header sends back to the viewer. */
+export interface EditorToolbarControls {
+  setMode(mode: 'preview' | 'edit'): void
+  save(): void
 }
 
 /** Describes one file previewer (builtins register themselves too). */

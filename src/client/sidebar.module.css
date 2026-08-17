@@ -839,24 +839,56 @@
   flex-direction: column;
 }
 
-/* The docked file tree: fixed width, hairline separation, own scroll. */
-.editorTreePanel {
+/* The docked file tree: the wrapper owns the (drag-adjustable) width and
+   the hairline separation; the resize handle is a wider invisible strip on
+   its left edge with a hover affordance. */
+.editorTreeDock {
+  position: relative;
   flex: none;
-  width: 240px;
+  min-height: 0;
+  display: flex;
+  border-left: 1px solid var(--dsw-alias-border-l1);
+}
+
+.editorTreeResize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 7px;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.editorTreeResize:hover {
+  background: var(--dsw-alias-border-l2);
+}
+
+.editorTreePanel {
+  flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--dsw-alias-border-l1);
+}
+
+/* The explorer tab's standalone window form: fill the tab body. */
+.editorTreePanelFull {
+  flex: 1;
 }
 
 .editorTreeSearch {
   flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--dsw-alias-border-l1);
 }
 
 .editorSearchInput {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 26px;
   padding: 0 10px;
   border: 1px solid var(--dsw-alias-border-l1);

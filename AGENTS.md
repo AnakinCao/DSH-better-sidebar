@@ -350,8 +350,8 @@ ctx.effect(() => {
 
 | id | order | single | hidden | 用途 |
 |---|---|---|---|---|
-| `editor` | -1 | 否（按 path 去重） | 是 | 文件编辑/预览（由 openSidebarFile 触发）。`editorExplorer` 开（默认）时为合并模式：头部是路径输入框 + 可开关的内嵌文件树面板（含全局文件名搜索，走 host `fs.search` 路由），状态存 `tab.meta.treeOpen`；此时新会话默认 seed 空编辑器 tab（`title: 'Files'`，无 path，树面板展开）而非 explorer tab |
-| `explorer` | 10 | 是 | 否 | 文件资源管理器 |
+| `editor` | -1 | 否（按 path 去重） | 是 | 文件编辑/预览（由 openSidebarFile 触发）。`editorExplorer` 开（默认）时为合并模式：头部是路径输入框 + 文本编辑器的预览/编辑/保存控件 + 可开关的内嵌文件树面板（含全局文件名搜索，走 host `fs.search` 路由；左缘拖拽调宽），状态存 `tab.meta.treeOpen` / `tab.meta.treeWidth`；此时新会话默认 seed 空编辑器 tab（`title: 'Files'`，无 path，树面板展开）而非 explorer tab |
+| `explorer` | 10 | 是 | 否 | 文件资源管理器。与编辑器共享同一树实现（`TreePanel.tsx`）：`editorExplorer` 开时整窗渲染树（搜索框 + FileTree，全宽），关时为旧头部壳（root 名 + 刷新）+ FileTree |
 | `git` | 20 | 是 | 否 | Git 面板 |
 | `subagent` | 30 | 是 | 否 | 子代理拓扑 |
 | `terminal` | 40 | 否 | 否 | 终端（nextTerminal 自增） |
@@ -406,6 +406,11 @@ interface FileViewerProps {
   truncated?: boolean     // fetchStrategy='fsRead' 时
   mediaUrl?: string       // fetchStrategy='mediaUrl' 时
   customData?: unknown    // fetchStrategy='custom' 时（load() 的返回值）
+  // 以下三个为内置文本编辑器与 EditorHost 的内部协作字段（合并模式把
+  // 预览/编辑/保存工具栏上移到路径输入框行）；外部 viewer 忽略即可：
+  toolbar?: 'self' | 'host'
+  onToolbarState?: (state: EditorToolbarState) => void
+  onToolbarControls?: (controls: EditorToolbarControls | null) => void
 }
 ```
 
@@ -694,7 +699,7 @@ better-sidebar 自己的内置 tab 和 viewer 就是参考实现（"吃狗粮"�
 - **`tests/service.spec.ts`**：注册表生命周期 / 匹配算法 / dedupe / createTab / 启用态 gating 测试
 - **`tests/builtins.spec.ts`**：内置注册清单断言（7 tab + 6 viewer + 声明式元数据）
 - **`src/client/plugins-tabs.ts`** / **`src/client/plugins-viewers.ts`**：推荐插件目录（名字/url/简介/安装脚本，分别对应 Tab 注册与文件预览注册），在设置页两个「添加插件」弹窗展示（共享类型在 `plugins-shared.ts`）；插件作者可按扩展点加一条数据（弹窗内「跳转」直达仓库、「复制」把安装命令写入剪贴板，粘贴到 DSH 所在环境的终端执行）——数据完整性由 `tests/plugin-list.spec.ts` 守护
-- **`src/client/FileTree.tsx`** / **`src/fs-search.ts`**：受控文件树组件（独立 explorer tab 与编辑器合并模式内嵌面板复用；`ExplorerView.tsx` 只剩头部壳）与 host 侧递归文件名搜索（`fs.search` 路由，预算兜底 + 跳过 `.git`/symlink 目录；测试 `tests/fs-search.spec.ts`、组件测试 `tests/editor-host.spec.tsx`）
+- **`src/client/FileTree.tsx`** / **`src/client/TreePanel.tsx`** / **`src/fs-search.ts`**：受控文件树组件（纯树体）/ 合并模式树面板（搜索框 + 刷新 + FileTree，编辑器内嵌面板与 explorer 整窗两处复用；`ExplorerView.tsx` 在 pref 关闭时只剩头部壳）与 host 侧递归文件名搜索（`fs.search` 路由，预算兜底 + 跳过 `.git`/symlink 目录；测试 `tests/fs-search.spec.ts`、组件测试 `tests/editor-host.spec.tsx` / `tests/explorer-view.spec.tsx`）
 - **`docs/plans/2026-08-11-service-registry-design.md`** / **`docs/plans/2026-08-11-declarative-sidebar-settings-design.md`** / **`docs/plans/2026-08-14-add-plugins-modal-design.md`**：设计文档（含实施偏差记录）
 
 调试时直接读这些文件即可看到所有 API 的真实用法。

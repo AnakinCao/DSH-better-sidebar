@@ -115,6 +115,7 @@ export function builtinTabs(ctx: Context): readonly TabDescriptor[] {
       single: true,
       component: ({ ctx, store, scope, expanded, onToggleDir, onReferenceFile }) => (
         <ExplorerView
+          store={store}
           sessionId={scope.sessionId}
           cwd={scope.cwd}
           expanded={expanded ?? []}

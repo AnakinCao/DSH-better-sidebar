@@ -20,19 +20,19 @@
  * The strategy dispatch is pure (planFirstMatch / planFsReadOutcome in
  * editor-load.ts); this component only wires it to the host APIs.
  */
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createElement } from 'react'
 import clsx from 'clsx'
-import { IconFolderOpen16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCheckOutline16, IconFolderOpen16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../context-types.ts'
 import { api, mediaUrl, type SessionScope } from './api.ts'
 import { BinaryDownload } from './binary-download.tsx'
 import { planFirstMatch, planFsReadOutcome, type EditorLoadAction } from './editor-load.ts'
-import { FileTree } from './FileTree.tsx'
+import { TreePanel } from './TreePanel.tsx'
 import { t } from './locales.ts'
 import { relativeTo } from './paths.ts'
 import { resolveSidebarPath } from './produced-files.ts'
-import type { FileViewerDescriptor } from './service.ts'
+import type { EditorToolbarControls, EditorToolbarState, FileViewerDescriptor } from './service.ts'
 import type { SidebarStore, SidebarTab } from './state.ts'
 import css from './sidebar.module.css'
 
@@ -42,14 +42,37 @@ type EditorLoad =
   | { status: 'ready'; viewer: FileViewerDescriptor; content?: string; truncated?: boolean; mediaUrl?: string; customData?: unknown }
   | { status: 'binary' }
 
+/** The docked tree panel's width bounds (drag-resize clamps into them). */
+const TREE_WIDTH_DEFAULT = 240
+const TREE_WIDTH_MIN = 160
+const TREE_WIDTH_MAX = 480
+
+/** The tab's persisted meta object (a malformed meta reads as empty). */
+function metaOf(tab: SidebarTab): Record<string, unknown> {
+  return tab.meta !== null && typeof tab.meta === 'object' && !Array.isArray(tab.meta)
+    ? tab.meta as Record<string, unknown>
+    : {}
+}
+
 /** Read the persisted tree-panel flag of one editor tab: an explicit
  *  boolean meta wins; otherwise path-less tabs (the seeded home) default
- *  open and file tabs default closed. A malformed meta is ignored. */
+ *  open and file tabs default closed. */
 function treeOpenOf(tab: SidebarTab): boolean {
-  const meta = tab.meta !== null && typeof tab.meta === 'object' && !Array.isArray(tab.meta)
-    ? tab.meta as Record<string, unknown>
-    : undefined
-  return typeof meta?.treeOpen === 'boolean' ? meta.treeOpen : (tab.path === undefined || tab.path === '')
+  const treeOpen = metaOf(tab).treeOpen
+  return typeof treeOpen === 'boolean' ? treeOpen : (tab.path === undefined || tab.path === '')
+}
+
+/** Read the persisted tree-panel width (clamped; default 240). */
+function treeWidthOf(tab: SidebarTab): number {
+  const width = metaOf(tab).treeWidth
+  return typeof width === 'number' && Number.isFinite(width)
+    ? Math.min(TREE_WIDTH_MAX, Math.max(TREE_WIDTH_MIN, Math.round(width)))
+    : TREE_WIDTH_DEFAULT
+}
+
+/** Merge a patch into the tab's persisted meta (rides the layout). */
+function patchMeta(ctx: Context, tab: SidebarTab, patch: Record<string, unknown>): void {
+  ctx.betterSidebar?.updateTab(tab.id, { meta: { ...metaOf(tab), ...patch } })
 }
 
 export function EditorHost(props: {
@@ -78,7 +101,46 @@ export function EditorHost(props: {
   // modes — the user may have disabled merged mode after the seed landed.
   const showEmpty = path === ''
 
+  // The viewer's toolbar, hoisted into THIS header in merged mode: the text
+  // editor reports its state and registers its commands (both null/absent
+  // for viewers without a toolbar — image, pdf, binary download).
+  const [toolbar, setToolbar] = useState<EditorToolbarState | null>(null)
+  const controlsRef = useRef<EditorToolbarControls | null>(null)
+  const onToolbarState = useCallback((next: EditorToolbarState) => {
+    setToolbar(prev => prev !== null && JSON.stringify(prev) === JSON.stringify(next) ? prev : next)
+  }, [])
+  const onToolbarControls = useCallback((controls: EditorToolbarControls | null) => {
+    controlsRef.current = controls
+  }, [])
+
+  // The docked panel's drag-resize: local width while dragging, persisted
+  // into meta.treeWidth on release.
+  const [dragWidth, setDragWidth] = useState<number | null>(null)
+  const treeWidth = dragWidth ?? treeWidthOf(tab)
+
+  /** Start a panel-width drag from the resize handle (panel docks right, so
+   *  dragging LEFT widens it). */
+  const startResize = (event: React.PointerEvent): void => {
+    event.preventDefault()
+    const startX = event.clientX
+    const startWidth = treeWidth
+    const clamp = (value: number): number => Math.min(TREE_WIDTH_MAX, Math.max(TREE_WIDTH_MIN, Math.round(value)))
+    const onMove = (move: PointerEvent): void => { setDragWidth(clamp(startWidth + (startX - move.clientX))) }
+    const onUp = (up: PointerEvent): void => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      setDragWidth(null)
+      const finalWidth = clamp(startWidth + (startX - up.clientX))
+      if (finalWidth !== treeWidthOf(tab)) patchMeta(ctx, tab, { treeWidth: finalWidth })
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
   useEffect(() => {
+    // A (re)load or a path-less tab clears any hoisted toolbar state — the
+    // fresh viewer re-registers its own.
+    setToolbar(null)
     // The seeded home tab (no path) never loads a viewer — the empty-state
     // hint renders until the user picks a file (which opens a NEW editor
     // tab through the per-path dedupe).
@@ -161,17 +223,49 @@ export function EditorHost(props: {
 
   const treeOpen = treeOpenOf(tab)
   /** Persist the panel flag on the tab (survives reloads with the layout). */
-  const toggleTree = (): void => {
-    const meta = tab.meta !== null && typeof tab.meta === 'object' && !Array.isArray(tab.meta)
-      ? tab.meta as Record<string, unknown>
-      : {}
-    ctx.betterSidebar?.updateTab(tab.id, { meta: { ...meta, treeOpen: !treeOpen } })
-  }
+  const toggleTree = (): void => { patchMeta(ctx, tab, { treeOpen: !treeOpen }) }
+  const saveLabel = toolbar === null ? ''
+    : toolbar.saveState === 'saving' ? t('loading')
+      : toolbar.saveState === 'saved' ? t('saved')
+        : toolbar.saveState === 'failed' ? t('saveFailed') : ''
 
   return (
     <div className={css.editor}>
       <div className={css.editorHeader}>
         <EditorPathInput path={path} cwd={scope.cwd} onOpenFile={onOpenFile} />
+        {toolbar?.modes === true && (
+          <div className={css.editorModeToggle}>
+            <button
+              type="button"
+              className={clsx(css.editorModeButton, toolbar.mode === 'preview' && css.editorModeActive)}
+              onClick={() => { controlsRef.current?.setMode('preview') }}
+            >
+              {t('preview')}
+            </button>
+            <button
+              type="button"
+              className={clsx(css.editorModeButton, toolbar.mode === 'edit' && css.editorModeActive)}
+              onClick={() => { controlsRef.current?.setMode('edit') }}
+            >
+              {t('edit')}
+            </button>
+          </div>
+        )}
+        {toolbar?.dirty === true && <span className={css.dirtyDot} title={t('unsaved')} />}
+        {toolbar?.editable === true && (
+          <button
+            type="button"
+            className={css.iconButton}
+            aria-label={t('save')}
+            title={`${t('save')} (Ctrl/Cmd+S)`}
+            onClick={() => { controlsRef.current?.save() }}
+          >
+            <IconCheckOutline16 size={14} />
+          </button>
+        )}
+        {saveLabel !== '' && (
+          <span className={clsx(css.editorStatus, toolbar?.saveState === 'failed' && css.editorStatusError)}>{saveLabel}</span>
+        )}
         <button
           type="button"
           className={clsx(css.iconButton, treeOpen && css.editorTreeToggleActive)}
@@ -196,17 +290,30 @@ export function EditorHost(props: {
             truncated: load.truncated,
             mediaUrl: load.mediaUrl,
             customData: load.customData,
+            // Merged mode hoists the viewer's toolbar into the header above.
+            toolbar: 'host',
+            onToolbarState,
+            onToolbarControls,
           })}
         </div>
         {treeOpen && (
-          <EditorTreePanel
-            sessionId={scope.sessionId}
-            cwd={scope.cwd}
-            expanded={expanded}
-            onToggle={onToggleDir}
-            onOpenFile={onOpenFile}
-            onReferenceFile={onReferenceFile}
-          />
+          <div className={css.editorTreeDock} style={{ width: treeWidth }}>
+            <div
+              className={css.editorTreeResize}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t('editorTreeToggle')}
+              onPointerDown={startResize}
+            />
+            <TreePanel
+              sessionId={scope.sessionId}
+              cwd={scope.cwd}
+              expanded={expanded}
+              onToggle={onToggleDir}
+              onOpenFile={onOpenFile}
+              onReferenceFile={onReferenceFile}
+            />
+          </div>
         )}
       </div>
     </div>
@@ -260,93 +367,3 @@ function EditorPathInput(props: { path: string; cwd: string | undefined; onOpenF
   )
 }
 
-/**
- * The merged-mode docked tree panel: a global file-name search box on top
- * (300ms debounce; an in-flight search is aborted by the next keystroke)
- * over either the shared controlled FileTree (empty query) or the flat
- * result list (relative paths, click opens through the per-path dedupe).
- */
-function EditorTreePanel(props: {
-  sessionId: string
-  cwd: string | undefined
-  expanded: string[]
-  onToggle: (path: string) => void
-  onOpenFile: (path: string) => void
-  onReferenceFile: (path: string) => void
-}) {
-  const { sessionId, cwd, expanded, onToggle, onOpenFile, onReferenceFile } = props
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<{ matches: string[]; truncated: boolean } | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const needle = query.trim()
-  useEffect(() => {
-    if (needle === '') {
-      setResults(null)
-      setError(null)
-      return
-    }
-    const controller = new AbortController()
-    const timer = window.setTimeout(() => {
-      api.fsSearch({ sessionId, cwd }, needle, controller.signal).then((found) => {
-        setResults(found)
-        setError(null)
-      }).catch((failure: unknown) => {
-        if (controller.signal.aborted) return
-        setResults(null)
-        setError(failure instanceof Error ? failure.message : String(failure))
-      })
-    }, 300)
-    return () => {
-      window.clearTimeout(timer)
-      controller.abort()
-    }
-  }, [sessionId, cwd, needle])
-
-  return (
-    <div className={css.editorTreePanel}>
-      <div className={css.editorTreeSearch}>
-        <input
-          className={css.editorSearchInput}
-          value={query}
-          placeholder={t('editorSearchPlaceholder')}
-          spellCheck={false}
-          onChange={(event) => { setQuery(event.target.value) }}
-        />
-      </div>
-      {needle === '' ? (
-        <FileTree
-          sessionId={sessionId}
-          cwd={cwd}
-          expanded={expanded}
-          onToggle={onToggle}
-          onOpenFile={onOpenFile}
-          onReferenceFile={onReferenceFile}
-          refreshTick={0}
-        />
-      ) : (
-        <div className={css.explorerBody}>
-          {error !== null && <div className={clsx(css.editorSearchHint, css.editorError)}>{error}</div>}
-          {error === null && results === null && <div className={css.editorSearchHint}>{t('loading')}</div>}
-          {error === null && results !== null && results.matches.length === 0 && (
-            <div className={css.editorSearchHint}>{t('editorSearchNoResults')}</div>
-          )}
-          {error === null && results !== null && results.matches.map(rel => (
-            <button
-              key={rel}
-              type="button"
-              className={css.editorSearchResult}
-              title={rel}
-              onClick={() => { onOpenFile(resolveSidebarPath(cwd, rel)) }}
-            >
-              {rel}
-            </button>
-          ))}
-          {error === null && results?.truncated === true && (
-            <div className={css.editorSearchHint}>{t('editorSearchTruncated')}</div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
