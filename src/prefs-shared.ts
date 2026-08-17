@@ -165,7 +165,7 @@ export interface SidebarPrefs {
 /** Range contract of {@link SidebarPrefs.defaultWidthPercent}. */
 export const WIDTH_PERCENT_MIN = 20
 export const WIDTH_PERCENT_MAX = 60
-export const WIDTH_PERCENT_DEFAULT = 30
+export const WIDTH_PERCENT_DEFAULT = 35
 
 /** Range contract of {@link SidebarPrefs.terminalFontSize}. */
 export const TERMINAL_FONT_SIZE_MIN = 9
@@ -179,7 +179,7 @@ export const TITLE_BAR_STRIP_DEFAULT = 40
 
 /** Fallback prefs used whenever the settings document is unreachable or malformed. */
 export const SIDEBAR_PREFS_DEFAULTS: SidebarPrefs = {
-  openByDefault: true,
+  openByDefault: false,
   defaultWidthPercent: WIDTH_PERCENT_DEFAULT,
   autoOpenSubagent: true,
   autoOpenJobs: true,

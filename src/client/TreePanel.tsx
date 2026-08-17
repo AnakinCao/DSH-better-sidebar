@@ -1,13 +1,11 @@
 /**
- * The merged-mode file tree surface: a global file-name search box on top
+ * The files window's tree surface: a global file-name search box on top
  * (300ms debounce; an in-flight search is aborted by the next keystroke)
  * over either the shared controlled FileTree (empty query) or the flat
- * result list (relative paths, click opens through the per-path dedupe).
- *
- * One implementation, two presentations: docked as the editor tab's right
- * panel (EditorHost wraps it with a drag-resize handle) and — with `full` —
- * as the explorer tab's standalone window. Owns its refresh tick: the icon
- * next to the search input clears the tree cache.
+ * result list (relative paths; click opens through the caller's mode-aware
+ * open). Owns its refresh tick: the icon next to the search input clears
+ * the tree cache. EditorHost docks it as the tab's right panel (wrapped in
+ * a drag-resize handle) and provides the file context-menu open escapes.
  */
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
@@ -24,12 +22,16 @@ export function TreePanel(props: {
   expanded: string[]
   onToggle: (path: string) => void
   onOpenFile: (path: string) => void
+  /** File context-menu "open in a new tab" (passed through to FileTree). */
+  onOpenFileNewTab?: (path: string) => void
+  /** File context-menu "open to the side" (passed through to FileTree). */
+  onOpenFileSide?: (path: string) => void
   onReferenceFile: (path: string) => void
-  /** Full-window presentation (the explorer tab): the panel fills its host
-   *  instead of docking at a fixed width. */
+  /** Full-window presentation: the panel fills its host instead of docking
+   *  at a fixed width. */
   full?: boolean
 }) {
-  const { sessionId, cwd, expanded, onToggle, onOpenFile, onReferenceFile, full } = props
+  const { sessionId, cwd, expanded, onToggle, onOpenFile, onOpenFileNewTab, onOpenFileSide, onReferenceFile, full } = props
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<{ matches: string[]; truncated: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -86,6 +88,8 @@ export function TreePanel(props: {
           expanded={expanded}
           onToggle={onToggle}
           onOpenFile={onOpenFile}
+          onOpenFileNewTab={onOpenFileNewTab}
+          onOpenFileSide={onOpenFileSide}
           onReferenceFile={onReferenceFile}
           refreshTick={refreshTick}
         />

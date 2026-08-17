@@ -49,8 +49,8 @@ describe('dsh-better-sidebar plugin export shape', () => {
     const resolved = (PrefsSchema as unknown as {
       (input: Record<string, unknown> | undefined): Record<string, unknown>
     })(undefined)
-    expect(resolved.openByDefault).toBe(true)
-    expect(resolved.defaultWidthPercent).toBe(30)
+    expect(resolved.openByDefault).toBe(false)
+    expect(resolved.defaultWidthPercent).toBe(35)
     expect(resolved.autoOpenSubagent).toBe(true)
     // A new background job auto-opens the Jobs page too.
     expect(resolved.autoOpenJobs).toBe(true)

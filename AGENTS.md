@@ -19,7 +19,7 @@ better-sidebar 从 v0.4.0 起暴露 `ctx.betterSidebar` 服务（Cordis context 
 
 1. `pnpm build && pnpm pack` 产出 tarball（与发布产物一致）。
 2. `scripts/e2e-mount.sh` 用官方 CLI 把它装进一个**全新 scratch profile**（`dsh plugin --profile web add file:<tarball>`，触发 `dsh.profile.bundles` 协调），然后启动真实 `dsh web`（keyless，`--port 0`）。
-3. `tests/e2e/mount.e2e.ts`（Playwright Chromium）加载页面，断言外壳与 `[data-dsh-better-sidebar]` 挂载、无 `dsh-better-sidebar:` 错误条、无 pageerror/插件 console 错误，并通过「+ 菜单」逐个打开内置 tab（含终端懒加载 chunk）深扫，再经 Explorer 打开 seed 文件强制加载 editor 懒加载 chunk（`client-editor.js`）——缺失的内置 tab 或 chunk 都会使门禁变红。
+3. `tests/e2e/mount.e2e.ts`（Playwright Chromium）加载页面，断言外壳与 `[data-dsh-better-sidebar]` 挂载、无 `dsh-better-sidebar:` 错误条、无 pageerror/插件 console 错误，显式展开面板（`openByDefault` 默认关）后通过「+ 菜单」逐个打开内置 tab（含终端懒加载 chunk）深扫，再经 Files 文件窗口的内嵌树打开 seed 文件强制加载 editor 懒加载 chunk（`client-editor.js`，原地模式：seed 的 home tab 原地切换到文件）——缺失的内置 tab 或 chunk 都会使门禁变红。
 
 本地跑：`pnpm build && pnpm pack && pnpm exec playwright install chromium && pnpm test:mount`（需 PATH 上有 `dsh` 或可经 npx 拉取）。DSH CLI 版本在 CI 钉住 `@deepseek-ai/dsh@0.1.0-rc.6`（与插件 peer 范围同步）。`tests/e2e` 的 spec 命名 `*.e2e.ts` + vitest `exclude` 双保险与 vitest 隔离；**改动 vitest `exclude` 时必须保留默认排除项**（`exclude` 会整体替换默认值）。
 
@@ -131,7 +131,7 @@ interface TabDescriptor {
   title: string | (() => string)
   /** 图标：ReactNode 或 (size: number) => ReactNode */
   icon?: ReactNode | ((size: number) => ReactNode)
-  /** + 菜单排序（升序）；默认 100。内置：explorer=10, git=20, subagent=30, terminal=40 */
+  /** + 菜单排序（升序）；默认 100。内置：editor=10, git=20, subagent=30, terminal=40, browser=50 */
   order?: number
   /** 从 + 菜单隐藏（editor/diff 用：由其他流程触发打开，不在菜单里） */
   hidden?: boolean
@@ -145,7 +145,7 @@ interface TabDescriptor {
   /**
    * 去重键：openTab 时若已存在 dedupeKey 相同的 tab，则聚焦而非新开。
    * 返回 undefined 表示不去重（每次都新开，但同 id 会被 id 安全网聚焦）。
-   * 内置策略：explorer/git/subagent 用 single: true；editor 用 tab => tab.path；diff 用 tab => tab.id。
+   * 内置策略：git/subagent 用 single: true；editor 用 tab => tab.path；diff 用 tab => tab.id。
    */
   dedupeKey?: (tab: SidebarTab) => string | undefined  // 必须保持纯函数：每次 open 会求值两次，抛错会向外传播
   /**
@@ -271,7 +271,7 @@ interface TabComponentProps {
   tab: SidebarTab              // 当前 tab 实例（含 id/type/title/path?/diff?）
   visible: boolean             // 是否是当前激活 tab 且面板打开（不可见时暂停轮询等）
   // 以下由内置 tab 使用，外部 tab 可忽略：
-  expanded?: string[]          // explorer 的展开目录集
+  expanded?: string[]          // 文件树的展开目录集
   onToggleDir?: (path: string) => void
   onReferenceFile?: (path: string) => void
   onOpenFile?: (path: string) => void
@@ -350,8 +350,7 @@ ctx.effect(() => {
 
 | id | order | single | hidden | 用途 |
 |---|---|---|---|---|
-| `editor` | -1 | 否（按 path 去重） | 是 | 文件编辑/预览（由 openSidebarFile 触发）。`editorExplorer` 开（默认）时为合并模式：头部是路径输入框 + 文本编辑器的预览/编辑/保存控件 + 可开关的内嵌文件树面板（含全局文件名搜索，走 host `fs.search` 路由；左缘拖拽调宽），状态存 `tab.meta.treeOpen` / `tab.meta.treeWidth`；此时新会话默认 seed 空编辑器 tab（`title: 'Files'`，无 path，树面板展开）而非 explorer tab |
-| `explorer` | 10 | 是 | 否 | 文件资源管理器。与编辑器共享同一树实现（`TreePanel.tsx`）：`editorExplorer` 开时整窗渲染树（搜索框 + FileTree，全宽），关时为旧头部壳（root 名 + 刷新）+ FileTree |
+| `editor` | 10 | 否（按 path 去重） | 否 | 唯一的「文件窗口」（文件编辑/预览 + 文件资源管理）：chrome 在两种 `editorExplorer` 模式下恒为合并形态——头部路径输入框 + 文本编辑器预览/编辑/保存控件 + 可开关的内嵌文件树面板（含全局文件名搜索，走 host `fs.search` 路由；左缘拖拽调宽），状态存 `tab.meta.treeOpen` / `tab.meta.treeWidth`；pref 只控制**打开行为**：开（默认）= 树点击/输入框 Enter 原地切换当前 tab（`updateTab` 重写 path/title，id 与 meta 不变），关 = 走 `openSidebarFile` 按 path 新开；树右键菜单提供「在新 Tab 中打开」「在侧边打开」（后者在当前 pane 右侧 split 出新 editor tab）。新会话在两种模式下都默认 seed 空文件窗口（`title: 'Files'`，无 path，树面板展开）；持久化的旧 `explorer` tab 经 `sanitizeState` 迁移为该 home tab |
 | `git` | 20 | 是 | 否 | Git 面板 |
 | `subagent` | 30 | 是 | 否 | 子代理拓扑 |
 | `terminal` | 40 | 否 | 否 | 终端（nextTerminal 自增） |
@@ -548,7 +547,10 @@ interface BetterSidebarService {
    *  未知 id 严格 no-op）；scope（v0.12.0+）随回调传递，同 closeTab */
   activateTab(tabId: string, scope?: SessionScope): void
   /** 在 scope.sessionId 的侧边栏编辑器打开一个文件（title 缺省为文件名；
-   *  id 按路径派生，与内置 open-path 拦截一致，不同文件可并排打开） */
+   *  id 按路径派生（`editor:` + path），与内置 open-path 拦截一致，不同文件
+   *  可并排打开。注意：path 派生 id 只对 openFile/openSidebarFile 的打开成立——
+   *  文件窗口的原地切换（editorExplorer 开）经 updateTab 重写 path/title，
+   *  tab id 保持稳定、不再与 path 对应） */
   openFile(scope: SessionScope, path: string, title?: string): void
 }
 
@@ -693,13 +695,13 @@ function parseCsv(text: string): string[][] { /* ... */ }
 
 better-sidebar 自己的内置 tab 和 viewer 就是参考实现（"吃狗粮"）：
 
-- **`src/client/builtins/`**：7 个内置 tab（explorer/git/subagent/terminal/browser/editor/diff）+ 6 个内置 viewer（image/pdf/markdown/html/code/binary-download）的注册代码（tabs.tsx / viewers.tsx / index.ts；Office 预览已迁至推荐插件，见 plugins-viewers.ts）
+- **`src/client/builtins/`**：6 个内置 tab（editor/git/subagent/terminal/browser/diff）+ 6 个内置 viewer（image/pdf/markdown/html/code/binary-download）的注册代码（tabs.tsx / viewers.tsx / index.ts；Office 预览已迁至推荐插件，见 plugins-viewers.ts）
 - **`src/client/service.ts`**：`BetterSidebarService` 接口 + `createBetterSidebarService` 工厂实现
 - **`src/client/SideCardSection.tsx`**：声明式设置页（注册表驱动清单 + `settings.toggles` 嵌套设置行：switch/text/number + 持久化）
 - **`tests/service.spec.ts`**：注册表生命周期 / 匹配算法 / dedupe / createTab / 启用态 gating 测试
 - **`tests/builtins.spec.ts`**：内置注册清单断言（7 tab + 6 viewer + 声明式元数据）
 - **`src/client/plugins-tabs.ts`** / **`src/client/plugins-viewers.ts`**：推荐插件目录（名字/url/简介/安装脚本，分别对应 Tab 注册与文件预览注册），在设置页两个「添加插件」弹窗展示（共享类型在 `plugins-shared.ts`）；插件作者可按扩展点加一条数据（弹窗内「跳转」直达仓库、「复制」把安装命令写入剪贴板，粘贴到 DSH 所在环境的终端执行）——数据完整性由 `tests/plugin-list.spec.ts` 守护
-- **`src/client/FileTree.tsx`** / **`src/client/TreePanel.tsx`** / **`src/fs-search.ts`**：受控文件树组件（纯树体）/ 合并模式树面板（搜索框 + 刷新 + FileTree，编辑器内嵌面板与 explorer 整窗两处复用；`ExplorerView.tsx` 在 pref 关闭时只剩头部壳）与 host 侧递归文件名搜索（`fs.search` 路由，预算兜底 + 跳过 `.git`/symlink 目录；测试 `tests/fs-search.spec.ts`、组件测试 `tests/editor-host.spec.tsx` / `tests/explorer-view.spec.tsx`）
+- **`src/client/FileTree.tsx`** / **`src/client/TreePanel.tsx`** / **`src/fs-search.ts`**：受控文件树组件（纯树体，文件行右键菜单含「在新 Tab 中打开」「在侧边打开」，仅宿主编排提供回调时渲染）/ 树面板（搜索框 + 刷新 + FileTree，文件窗口的内嵌 dock 使用）与 host 侧递归文件名搜索（`fs.search` 路由，预算兜底 + 跳过 `.git`/symlink 目录；测试 `tests/fs-search.spec.ts`、组件测试 `tests/editor-host.spec.tsx`）
 - **`docs/plans/2026-08-11-service-registry-design.md`** / **`docs/plans/2026-08-11-declarative-sidebar-settings-design.md`** / **`docs/plans/2026-08-14-add-plugins-modal-design.md`**：设计文档（含实施偏差记录）
 
 调试时直接读这些文件即可看到所有 API 的真实用法。

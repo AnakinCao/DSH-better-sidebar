@@ -1,9 +1,11 @@
 /**
- * Merged-mode EditorHost (the editorExplorer pref): the seeded path-less
- * "Files" home tab renders the empty-state hint (never the viewer loading
- * flow) with the tree panel open, and the header's tree toggle persists its
- * flag through ctx.betterSidebar.updateTab (meta.treeOpen rides the tab's
- * persisted layout).
+ * EditorHost (the files window): the seeded path-less "Files" home tab
+ * renders the empty-state hint (never the viewer loading flow) with the tree
+ * panel open, and the header's tree toggle persists its flag through
+ * ctx.betterSidebar.updateTab (meta.treeOpen rides the tab's persisted
+ * layout). The chrome is identical in both editorExplorer modes — the pref
+ * only controls FILE-OPEN behavior: in-place (merged) rewrites the current
+ * tab via updateTab, split opens a per-path dedupe tab via openSidebarFile.
  */
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
@@ -18,7 +20,7 @@ import { allLeaves, createSidebarStore, type SidebarTab } from '../src/client/st
 // The act() environment flag (React 18.2 reads it before flushing effects).
 ;(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true
 
-/** A store with the seeded editor-home tab (default prefs: merged mode on). */
+/** A store with the seeded editor-home tab (default prefs: in-place mode). */
 function setup(): {
   store: ReturnType<typeof createSidebarStore>
   ctx: Context
@@ -26,11 +28,19 @@ function setup(): {
 } {
   const store = createSidebarStore()
   const service = createBetterSidebarService(store)
+  // The openTab path needs a registered editor descriptor (dedupe by path).
+  service.registerTab({ id: 'editor', title: 'Editor', dedupeKey: (tab) => tab.path, component: () => null })
   store.setSession('editor-home-session')
   const homeTab = (): SidebarTab =>
     allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
-      .find(tab => tab.type === 'editor')!
-  return { store, ctx: { betterSidebar: service } as unknown as Context, homeTab }
+      .find(tab => tab.type === 'editor' && tab.path === undefined)!
+  // openSidebarFile reads the session cwd from ctx.sessions.
+  const sessionsSnapshot = { byId: { 'editor-home-session': { cwd: '/tmp' } }, current: 'editor-home-session' }
+  const ctx = {
+    betterSidebar: service,
+    sessions: { list: { subscribe: () => () => {}, getSnapshot: () => sessionsSnapshot } },
+  } as unknown as Context
+  return { store, ctx, homeTab }
 }
 
 /** Mount the host for one tab; returns the container and an unmount helper. */
@@ -50,7 +60,6 @@ function mountHost(ctx: Context, store: ReturnType<typeof createSidebarStore>, t
       tab: tab(),
       expanded: [],
       onToggleDir: () => {},
-      onOpenFile: () => {},
       onReferenceFile: () => {},
     }))
   }
@@ -67,7 +76,18 @@ function mountHost(ctx: Context, store: ReturnType<typeof createSidebarStore>, t
   }
 }
 
-describe('EditorHost merged mode (editorExplorer on)', () => {
+/** Type into the controlled path input (native setter) and press Enter. */
+function typeAndCommit(input: HTMLInputElement, value: string): void {
+  act(() => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  act(() => {
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  })
+}
+
+describe('EditorHost (files window)', () => {
   it('a path-less tab renders the empty-state hint with the tree panel open', () => {
     const { store, ctx, homeTab } = setup()
     const { container, unmount } = mountHost(ctx, store, homeTab)
@@ -113,15 +133,53 @@ describe('EditorHost merged mode (editorExplorer on)', () => {
     }
   })
 
-  it('merged mode off restores the plain header (no path input, no tree)', () => {
+  it('in-place mode: the path input Enter switches the CURRENT tab (stable id, meta kept)', () => {
+    const { store, ctx, homeTab } = setup()
+    const { container, unmount } = mountHost(ctx, store, homeTab)
+    try {
+      const before = homeTab()
+      typeAndCommit(container.querySelector('input')!, '/tmp/a.ts')
+      // The same tab id now carries the file (homeTab's path-less finder no
+      // longer matches — look the tab up by id).
+      const after = allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
+        .find(tab => tab.id === before.id)!
+      expect(after.id).toBe(before.id)
+      expect(after.path).toBe('/tmp/a.ts')
+      expect(after.title).toBe('a.ts')
+      expect(after.meta).toEqual({ treeOpen: true })
+      // No new tab landed.
+      expect(allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)).toHaveLength(1)
+    } finally {
+      unmount()
+    }
+  })
+
+  it('split mode: the path input Enter opens a NEW per-path tab; the home tab keeps no path', () => {
     const { store, ctx, homeTab } = setup()
     store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
     const { container, unmount } = mountHost(ctx, store, homeTab)
     try {
-      // The plain editor shows the title span; no path input, no toggle.
-      expect(container.querySelector('input')).toBeNull()
-      expect(container.querySelector('button[aria-pressed]')).toBeNull()
-      expect(container.innerHTML).toContain('Files')
+      typeAndCommit(container.querySelector('input')!, '/tmp/b.ts')
+      const tabs = allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
+      expect(tabs).toHaveLength(2)
+      expect(homeTab().path).toBeUndefined()
+      const opened = tabs.find(tab => tab.path === '/tmp/b.ts')!
+      expect(opened.type).toBe('editor')
+      expect(opened.title).toBe('b.ts')
+      expect(opened.id).toBe('editor:/tmp/b.ts')
+    } finally {
+      unmount()
+    }
+  })
+
+  it('split mode keeps the same chrome (path input + tree toggle + dock)', () => {
+    const { store, ctx, homeTab } = setup()
+    store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
+    const { container, unmount } = mountHost(ctx, store, homeTab)
+    try {
+      expect(container.querySelector('input')).not.toBeNull()
+      expect(container.querySelector('button[aria-pressed]')).not.toBeNull()
+      expect(container.querySelector('[role="separator"]')).not.toBeNull()
     } finally {
       unmount()
     }
@@ -134,28 +192,28 @@ describe('EditorHost merged mode (editorExplorer on)', () => {
       const handle = container.querySelector('[role="separator"]')!
       expect(handle).not.toBeNull()
       // The dock starts at the default width.
-      const dock = container.querySelector('[role="separator"]')!.parentElement!
+      const dock = handle.parentElement!
       expect(dock.style.width).toBe('240px')
       // Drag the left edge LEFT by 100px → the right-docked panel widens.
+      // Pointer capture keeps move/up on the handle (jsdom: MouseEvent with
+      // pointer* type names; setPointerCapture is absent and skipped).
       act(() => {
         handle.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 300 }))
-        window.dispatchEvent(new MouseEvent('pointermove', { clientX: 200 }))
+        handle.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 200 }))
       })
       expect(dock.style.width).toBe('340px')
       // Release: the drag state clears and the width persists on the tab.
-      act(() => { window.dispatchEvent(new MouseEvent('pointerup', { clientX: 200 })) })
+      act(() => { handle.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 200 })) })
       expect(homeTab().meta).toEqual({ treeOpen: true, treeWidth: 340 })
     } finally {
       unmount()
     }
   })
 
-  it('the header hosts the viewer toolbar (mode toggle / dirty dot / save) in merged mode', () => {
+  it('the header hosts the viewer toolbar (mode toggle / dirty dot / save)', () => {
     const { store, ctx } = setup()
     const service = ctx.betterSidebar
     const calls: string[] = []
-    // The openTab path needs a registered editor descriptor (dedupe by path).
-    service.registerTab({ id: 'editor', title: 'Editor', dedupeKey: (tab) => tab.path, component: () => null })
     // A viewer with a hoisted toolbar (the TextEditor contract): register
     // commands and report the state once on mount.
     service.registerFileViewer({

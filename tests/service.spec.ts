@@ -21,7 +21,7 @@ if (g.localStorage === undefined) {
 }
 
 import { createBetterSidebarService, matchUrlTarget, SIDEBAR_FEATURES, SIDEBAR_SERVICE_VERSION } from '../src/client/service.ts'
-import { createSidebarStore, allLeaves, makeDefaultState, openDiffTab, sanitizeState } from '../src/client/state.ts'
+import { createSidebarStore, allLeaves, makeDefaultState, openDiffTab, openTabInActivePane, sanitizeState } from '../src/client/state.ts'
 
 describe('BetterSidebar service', () => {
   it('registerTab adds to the registry and dispose removes it', () => {
@@ -108,8 +108,9 @@ describe('enable switches (declarative settings)', () => {
     store.setPrefs({ ...store.getPrefs(), tabsEnabled: { explorer: false } })
     store.setSession('s1')
     service.openTab({ type: 'explorer', title: 'Explorer' })
+    // The seeded files-window home tab stays; no EXPLORER tab landed.
     const tabs = allLeaves(store.getSnapshot().state!.splits).flatMap(l => l.tabs)
-    expect(tabs).toHaveLength(0)
+    expect(tabs.filter(t => t.type === 'explorer')).toHaveLength(0)
   })
 
   it('matchFileViewer skips a disabled viewer (files fall through)', () => {
@@ -347,15 +348,13 @@ describe('service.openTab dedupe', () => {
 
   it('a caller-provided title wins over the descriptor title (editor shows the file name)', () => {
     const store = createSidebarStore()
-    // Keep the legacy explorer seed: the merged-mode editor-home seed would
-    // itself be an editor tab and pollute the find-by-type assertions.
-    store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
     const service = createBetterSidebarService(store)
     service.registerTab({ id: 'editor', title: () => 'Editor', component: () => null })
     store.setSession('s1')
     service.openTab({ type: 'editor', title: 'main.ts', path: '/p/main.ts' })
     const state = store.getSnapshot().state!
-    const tab = allLeaves(state.splits).flatMap(l => l.tabs).find(t => t.type === 'editor')
+    // Find by path: the seeded files-window home tab is an editor tab too.
+    const tab = allLeaves(state.splits).flatMap(l => l.tabs).find(t => t.type === 'editor' && t.path === '/p/main.ts')
     expect(tab?.title).toBe('main.ts')
   })
 
@@ -638,8 +637,6 @@ describe('service.openTab auto-expand for content opens', () => {
 
   it('expands on a wide viewport even when the open focuses an existing tab (id dedupe)', () => {
     const store = createSidebarStore()
-    // Keep the legacy explorer seed (see the title test above).
-    store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
     const service = createBetterSidebarService(store)
     service.registerTab({ id: 'editor', title: 'Editor', component: () => null })
     store.setSession('s1')
@@ -648,7 +645,7 @@ describe('service.openTab auto-expand for content opens', () => {
     service.openTab({ type: 'editor', title: 'main.ts', path: '/p/main.ts' })
     const state = store.getSnapshot().state!
     expect(state.panelOpen).toBe(true)
-    expect(allLeaves(state.splits).flatMap(l => l.tabs).filter(t => t.type === 'editor')).toHaveLength(1)
+    expect(allLeaves(state.splits).flatMap(l => l.tabs).filter(t => t.type === 'editor' && t.path === '/p/main.ts')).toHaveLength(1)
   })
 })
 
@@ -676,7 +673,7 @@ describe('state subscription (v0.12.0)', () => {
     const snapshot = service.getSnapshot()
     expect(snapshot.sessionId).toBe('s1')
     expect(snapshot.state).toBeDefined()
-    expect(snapshot.prefs.openByDefault).toBe(true)
+    expect(snapshot.prefs.openByDefault).toBe(false)
   })
 
   it('subscribeState fires on state changes but NOT on registry changes', () => {
@@ -744,7 +741,7 @@ describe('targeted openTab (v0.12.0)', () => {
     service.registerTab({ id: 'notes', title: 'Notes', component: () => null })
     store.setSession('s1')
     service.openTab({ type: 'notes', title: 'Notes', id: 'notes:1' }, { sessionId: 's2' })
-    // The UI snapshot still shows s1, untouched (its default explorer tab
+    // The UI snapshot still shows s1, untouched (its default files-window tab
     // is the only one — no notes tab landed there).
     const snapshot = store.getSnapshot()
     expect(snapshot.sessionId).toBe('s1')
@@ -783,14 +780,13 @@ describe('targeted openTab (v0.12.0)', () => {
 describe('openFile (v0.12.0)', () => {
   it('opens the file in the editor tab of the scope session with a basename title', () => {
     const store = createSidebarStore()
-    // Keep the legacy explorer seed (see the title test above).
-    store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
     const service = createBetterSidebarService(store)
     service.registerTab({ id: 'editor', title: () => 'Editor', component: () => null })
     store.setSession('s1')
     service.openFile({ sessionId: 's1', cwd: '/p' }, '/p/src/main.ts')
     const state = store.getSnapshot().state!
-    const tab = allLeaves(state.splits).flatMap(l => l.tabs).find(t => t.type === 'editor')
+    // Find by path: the seeded files-window home tab is an editor tab too.
+    const tab = allLeaves(state.splits).flatMap(l => l.tabs).find(t => t.type === 'editor' && t.path !== undefined)
     expect(tab?.title).toBe('main.ts')
     expect(tab?.path).toBe('/p/src/main.ts')
     // Windows separators are handled too.
@@ -899,8 +895,9 @@ describe('tab meta (v0.12.0)', () => {
   })
 
   it('older persisted tabs (no meta) sanitize unchanged', () => {
-    const state = makeDefaultState(400, true, 'explorer')
-    const sanitized = sanitizeState(JSON.parse(JSON.stringify(state)))
+    const state = makeDefaultState(400, true, 'none')
+    const withTab = openTabInActivePane(state, { id: 'tab:old', type: 'git', title: 'Git' })
+    const sanitized = sanitizeState(JSON.parse(JSON.stringify(withTab)))
     const tabs = allLeaves(sanitized!.splits).flatMap(l => l.tabs)
     expect(tabs[0]?.meta).toBeUndefined()
   })

@@ -1,17 +1,17 @@
 /**
- * The 7 built-in tab descriptors: the plugin registers its own pages
- * (explorer / git / terminal / browser / subagent / editor / diff) through
+ * The 6 built-in tab descriptors: the plugin registers its own pages
+ * (editor / git / terminal / browser / subagent / diff) through
  * the same {@link BetterSidebarService} external plugins use — eating its
  * own dogfood. The terminal descriptor owns its quota (`TERMINAL_LIMIT`)
  * and mints `terminal:<n>` ids through `createTab`; the browser mints
- * `browser:<n>` the same way (no quota).
+ * `browser:<n>` the same way (no quota). The editor IS the files window
+ * (the old standalone explorer merged into it).
  */
 import { IconBranchOutline16, IconCodeOutline16, IconFolderOpen16, IconPanelLeftOutline16, IconThinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../../context-types.ts'
 import { allLeaves, isAgentTabId, type SidebarState } from '../state.ts'
 import { t } from '../locales.ts'
 import { openSidebarFile } from '../intercept.tsx'
-import { ExplorerView } from '../ExplorerView.tsx'
 import { EditorHost } from '../EditorHost.tsx'
 import { lazyChunkComponent } from '../lazy-chunk.tsx'
 import { GitView } from '../GitView.tsx'
@@ -59,19 +59,22 @@ function uiTerminalCount(state: SidebarState): number {
     .filter(tab => tab.type === 'terminal' && !isAgentTabId(tab.id)).length
 }
 
-/** The 7 built-in tab descriptors. */
+/** The 6 built-in tab descriptors. */
 export function builtinTabs(ctx: Context): readonly TabDescriptor[] {
   return [
     {
       id: 'editor',
-      title: () => t('editor'),
-      icon: (size: number) => <IconCodeOutline16 size={size} />,
-      order: -1,
-      hidden: true,
+      // The single files window: an editor tab with no path IS the file
+      // explorer (empty hint + docked tree); with a path it previews/edits
+      // the file. Visible in the + menu in the explorer's old slot.
+      title: () => t('files'),
+      icon: (size: number) => <IconFolderOpen16 size={size} />,
+      order: 10,
+      hidden: false,
       dedupeKey: (tab) => tab.path,
-      // Declarative settings: the merged-mode picker (file preview + docked
-      // file tree vs separate tabs) renders as an iconed select row under
-      // the editor card's gear in the Side card settings page.
+      // Declarative settings: the file-open behavior picker (in-place switch
+      // vs per-path windows) renders as an iconed select row under the
+      // editor card's gear in the Side card settings page.
       settings: {
         toggles: [{
           key: 'editorExplorer',
@@ -102,25 +105,6 @@ export function builtinTabs(ctx: Context): readonly TabDescriptor[] {
           tab={tab}
           expanded={expanded ?? []}
           onToggleDir={onToggleDir ?? (() => { /* no-op */ })}
-          onOpenFile={(path) => { openSidebarFile(ctx, store, scope.sessionId, path) }}
-          onReferenceFile={onReferenceFile ?? (() => { /* no-op */ })}
-        />
-      ),
-    },
-    {
-      id: 'explorer',
-      title: () => t('explorer'),
-      icon: (size: number) => <IconFolderOpen16 size={size} />,
-      order: 10,
-      single: true,
-      component: ({ ctx, store, scope, expanded, onToggleDir, onReferenceFile }) => (
-        <ExplorerView
-          store={store}
-          sessionId={scope.sessionId}
-          cwd={scope.cwd}
-          expanded={expanded ?? []}
-          onToggle={onToggleDir ?? (() => { /* no-op */ })}
-          onOpenFile={(path) => { openSidebarFile(ctx, store, scope.sessionId, path) }}
           onReferenceFile={onReferenceFile ?? (() => { /* no-op */ })}
         />
       ),

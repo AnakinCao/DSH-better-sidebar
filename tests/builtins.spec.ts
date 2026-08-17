@@ -1,5 +1,5 @@
 /**
- * Built-in registration tests: the plugin registers 7 tabs and 6 file
+ * Built-in registration tests: the plugin registers 6 tabs and 6 file
  * viewers through the same service external plugins use (dogfooding);
  * the catch-all `code` viewer, the NUL-sniffing `binary-download` viewer,
  * and the html sandbox settings pin the registry's behavior. (Office
@@ -24,21 +24,24 @@ function setup(): { service: ReturnType<typeof createBetterSidebarService>; stor
 }
 
 describe('built-in tab registrations', () => {
-  it('registers the 7 built-in tabs', () => {
+  it('registers the 6 built-in tabs', () => {
     const { service } = setup()
     expect(service.getTabs().map(t => t.id).sort()).toEqual(
-      ['browser', 'diff', 'editor', 'explorer', 'git', 'subagent', 'terminal'],
+      ['browser', 'diff', 'editor', 'git', 'subagent', 'terminal'],
     )
   })
 
-  it('editor and diff are hidden from the + menu (opened by file-open / git view)', () => {
+  it('only diff is hidden from the + menu; editor is the visible files window (order 10)', () => {
     const { service } = setup()
-    expect(service.getTabs().filter(t => t.hidden).map(t => t.id).sort()).toEqual(['diff', 'editor'])
+    expect(service.getTabs().filter(t => t.hidden).map(t => t.id)).toEqual(['diff'])
+    const editor = service.getTab('editor')
+    expect(editor?.hidden).toBe(false)
+    expect(editor?.order).toBe(10)
   })
 
   it('single-instance tabs use the single sugar', () => {
     const { service } = setup()
-    for (const id of ['explorer', 'git', 'subagent']) {
+    for (const id of ['git', 'subagent']) {
       expect(service.getTab(id)?.single).toBe(true)
     }
   })

@@ -1,21 +1,25 @@
 /**
- * The editor tab host: resolves a file's previewer through the sidebar
- * registry (`matchFileViewer`), fetches bytes per the matched viewer's
- * fetch strategy, and renders its component — or the shared download pane
- * when nothing can render the file.
+ * The editor tab host: the single FILES WINDOW. It resolves a file's
+ * previewer through the sidebar registry (`matchFileViewer`), fetches bytes
+ * per the matched viewer's fetch strategy, and renders its component — or
+ * the shared download pane when nothing can render the file. A tab without
+ * a path (the seeded "Files" home) renders an empty-state hint instead of
+ * the viewer loading flow; that path-less window IS the file explorer.
  *
- * Two modes, gated by the `editorExplorer` pref (read reactively off the
- * store so toggling it re-renders without a reload):
- * - OFF: the plain editor — a single-title header and the viewer body
- *   (exactly the pre-merge layout).
- * - ON (merged mode): the header is a PATH INPUT (Enter opens the typed
- *   path, Esc/blur restores) plus a tree-panel toggle, and a fixed-width
- *   file tree docks at the tab's right edge (search box on top: empty query
- *   shows the shared FileTree, a query shows a flat global name search).
- *   A tab without a path (the seeded "Files" home) renders an empty-state
- *   hint instead of the viewer loading flow. Every open still funnels
- *   through `openSidebarFile` (the descriptor's per-path dedupe) — this
- *   tab's own path never retargets in place.
+ * The chrome is ALWAYS the same (both editorExplorer modes): a header with
+ * a path input (Enter opens the typed path, Esc/blur restores), the
+ * viewer's hoisted toolbar (TextEditor reports its state/controls into
+ * this header), a tree-toggle button, and the docked tree panel (global
+ * name search + FileTree, drag-resizable). The `editorExplorer` pref only
+ * controls FILE-OPEN behavior (read reactively so toggling it re-renders
+ * without a reload):
+ * - merged (in-place): tree click / path-input Enter switch the CURRENT
+ *   tab in place (updateTab rewrites path/title; the tab keeps its id and
+ *   meta, so treeOpen/treeWidth survive the switch);
+ * - split: they open through `openSidebarFile` (a per-path dedupe tab).
+ * The tree's context menu offers the explicit escapes in both modes: open
+ * in a new tab (per-path dedupe) or to the side (a fresh tab in a fresh
+ * rightward split of the current pane).
  *
  * The strategy dispatch is pure (planFirstMatch / planFsReadOutcome in
  * editor-load.ts); this component only wires it to the host APIs.
@@ -28,12 +32,14 @@ import type { Context } from '../context-types.ts'
 import { api, mediaUrl, type SessionScope } from './api.ts'
 import { BinaryDownload } from './binary-download.tsx'
 import { planFirstMatch, planFsReadOutcome, type EditorLoadAction } from './editor-load.ts'
+import { baseName } from './FileTree.tsx'
+import { openSidebarFile } from './intercept.tsx'
 import { TreePanel } from './TreePanel.tsx'
 import { t } from './locales.ts'
 import { relativeTo } from './paths.ts'
 import { resolveSidebarPath } from './produced-files.ts'
 import type { EditorToolbarControls, EditorToolbarState, FileViewerDescriptor } from './service.ts'
-import type { SidebarStore, SidebarTab } from './state.ts'
+import { firstLeaf, insertLeafAt, leafWithTab, mintTabId, treeOf, type SidebarStore, type SidebarTab } from './state.ts'
 import css from './sidebar.module.css'
 
 type EditorLoad =
@@ -75,6 +81,11 @@ function patchMeta(ctx: Context, tab: SidebarTab, patch: Record<string, unknown>
   ctx.betterSidebar?.updateTab(tab.id, { meta: { ...metaOf(tab), ...patch } })
 }
 
+/** Clamp one dock width into the contract range. */
+function clampTreeWidth(value: number): number {
+  return Math.min(TREE_WIDTH_MAX, Math.max(TREE_WIDTH_MIN, Math.round(value)))
+}
+
 export function EditorHost(props: {
   ctx: Context
   store: SidebarStore
@@ -82,18 +93,17 @@ export function EditorHost(props: {
   tab: SidebarTab
   expanded: string[]
   onToggleDir: (path: string) => void
-  onOpenFile: (path: string) => void
   onReferenceFile: (path: string) => void
 }) {
-  const { ctx, store, scope, tab, expanded, onToggleDir, onOpenFile, onReferenceFile } = props
+  const { ctx, store, scope, tab, expanded, onToggleDir, onReferenceFile } = props
   const path = tab.path ?? ''
   const title = tab.title
   const [load, setLoad] = useState<EditorLoad>({ status: 'loading' })
 
-  // Reactive prefs read: flipping editorExplorer in the settings re-renders
-  // this tab (in and out of merged mode) with no reload. The snapshot is the
-  // bare boolean so unrelated store churn never re-renders the editor.
-  const merged = useSyncExternalStore(
+  // Reactive prefs read: flipping editorExplorer re-renders this tab with no
+  // reload. The snapshot is the bare boolean so unrelated store churn never
+  // re-renders the editor.
+  const inPlace = useSyncExternalStore(
     useCallback((callback: () => void) => store.subscribe(callback), [store]),
     useCallback(() => store.getSnapshot().prefs.editorExplorer, [store]),
   )
@@ -101,9 +111,48 @@ export function EditorHost(props: {
   // modes — the user may have disabled merged mode after the seed landed.
   const showEmpty = path === ''
 
-  // The viewer's toolbar, hoisted into THIS header in merged mode: the text
-  // editor reports its state and registers its commands (both null/absent
-  // for viewers without a toolbar — image, pdf, binary download).
+  /**
+   * Open a file from THIS window (tree click / search row / path input):
+   * merged mode switches this tab in place (stable id, meta survives);
+   * split mode opens a per-path dedupe tab through openSidebarFile.
+   */
+  const openFile = (absolute: string): void => {
+    if (inPlace) {
+      ctx.betterSidebar?.updateTab(tab.id, { path: absolute, title: baseName(absolute) })
+    } else {
+      openSidebarFile(ctx, store, scope.sessionId, absolute)
+    }
+  }
+
+  /** The context menu's explicit "new tab" escape (per-path dedupe). */
+  const openFileNewTab = (absolute: string): void => {
+    openSidebarFile(ctx, store, scope.sessionId, absolute)
+  }
+
+  /**
+   * The context menu's "open to the side": a fresh editor tab (uid id — the
+   * `'editor:' + path` convention would clash with the id safety net on a
+   * second side-open of the same file) in a rightward split of THIS pane.
+   */
+  const openFileSide = (absolute: string): void => {
+    store.reduce((state) => {
+      const key = treeOf(state, tab.id)
+      const pane = leafWithTab(state[key], tab.id) ?? firstLeaf(state[key])
+      const fresh: SidebarTab = {
+        id: mintTabId(),
+        type: 'editor',
+        title: baseName(absolute),
+        path: absolute,
+        meta: { treeOpen: false },
+      }
+      const { node, leafId } = insertLeafAt(state[key], pane.id, 'row', fresh, false)
+      return { ...state, [key]: node, activePane: leafId }
+    })
+  }
+
+  // The viewer's toolbar, hoisted into THIS header: the text editor reports
+  // its state and registers its commands (both null/absent for viewers
+  // without a toolbar — image, pdf, binary download).
   const [toolbar, setToolbar] = useState<EditorToolbarState | null>(null)
   const controlsRef = useRef<EditorToolbarControls | null>(null)
   const onToolbarState = useCallback((next: EditorToolbarState) => {
@@ -113,28 +162,32 @@ export function EditorHost(props: {
     controlsRef.current = controls
   }, [])
 
-  // The docked panel's drag-resize: local width while dragging, persisted
-  // into meta.treeWidth on release.
+  // The docked panel's drag-resize: pointer capture on the handle itself
+  // (no window listeners — the captured pointer keeps tracking even off the
+  // handle). Local width while dragging, persisted into meta.treeWidth on
+  // release. The panel docks right, so dragging LEFT widens it.
   const [dragWidth, setDragWidth] = useState<number | null>(null)
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null)
   const treeWidth = dragWidth ?? treeWidthOf(tab)
 
-  /** Start a panel-width drag from the resize handle (panel docks right, so
-   *  dragging LEFT widens it). */
-  const startResize = (event: React.PointerEvent): void => {
+  const onResizeStart = (event: React.PointerEvent): void => {
     event.preventDefault()
-    const startX = event.clientX
-    const startWidth = treeWidth
-    const clamp = (value: number): number => Math.min(TREE_WIDTH_MAX, Math.max(TREE_WIDTH_MIN, Math.round(value)))
-    const onMove = (move: PointerEvent): void => { setDragWidth(clamp(startWidth + (startX - move.clientX))) }
-    const onUp = (up: PointerEvent): void => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      setDragWidth(null)
-      const finalWidth = clamp(startWidth + (startX - up.clientX))
-      if (finalWidth !== treeWidthOf(tab)) patchMeta(ctx, tab, { treeWidth: finalWidth })
-    }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
+    // jsdom lacks setPointerCapture — the tests dispatch plain MouseEvents.
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    dragRef.current = { startX: event.clientX, startWidth: treeWidth }
+  }
+  const onResizeMove = (event: React.PointerEvent): void => {
+    const drag = dragRef.current
+    if (drag === null) return
+    setDragWidth(clampTreeWidth(drag.startWidth + (drag.startX - event.clientX)))
+  }
+  const onResizeEnd = (event: React.PointerEvent): void => {
+    const drag = dragRef.current
+    if (drag === null) return
+    dragRef.current = null
+    setDragWidth(null)
+    const finalWidth = clampTreeWidth(drag.startWidth + (drag.startX - event.clientX))
+    if (finalWidth !== treeWidthOf(tab)) patchMeta(ctx, tab, { treeWidth: finalWidth })
   }
 
   useEffect(() => {
@@ -142,8 +195,7 @@ export function EditorHost(props: {
     // fresh viewer re-registers its own.
     setToolbar(null)
     // The seeded home tab (no path) never loads a viewer — the empty-state
-    // hint renders until the user picks a file (which opens a NEW editor
-    // tab through the per-path dedupe).
+    // hint renders until the user picks a file.
     if (showEmpty) return
     let cancelled = false
     // Aborts the matched viewer's `load` when the editor tears down (tab
@@ -198,29 +250,6 @@ export function EditorHost(props: {
     return () => { cancelled = true; controller.abort() }
   }, [scope.sessionId, scope.cwd, path, ctx, showEmpty])
 
-  if (!merged) {
-    // The plain editor: the pre-merge layout, untouched.
-    return (
-      <div className={css.editor}>
-        <div className={css.editorHeader}>
-          <span className={css.editorTitle} title={path}>{title}</span>
-        </div>
-        {showEmpty && <div className={css.editorPlaceholder}>{t('editorEmptyHint')}</div>}
-        {!showEmpty && load.status === 'loading' && <div className={css.editorPlaceholder}>{t('loading')}</div>}
-        {!showEmpty && load.status === 'error' && <div className={css.editorError}>{load.message}</div>}
-        {!showEmpty && load.status === 'binary' && <BinaryDownload scope={scope} path={path} />}
-        {!showEmpty && load.status === 'ready' && createElement(load.viewer.component, {
-          ctx, store, scope, path, title,
-          viewerId: load.viewer.id,
-          content: load.content,
-          truncated: load.truncated,
-          mediaUrl: load.mediaUrl,
-          customData: load.customData,
-        })}
-      </div>
-    )
-  }
-
   const treeOpen = treeOpenOf(tab)
   /** Persist the panel flag on the tab (survives reloads with the layout). */
   const toggleTree = (): void => { patchMeta(ctx, tab, { treeOpen: !treeOpen }) }
@@ -232,7 +261,7 @@ export function EditorHost(props: {
   return (
     <div className={css.editor}>
       <div className={css.editorHeader}>
-        <EditorPathInput path={path} cwd={scope.cwd} onOpenFile={onOpenFile} />
+        <EditorPathInput key={path} path={path} cwd={scope.cwd} onOpen={openFile} />
         {toolbar?.modes === true && (
           <div className={css.editorModeToggle}>
             <button
@@ -290,7 +319,7 @@ export function EditorHost(props: {
             truncated: load.truncated,
             mediaUrl: load.mediaUrl,
             customData: load.customData,
-            // Merged mode hoists the viewer's toolbar into the header above.
+            // The viewer's toolbar always hoists into this host's header.
             toolbar: 'host',
             onToolbarState,
             onToolbarControls,
@@ -303,14 +332,19 @@ export function EditorHost(props: {
               role="separator"
               aria-orientation="vertical"
               aria-label={t('editorTreeToggle')}
-              onPointerDown={startResize}
+              onPointerDown={onResizeStart}
+              onPointerMove={onResizeMove}
+              onPointerUp={onResizeEnd}
+              onPointerCancel={onResizeEnd}
             />
             <TreePanel
               sessionId={scope.sessionId}
               cwd={scope.cwd}
               expanded={expanded}
               onToggle={onToggleDir}
-              onOpenFile={onOpenFile}
+              onOpenFile={openFile}
+              onOpenFileNewTab={openFileNewTab}
+              onOpenFileSide={openFileSide}
               onReferenceFile={onReferenceFile}
             />
           </div>
@@ -321,15 +355,15 @@ export function EditorHost(props: {
 }
 
 /**
- * The merged-mode header's path input: shows the current file relative to
- * the session cwd (absolute when outside it). Enter resolves the typed path
- * (relative input joins onto the cwd — the same resolution `openSidebarFile`
- * uses) and opens it through the per-path dedupe; Escape/blur restores the
- * current value. Keyed by `path` from the parent so a newly opened file
- * reseeds the draft.
+ * The header's path input: shows the current file relative to the session
+ * cwd (absolute when outside it). Enter resolves the typed path (relative
+ * input joins onto the cwd — the same resolution `openSidebarFile` uses)
+ * and opens it through the parent's mode-aware open (in-place switch or a
+ * per-path dedupe tab); Escape/blur restores the current value. The parent
+ * keys it by `path` so an in-place switch remounts and reseeds the draft.
  */
-function EditorPathInput(props: { path: string; cwd: string | undefined; onOpenFile: (path: string) => void }) {
-  const { path, cwd, onOpenFile } = props
+function EditorPathInput(props: { path: string; cwd: string | undefined; onOpen: (path: string) => void }) {
+  const { path, cwd, onOpen } = props
   const display = path === '' ? '' : relativeTo(cwd ?? '', path)
   const [value, setValue] = useState(display)
 
@@ -339,15 +373,15 @@ function EditorPathInput(props: { path: string; cwd: string | undefined; onOpenF
       setValue(display)
       return
     }
-    onOpenFile(resolveSidebarPath(cwd, input))
-    // The open lands in a NEW/deduped editor tab — THIS tab's path stays,
-    // so the input falls back to its own display value.
+    onOpen(resolveSidebarPath(cwd, input))
+    // Split mode: the open lands in a NEW/deduped editor tab — THIS tab's
+    // path stays, so the input falls back to its own display value. (Merged
+    // mode remounts this input on the new path; the reset is harmless.)
     setValue(display)
   }
 
   return (
     <input
-      key={path}
       className={css.editorPathInput}
       value={value}
       placeholder={t('editorPathPlaceholder')}
@@ -366,4 +400,3 @@ function EditorPathInput(props: { path: string; cwd: string | undefined; onOpenF
     />
   )
 }
-

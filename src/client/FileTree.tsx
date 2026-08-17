@@ -1,6 +1,6 @@
 /**
- * The controlled file tree shared by the standalone explorer tab and the
- * editor's merged-mode side panel: a lazy VSCode-style tree rooted at the
+ * The controlled file tree behind the files window's tree panel (TreePanel
+ * wraps it with the search box): a lazy VSCode-style tree rooted at the
  * session's working directory. Levels load on expansion (one API call per
  * directory), directories sort first, hidden entries render dimmed. The
  * expansion set lives in the per-session state (owned by the caller); the
@@ -9,9 +9,11 @@
  *
  * Row actions: hovering a row reveals an @-reference button on the far
  * right (appends `@<relative path>` to the composer draft), and right-click
- * opens a context menu to copy the relative or absolute path (with a brief
- * "copied" label replacing the button after a successful write); file rows
- * also offer a download action (the host serves raw bytes, binary-safe).
+ * opens a context menu: file rows offer the caller's open escapes
+ * (new tab / to the side, only when the callbacks exist) and a download
+ * action (the host serves raw bytes, binary-safe); every row can copy the
+ * relative or absolute path (with a brief "copied" label replacing the
+ * button after a successful write).
  */
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
@@ -45,12 +47,16 @@ export function FileTree(props: {
   expanded: string[]
   onToggle: (path: string) => void
   onOpenFile: (path: string) => void
+  /** Context-menu "open in a new tab" (file rows; absent → no entry). */
+  onOpenFileNewTab?: (path: string) => void
+  /** Context-menu "open to the side" (file rows; absent → no entry). */
+  onOpenFileSide?: (path: string) => void
   /** Insert `@<relative path>` into the composer draft. */
   onReferenceFile: (path: string) => void
   /** Bump to wipe the level cache and reload the visible set. */
   refreshTick: number
 }) {
-  const { sessionId, cwd, expanded, onToggle, onOpenFile, onReferenceFile, refreshTick } = props
+  const { sessionId, cwd, expanded, onToggle, onOpenFile, onOpenFileNewTab, onOpenFileSide, onReferenceFile, refreshTick } = props
   const [data, setData] = useState<Record<string, LevelData>>({})
   const dataRef = useRef(data)
   /** The row whose path was just copied ("copied" label replaces its button). */
@@ -251,6 +257,13 @@ export function FileTree(props: {
         open={rowMenu !== null}
         onClose={() => { setRowMenu(null) }}
         items={[
+          // The open escapes head the FILE menu (dirs only get copy).
+          ...(rowMenu?.isDir === false && onOpenFileNewTab !== undefined
+            ? [{ id: 'open-new-tab', label: t('openFileNewTab'), icon: <IconCodeOutline16 size={14} /> }]
+            : []),
+          ...(rowMenu?.isDir === false && onOpenFileSide !== undefined
+            ? [{ id: 'open-side', label: t('openFileSide'), icon: <IconFolderOpen16 size={14} /> }]
+            : []),
           // Download applies to files only (the host route refuses directories).
           ...(rowMenu?.isDir === false
             ? [{ id: 'download', label: t('download'), icon: <IconDownloadOutline16 size={14} /> }]
@@ -262,6 +275,14 @@ export function FileTree(props: {
           const target = rowMenu
           if (target === null) return
           setRowMenu(null)
+          if (id === 'open-new-tab') {
+            onOpenFileNewTab?.(target.path)
+            return
+          }
+          if (id === 'open-side') {
+            onOpenFileSide?.(target.path)
+            return
+          }
           if (id === 'download') {
             downloadFile(target.path)
             return
