@@ -41,6 +41,12 @@
   <a href="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e"><img width="45%" alt="Add Plugins screenshot" src="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e" /></a>
 </div>
 
+### v0.13.0
+
+**✨ New features**
+
+- 🔀 **Mutual exclusion with the dsh-web-ui family right panel**: reads the `aionui-panel` settings namespace's provider choice — when "Use aionui-panel" is selected, the whole better-sidebar (right sidebar / bottom panel / floating entry / all takeovers) does not mount; with DSH-better-sidebar (or no aionui installed) it behaves as before. Takes effect live after a settings save (settings-document push), no reload needed
+
 ### v0.12.3
 
 **✨ New features**
@@ -104,7 +110,7 @@ Then **hard-refresh the browser** (Cmd/Ctrl+Shift+R) to see the sidebar (DSH hot
 dsh plugin --profile web add dsh-better-sidebar@latest
 ```
 
-or bump the version in `~/.dsh/profiles/web/package.json` (e.g. `"^0.12.3"`) and run `pnpm install`. Then hard-refresh the browser (Cmd/Ctrl+Shift+R) — client changes do not need a DSH restart.
+or bump the version in `~/.dsh/profiles/web/package.json` (e.g. `"^0.13.0"`) and run `pnpm install`. Then hard-refresh the browser (Cmd/Ctrl+Shift+R) — client changes do not need a DSH restart.
 
 </details>
 
@@ -140,7 +146,7 @@ To debug local changes or track the dev branch, point the dependency at a local 
 5. Restart DSH and hard-refresh
 ```
 
-Update: `git pull && pnpm install && pnpm build` → just hard-refresh the browser (client changes hot-reload; only host-half changes need a DSH restart). To switch back to the npm channel, restore `"dsh-better-sidebar": "^0.12.3"` and re-run `pnpm install`.
+Update: `git pull && pnpm install && pnpm build` → just hard-refresh the browser (client changes hot-reload; only host-half changes need a DSH restart). To switch back to the npm channel, restore `"dsh-better-sidebar": "^0.13.0"` and re-run `pnpm install`.
 
 </details>
 
