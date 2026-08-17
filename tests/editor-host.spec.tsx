@@ -1,11 +1,12 @@
 /**
- * EditorHost (the files window): the seeded path-less "Files" home tab
- * renders the empty-state hint (never the viewer loading flow) with the tree
- * panel open, and the header's tree toggle persists its flag through
- * ctx.betterSidebar.updateTab (meta.treeOpen rides the tab's persisted
- * layout). The chrome is identical in both editorExplorer modes — the pref
- * only controls FILE-OPEN behavior: in-place (merged) rewrites the current
- * tab via updateTab, split opens a per-path dedupe tab via openSidebarFile.
+ * EditorHost (the files window): in merged (in-place) mode a path-less tab
+ * renders the empty-state hint with the tree dock open, and the header's
+ * tree toggle persists its flag through ctx.betterSidebar.updateTab
+ * (meta.treeOpen rides the tab's persisted layout). The editorExplorer pref
+ * controls FILE-OPEN behavior — in-place rewrites the current tab via
+ * updateTab, split opens a per-path dedupe tab via openSidebarFile — and in
+ * split mode a PATH-LESS window becomes the standalone explorer (tree panel
+ * only, no editor chrome); file tabs keep the full chrome in both modes.
  */
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
@@ -154,15 +155,20 @@ describe('EditorHost (files window)', () => {
     }
   })
 
-  it('split mode: the path input Enter opens a NEW per-path tab; the home tab keeps no path', () => {
-    const { store, ctx, homeTab } = setup()
+  it('split mode: a file tab\'s path input Enter opens a NEW per-path tab; the source tab keeps its path', () => {
+    const { store, ctx } = setup()
     store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
-    const { container, unmount } = mountHost(ctx, store, homeTab)
+    ctx.betterSidebar.openTab({ type: 'editor', title: 'a.ts', path: '/tmp/a.ts', id: 'editor:/tmp/a.ts' })
+    const fileTab = (): SidebarTab =>
+      allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
+        .find(tab => tab.path === '/tmp/a.ts')!
+    const { container, unmount } = mountHost(ctx, store, fileTab)
     try {
-      typeAndCommit(container.querySelector('input')!, '/tmp/b.ts')
+      typeAndCommit(container.querySelector('input[placeholder^="File path"]')!, '/tmp/b.ts')
       const tabs = allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
-      expect(tabs).toHaveLength(2)
-      expect(homeTab().path).toBeUndefined()
+      // home + a.ts + b.ts
+      expect(tabs).toHaveLength(3)
+      expect(fileTab().path).toBe('/tmp/a.ts')
       const opened = tabs.find(tab => tab.path === '/tmp/b.ts')!
       expect(opened.type).toBe('editor')
       expect(opened.title).toBe('b.ts')
@@ -172,13 +178,37 @@ describe('EditorHost (files window)', () => {
     }
   })
 
-  it('split mode keeps the same chrome (path input + tree toggle + dock)', () => {
+  it('split mode: the path-less window is the standalone explorer (tree only, no chrome)', () => {
     const { store, ctx, homeTab } = setup()
     store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
     const { container, unmount } = mountHost(ctx, store, homeTab)
     try {
-      expect(container.querySelector('input')).not.toBeNull()
-      expect(container.querySelector('button[aria-pressed]')).not.toBeNull()
+      // No editor chrome: no path input, no tree toggle, no resize handle.
+      expect(container.querySelector('input[placeholder^="File path"]')).toBeNull()
+      expect(container.querySelector('button[aria-pressed]')).toBeNull()
+      expect(container.querySelector('[role="separator"]')).toBeNull()
+      // The tree panel fills the whole window — its search box is the only
+      // input, and (no cwd) the tree shows its no-session placeholder.
+      expect(container.querySelector('input[placeholder^="Search files"]')).not.toBeNull()
+      expect(container.innerHTML).toContain('Select a conversation')
+    } finally {
+      unmount()
+    }
+  })
+
+  it('split mode: a file tab keeps the full chrome (path input + tree toggle + dock)', () => {
+    const { store, ctx } = setup()
+    store.setPrefs({ ...store.getPrefs(), editorExplorer: false })
+    ctx.betterSidebar.openTab({
+      type: 'editor', title: 'a.ts', path: '/tmp/a.ts', id: 'editor:/tmp/a.ts', meta: { treeOpen: true },
+    })
+    const fileTab = (): SidebarTab =>
+      allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
+        .find(tab => tab.path === '/tmp/a.ts')!
+    const { container, unmount } = mountHost(ctx, store, fileTab)
+    try {
+      expect(container.querySelector('input[placeholder^="File path"]')).not.toBeNull()
+      expect(container.querySelector('button[aria-pressed]')?.getAttribute('aria-pressed')).toBe('true')
       expect(container.querySelector('[role="separator"]')).not.toBeNull()
     } finally {
       unmount()

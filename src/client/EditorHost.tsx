@@ -6,17 +6,15 @@
  * a path (the seeded "Files" home) renders an empty-state hint instead of
  * the viewer loading flow; that path-less window IS the file explorer.
  *
- * The chrome is ALWAYS the same (both editorExplorer modes): a header with
- * a path input (Enter opens the typed path, Esc/blur restores), the
- * viewer's hoisted toolbar (TextEditor reports its state/controls into
- * this header), a tree-toggle button, and the docked tree panel (global
- * name search + FileTree, drag-resizable). The `editorExplorer` pref only
- * controls FILE-OPEN behavior (read reactively so toggling it re-renders
- * without a reload):
+ * The chrome depends on the `editorExplorer` mode (read reactively so
+ * toggling it re-renders without a reload):
  * - merged (in-place): tree click / path-input Enter switch the CURRENT
  *   tab in place (updateTab rewrites path/title; the tab keeps its id and
  *   meta, so treeOpen/treeWidth survive the switch);
- * - split: they open through `openSidebarFile` (a per-path dedupe tab).
+ * - split: they open through `openSidebarFile` (a per-path dedupe tab),
+ *   and a PATH-LESS window is the standalone explorer — it renders ONLY
+ *   the tree panel (search + FileTree, full-window), no editor chrome.
+ *   Editor tabs (with a path) keep the full chrome in both modes.
  * The tree's context menu offers the explicit escapes in both modes: open
  * in a new tab (per-path dedupe) or to the side (a fresh tab in a fresh
  * rightward split of the current pane).
@@ -107,9 +105,10 @@ export function EditorHost(props: {
     useCallback((callback: () => void) => store.subscribe(callback), [store]),
     useCallback(() => store.getSnapshot().prefs.editorExplorer, [store]),
   )
-  // A path-less tab (the seeded home) shows the empty-state hint in BOTH
-  // modes — the user may have disabled merged mode after the seed landed.
+  // A path-less tab shows the empty-state hint in merged mode — and in split
+  // mode it is the standalone explorer (tree-only, see the render below).
   const showEmpty = path === ''
+  const treeOnly = showEmpty && !inPlace
 
   /**
    * Open a file from THIS window (tree click / search row / path input):
@@ -257,6 +256,27 @@ export function EditorHost(props: {
     : toolbar.saveState === 'saving' ? t('loading')
       : toolbar.saveState === 'saved' ? t('saved')
         : toolbar.saveState === 'failed' ? t('saveFailed') : ''
+
+  // Split mode: the path-less window IS the standalone explorer — the tree
+  // panel fills the whole tab (search + FileTree, full form), no editor
+  // chrome. File opens land in new per-path tabs through openFile above.
+  if (treeOnly) {
+    return (
+      <div className={css.editor}>
+        <TreePanel
+          full
+          sessionId={scope.sessionId}
+          cwd={scope.cwd}
+          expanded={expanded}
+          onToggle={onToggleDir}
+          onOpenFile={openFile}
+          onOpenFileNewTab={openFileNewTab}
+          onOpenFileSide={openFileSide}
+          onReferenceFile={onReferenceFile}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className={css.editor}>
