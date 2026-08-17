@@ -80,13 +80,14 @@ describe('SideCardSection declarative inventory', () => {
     expect(html).toContain('>explorer<')
     expect(html).toContain('data-icon="subagent"')
     expect(html).toContain('>Subagents<')
-    // Default prefs: openByDefault + interceptOpenPath switches checked, and
-    // both tabs + the image viewer cards pressed (3 aria-pressed cards).
+    // Default prefs: only the interceptOpenPath switch is checked (openByDefault
+    // now defaults off), and both tabs + the image viewer cards pressed
+    // (3 aria-pressed cards).
     // The nested auto-open toggle is NOT an inline card (it lives in the popup).
     expect(pressedCount(html, 'true')).toBe(3)
     expect(pressedCount(html, 'false')).toBe(0)
-    // The general toggles are custom switches (real checkboxes, checked).
-    expect(html.match(/checked=""/g)?.length).toBe(2)
+    // The general toggles are custom switches (real checkboxes, one checked).
+    expect(html.match(/checked=""/g)?.length).toBe(1)
     expect(html).not.toContain('Auto-open Subagents')
   })
 
@@ -140,9 +141,9 @@ describe('SideCardSection declarative inventory', () => {
     expect(html).toContain('>Subagents<')
     expect(html).toContain('>Image<')
     expect(pressedCount(html, 'false')).toBe(2)
-    // The explorer card stays pressed; the general switches stay checked.
+    // The explorer card stays pressed; the one default-on general switch stays checked.
     expect(pressedCount(html, 'true')).toBe(1)
-    expect(html.match(/checked=""/g)?.length).toBe(2)
+    expect(html.match(/checked=""/g)?.length).toBe(1)
   })
 
   it('hides the gear of a disabled feature (its related settings are dormant)', () => {
@@ -150,6 +151,28 @@ describe('SideCardSection declarative inventory', () => {
     store.setPrefs({ ...store.getPrefs(), tabsEnabled: { subagent: false } })
     const html = renderSection(store, service)
     expect(html).not.toContain('Feature settings')
+  })
+
+  it('renders the position-compat mode general row: off by default, checked when the pref is on', () => {
+    const { store, service } = mount()
+    let html = renderSection(store, service)
+    // The general row renders its title and description.
+    expect(html).toContain('Position compatibility mode')
+    expect(html).toContain('Reserve space for the native Windows title bar')
+    // Three general rows now: only interceptOpenPath is checked by default
+    // (openByDefault defaults off, the titleBarCompat row starts UNCHECKED) —
+    // the checked checkbox count is 1 while the total checkbox count is 3.
+    expect(html.match(/type="checkbox"/g)?.length).toBe(3)
+    expect(html.match(/checked=""/g)?.length).toBe(1)
+    // The row's gear (customize the shift distance) is dormant while the
+    // mode is off — the feature-card convention.
+    expect(html).not.toContain('Position compatibility mode Feature settings')
+
+    // When the pref is on, the new switch is checked and the gear appears.
+    store.setPrefs({ ...store.getPrefs(), titleBarCompat: true })
+    html = renderSection(store, service)
+    expect(html.match(/checked=""/g)?.length).toBe(2)
+    expect(html).toContain('aria-label="Position compatibility mode Feature settings"')
   })
 })
 
@@ -226,6 +249,31 @@ describe('FeatureSettingsRows (the secondary settings popup body)', () => {
     expect(html).toContain('value="18"')
     expect(html).toContain('min="9"')
     expect(html).toContain('max="32"')
+    expect(html).toContain('px')
+    expect(html).not.toContain('type="checkbox"')
+  })
+
+  it('renders the title-bar strip row: the pref value, the 0–120 bounds and the px suffix', () => {
+    const html = renderToString(createElement(FeatureSettingsRows, {
+      toggles: [{
+        key: 'titleBarStripPx',
+        type: 'number',
+        title: () => 'Shift distance',
+        desc: () => 'Title-bar strip height in px',
+        min: 0,
+        max: 120,
+        unit: 'px',
+      }],
+      prefs: { ...prefs, titleBarStripPx: 64 },
+      onToggle: () => {},
+      onCommit: () => '64',
+    }))
+    expect(html).toContain('Shift distance')
+    expect(html).toContain('Title-bar strip height in px')
+    expect(html).toContain('type="number"')
+    expect(html).toContain('value="64"')
+    expect(html).toContain('min="0"')
+    expect(html).toContain('max="120"')
     expect(html).toContain('px')
     expect(html).not.toContain('type="checkbox"')
   })

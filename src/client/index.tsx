@@ -12,7 +12,7 @@ import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { Context } from '../context-types.ts'
 import { createSidebarStore } from './state.ts'
-import { createBetterSidebarService } from './service.ts'
+import { createBetterSidebarService, matchUrlTarget } from './service.ts'
 import { resetChunks } from './chunk-loader.ts'
 import { registerBuiltins } from './builtins/index.ts'
 import { Sidebar } from './Sidebar.tsx'
@@ -20,6 +20,7 @@ import { RenderBoundary } from './RenderBoundary.tsx'
 import { registerOpenPathInterception, registerTurnTailInterception } from './intercept.tsx'
 import { registerLinkInterception } from './link-intercept.ts'
 import { registerImeGuard } from './ime-guard.ts'
+import { registerSettingsNavIcon } from './settings-nav-icon.ts'
 import { loadPrefs } from './prefs.ts'
 import { SideCardSection } from './SideCardSection.tsx'
 import { api } from './api.ts'
@@ -153,16 +154,35 @@ export function apply(ctx: Context): void {
     ctx.effect(
       () => {
         try {
-          // External http(s) links in the chat/GUI open the sidebar browser
-          // instead of a new window (gated on the browserInterceptLinks pref
-          // AND the browser tab's enable switch; Ctrl/Cmd+click bypasses).
+          // External http(s) links in the chat/GUI open the sidebar instead
+          // of a new window. Gated on the browserInterceptLinks MASTER pref,
+          // the URL's protocol flag (browserInterceptHttp / Https — https
+          // defaults OFF: most https sites refuse iframe embedding), and the
+          // target tab's enable switch; Ctrl/Cmd+click always bypasses. The
+          // target is the first registered tab whose `urlTarget` claims the
+          // URL (enabled tabs only), else the built-in browser tab.
+          const urlTargetOf = (url: URL): string | undefined => {
+            const prefs = sidebarStore.getPrefs()
+            const enabled = service.getTabs().filter(tab => prefs.tabsEnabled[tab.id] !== false)
+            return matchUrlTarget(enabled, url)?.id
+          }
           return registerLinkInterception({
-            takeoverEnabled: () => sidebarStore.getPrefs().browserInterceptLinks !== false
-              && sidebarStore.getPrefs().tabsEnabled['browser'] !== false,
+            takeoverEnabled: (url) => {
+              const prefs = sidebarStore.getPrefs()
+              if (prefs.browserInterceptLinks === false) return false
+              const protocolOn = url.protocol === 'https:'
+                ? prefs.browserInterceptHttps !== false
+                : prefs.browserInterceptHttp !== false
+              if (!protocolOn) return false
+              // A plugin claim is the target (already enabled-filtered);
+              // otherwise the built-in browser must be enabled.
+              return urlTargetOf(url) !== undefined || prefs.tabsEnabled['browser'] !== false
+            },
             openInSidebar: (url) => {
               let title: string | undefined
               try { title = new URL(url).hostname } catch { /* keep the default title */ }
-              ctx.betterSidebar?.openTab({ type: 'browser', url, title })
+              const type = urlTargetOf(new URL(url)) ?? 'browser'
+              ctx.betterSidebar?.openTab({ type, url, title })
             },
             selfOrigin: window.location.origin,
           })
@@ -192,6 +212,16 @@ export function apply(ctx: Context): void {
         }
       },
       'dsh-better-sidebar: IME composition guard',
+    )
+
+    // DSH 0.1.x does not yet carry an icon through the settings.section
+    // registration contract: its shell renders a generic gear for every
+    // external section. Mark only this plugin's localized nav row so
+    // layout.css can paint the requested Side card SVG; the disposer clears
+    // the marker for HMR / plugin disable.
+    ctx.effect(
+      () => registerSettingsNavIcon(() => t('settingsNav')),
+      'dsh-better-sidebar: settings navigation icon',
     )
 
     // The "Side card" settings section: appears in the DSH Settings shell

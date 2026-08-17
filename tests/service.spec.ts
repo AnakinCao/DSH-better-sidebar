@@ -20,8 +20,8 @@ if (g.localStorage === undefined) {
   }
 }
 
-import { createBetterSidebarService, SIDEBAR_FEATURES, SIDEBAR_SERVICE_VERSION } from '../src/client/service.ts'
-import { createSidebarStore, allLeaves, makeDefaultState, openDiffTab, sanitizeState } from '../src/client/state.ts'
+import { createBetterSidebarService, matchUrlTarget, SIDEBAR_FEATURES, SIDEBAR_SERVICE_VERSION } from '../src/client/service.ts'
+import { createSidebarStore, allLeaves, makeDefaultState, openDiffTab, openTabInActivePane, sanitizeState } from '../src/client/state.ts'
 
 describe('BetterSidebar service', () => {
   it('registerTab adds to the registry and dispose removes it', () => {
@@ -108,8 +108,9 @@ describe('enable switches (declarative settings)', () => {
     store.setPrefs({ ...store.getPrefs(), tabsEnabled: { explorer: false } })
     store.setSession('s1')
     service.openTab({ type: 'explorer', title: 'Explorer' })
+    // The seeded files-window home tab stays; no EXPLORER tab landed.
     const tabs = allLeaves(store.getSnapshot().state!.splits).flatMap(l => l.tabs)
-    expect(tabs).toHaveLength(0)
+    expect(tabs.filter(t => t.type === 'explorer')).toHaveLength(0)
   })
 
   it('matchFileViewer skips a disabled viewer (files fall through)', () => {
@@ -223,6 +224,55 @@ describe('matchFileViewer', () => {
   })
 })
 
+describe('matchUrlTarget (v0.13.0)', () => {
+  /** A tab descriptor that claims a URL host. */
+  const claimingTab = (id: string, host: string) => ({
+    id,
+    title: id,
+    urlTarget: (url: URL): boolean => url.hostname === host,
+    component: () => null,
+  })
+
+  it('returns undefined when no tab declares urlTarget', () => {
+    const tabs = [
+      { id: 'explorer', title: 'E', component: () => null },
+      { id: 'git', title: 'G', component: () => null },
+    ]
+    expect(matchUrlTarget(tabs, new URL('http://example.com/'))).toBeUndefined()
+  })
+
+  it('returns the first REGISTRATION-ORDER claim (first match wins)', () => {
+    const tabs = [
+      claimingTab('my:one', 'example.com'),
+      claimingTab('my:two', 'example.com'),
+    ]
+    expect(matchUrlTarget(tabs, new URL('https://example.com/x'))?.id).toBe('my:one')
+    // A non-matching earlier tab yields to the next match.
+    const tabs2 = [
+      claimingTab('my:one', 'other.com'),
+      claimingTab('my:two', 'example.com'),
+    ]
+    expect(matchUrlTarget(tabs2, new URL('https://example.com/x'))?.id).toBe('my:two')
+  })
+
+  it('skips a throwing predicate (the next claim still wins)', () => {
+    const tabs = [
+      { id: 'my:broken', title: 'B', urlTarget: () => { throw new Error('boom') }, component: () => null },
+      claimingTab('my:ok', 'example.com'),
+    ]
+    expect(matchUrlTarget(tabs, new URL('https://example.com/x'))?.id).toBe('my:ok')
+  })
+
+  it('never matches the built-in browser (no urlTarget declared — the caller falls back)', () => {
+    const tabs = [
+      { id: 'browser', title: 'Browser', component: () => null },
+      { id: 'my:ok', title: 'OK', urlTarget: () => true, component: () => null },
+    ]
+    expect(matchUrlTarget(tabs, new URL('http://example.com/'))?.id).toBe('my:ok')
+    expect(matchUrlTarget([{ id: 'browser', title: 'Browser', component: () => null }], new URL('http://example.com/'))).toBeUndefined()
+  })
+})
+
 describe('service.openTab dedupe', () => {
   it('dedupeKey focuses existing tab instead of duplicating', () => {
     const store = createSidebarStore()
@@ -303,7 +353,8 @@ describe('service.openTab dedupe', () => {
     store.setSession('s1')
     service.openTab({ type: 'editor', title: 'main.ts', path: '/p/main.ts' })
     const state = store.getSnapshot().state!
-    const tab = allLeaves(state.splits).flatMap(l => l.tabs).find(t => t.type === 'editor')
+    // Find by path: the seeded files-window home tab is an editor tab too.
+    const tab = allLeaves(state.splits).flatMap(l => l.tabs).find(t => t.type === 'editor' && t.path === '/p/main.ts')
     expect(tab?.title).toBe('main.ts')
   })
 
@@ -594,7 +645,7 @@ describe('service.openTab auto-expand for content opens', () => {
     service.openTab({ type: 'editor', title: 'main.ts', path: '/p/main.ts' })
     const state = store.getSnapshot().state!
     expect(state.panelOpen).toBe(true)
-    expect(allLeaves(state.splits).flatMap(l => l.tabs).filter(t => t.type === 'editor')).toHaveLength(1)
+    expect(allLeaves(state.splits).flatMap(l => l.tabs).filter(t => t.type === 'editor' && t.path === '/p/main.ts')).toHaveLength(1)
   })
 })
 
@@ -622,7 +673,7 @@ describe('state subscription (v0.12.0)', () => {
     const snapshot = service.getSnapshot()
     expect(snapshot.sessionId).toBe('s1')
     expect(snapshot.state).toBeDefined()
-    expect(snapshot.prefs.openByDefault).toBe(true)
+    expect(snapshot.prefs.openByDefault).toBe(false)
   })
 
   it('subscribeState fires on state changes but NOT on registry changes', () => {
@@ -690,7 +741,7 @@ describe('targeted openTab (v0.12.0)', () => {
     service.registerTab({ id: 'notes', title: 'Notes', component: () => null })
     store.setSession('s1')
     service.openTab({ type: 'notes', title: 'Notes', id: 'notes:1' }, { sessionId: 's2' })
-    // The UI snapshot still shows s1, untouched (its default explorer tab
+    // The UI snapshot still shows s1, untouched (its default files-window tab
     // is the only one — no notes tab landed there).
     const snapshot = store.getSnapshot()
     expect(snapshot.sessionId).toBe('s1')
@@ -734,7 +785,8 @@ describe('openFile (v0.12.0)', () => {
     store.setSession('s1')
     service.openFile({ sessionId: 's1', cwd: '/p' }, '/p/src/main.ts')
     const state = store.getSnapshot().state!
-    const tab = allLeaves(state.splits).flatMap(l => l.tabs).find(t => t.type === 'editor')
+    // Find by path: the seeded files-window home tab is an editor tab too.
+    const tab = allLeaves(state.splits).flatMap(l => l.tabs).find(t => t.type === 'editor' && t.path !== undefined)
     expect(tab?.title).toBe('main.ts')
     expect(tab?.path).toBe('/p/src/main.ts')
     // Windows separators are handled too.
@@ -843,8 +895,9 @@ describe('tab meta (v0.12.0)', () => {
   })
 
   it('older persisted tabs (no meta) sanitize unchanged', () => {
-    const state = makeDefaultState(400, true, true)
-    const sanitized = sanitizeState(JSON.parse(JSON.stringify(state)))
+    const state = makeDefaultState(400, true, 'none')
+    const withTab = openTabInActivePane(state, { id: 'tab:old', type: 'git', title: 'Git' })
+    const sanitized = sanitizeState(JSON.parse(JSON.stringify(withTab)))
     const tabs = allLeaves(sanitized!.splits).flatMap(l => l.tabs)
     expect(tabs[0]?.meta).toBeUndefined()
   })
@@ -981,5 +1034,25 @@ describe('independent CR follow-up fixes', () => {
       { kind: 'activate', cwd: '/work' },
       { kind: 'close', cwd: '/work' },
     ])
+  })
+
+  it('SIDEBAR_FEATURES snapshot and service version checks', () => {
+    expect(SIDEBAR_FEATURES).toContain('urlTarget')
+    expect(SIDEBAR_FEATURES).toContain('pluginSettings')
+    expect(SIDEBAR_FEATURES).toContain('tabLifecycle')
+    expect(SIDEBAR_FEATURES).toContain('badge')
+    expect(SIDEBAR_FEATURES).toContain('updateTab')
+    expect(SIDEBAR_FEATURES).toContain('openFile')
+    expect(SIDEBAR_FEATURES).toContain('targetedOpen')
+    expect(SIDEBAR_FEATURES).toContain('stateSubscription')
+    expect(SIDEBAR_FEATURES).toContain('tabMeta')
+    expect(SIDEBAR_SERVICE_VERSION).toMatch(/^\d+\.\d+\.\d+/)
+  })
+
+  it('registerFileViewer throws on duplicate id', () => {
+    const store = createSidebarStore()
+    const service = createBetterSidebarService(store)
+    service.registerFileViewer({ id: 'csv', exts: ['csv'], fetchStrategy: 'custom', component: () => null })
+    expect(() => service.registerFileViewer({ id: 'csv', exts: ['csv'], fetchStrategy: 'custom', component: () => null })).toThrow(/already registered/)
   })
 })

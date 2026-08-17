@@ -48,14 +48,32 @@ export type { SessionScope } from './api.ts'
 export type { SidebarPrefs } from '../prefs-shared.ts'
 
 /** The row control a declarative setting renders as in the settings popup. */
-export type SidebarSettingToggleType = 'switch' | 'text' | 'number'
+export type SidebarSettingToggleType = 'switch' | 'text' | 'number' | 'select'
+
+/** One option of a `type: 'select'` setting row. */
+export interface SidebarSettingSelectOption {
+  /** The value written to the setting key when this option is picked
+   *  (JSON-serializable: string / number / boolean). */
+  value: string | number | boolean
+  /** Option title (i18n friendly: string or () => string). */
+  title: string | (() => string)
+  /** Option description (i18n friendly); rendered under the title in the
+   *  icon dropdown. */
+  desc?: string | (() => string)
+  /** Option icon: when ANY option declares one, the dropdown renders
+   *  big-icon option cards and the closed control shows the selected
+   *  option's icon too; without icons both are a single line of text. */
+  icon?: ReactNode | ((size: number) => ReactNode)
+}
 
 /** One declarative setting of a tab/viewer, rendered as a nested row in the
  *  Side card settings page (e.g. the Subagent page's "auto-open when a
  *  subagent appears" switch, or the terminal's custom font rows). `type`
  *  selects the control: 'switch' (default) renders the custom switch,
  *  'text' a free-form input committed on blur/Enter, 'number' a numeric
- *  input clamped to `min`/`max`. */
+ *  input clamped to `min`/`max`, 'select' a dropdown over the declared
+ *  `options` (single-pick writes the option's value; `multi: true` writes
+ *  the array of picked values and defaults to false). */
 export interface SidebarSettingToggle {
   /** The SidebarPrefs field this toggle reads and writes ('autoOpenSubagent'). */
   key: string
@@ -73,6 +91,11 @@ export interface SidebarSettingToggle {
   placeholder?: string
   /** Unit suffix rendered after the input (e.g. 'px' for a size row). */
   unit?: string
+  /** Options of a `type: 'select'` row. */
+  options?: readonly SidebarSettingSelectOption[]
+  /** Whether a `type: 'select'` row allows picking several options (the
+   *  stored value is then an array of option values); defaults to false. */
+  multi?: boolean
 }
 
 /** Props of a descriptor's custom settings panel (`settings.render`). */
@@ -170,6 +193,22 @@ export interface TabDescriptor {
    */
   createTab?: (state: SidebarState) => { tab: SidebarTab; patch?: Partial<SidebarState> } | null
   /**
+   * External-link target claim (v0.13.0+): when a GUI external-link click
+   * is taken over (the `browserInterceptLinks` master AND the URL's
+   * protocol flag — `browserInterceptHttp` / `browserInterceptHttps` —
+   * are on), the first registered tab whose `urlTarget(url)` returns true
+   * is opened with `openTab({ type, url, title: hostname })` — the URL is
+   * the whole payload (the tab reads it from `tab.path`). Registration
+   * order wins (first claim first served); a disabled tab type is skipped;
+   * a throwing predicate is swallowed (console.error, the type is skipped).
+   * The built-in browser tab declares NO urlTarget — it stays the implicit
+   * fallback target, so plugins can never be shadowed by it. To host more
+   * than one URL at a time, mint per-URL ids through `createTab` (the
+   * browser builtin's pattern); otherwise the id safety net focuses the
+   * existing tab of the same type and the new URL is not applied.
+   */
+  urlTarget?: (url: URL) => boolean
+  /**
    * Declarative settings shown in the Side card settings page: every
    * registered tab gets an enable/disable switch (icon + title + id), and
    * `settings.toggles` adds nested switches tied to SidebarPrefs fields
@@ -224,6 +263,33 @@ export interface FileViewerProps {
   mediaUrl?: string
   /** custom load() return value (fetchStrategy='custom'). */
   customData?: unknown
+  /** Internal (built-in text editor): 'host' asks the viewer to skip its own
+   *  toolbar row — the editor host's merged-mode header renders it instead,
+   *  fed through the two callbacks below. Viewers that ignore these fields
+   *  render exactly as before. */
+  toolbar?: 'self' | 'host'
+  /** Internal: the viewer reports its toolbar state (mode/dirty/save). */
+  onToolbarState?: (state: EditorToolbarState) => void
+  /** Internal: the viewer registers its toolbar commands on mount (null on
+   *  unmount). */
+  onToolbarControls?: (controls: EditorToolbarControls | null) => void
+}
+
+/** The toolbar state a text editor reports to the host's merged-mode header. */
+export interface EditorToolbarState {
+  /** Whether the preview/edit mode toggle applies (markdown/html). */
+  modes: boolean
+  mode: 'preview' | 'edit'
+  dirty: boolean
+  /** Whether saving applies (text content loaded). */
+  editable: boolean
+  saveState: 'idle' | 'saving' | 'saved' | 'failed'
+}
+
+/** The commands the host's merged-mode header sends back to the viewer. */
+export interface EditorToolbarControls {
+  setMode(mode: 'preview' | 'edit'): void
+  save(): void
 }
 
 /** Describes one file previewer (builtins register themselves too). */
@@ -374,10 +440,37 @@ function baseNameOf(path: string): string {
 }
 
 /**
+ * Find the tab type that claims an intercepted external-link URL (v0.13.0+).
+ * Walks the descriptors in REGISTRATION order and returns the first one
+ * that declares `urlTarget` and matches `url`; a throwing predicate is
+ * swallowed (console.error, type skipped) so one broken plugin can never
+ * break the whole link pipeline. The caller passes the ENABLED tab
+ * descriptors (enablement is the caller's prefs domain — filter
+ * `service.getTabs()` through `tabsEnabled` before matching) and falls
+ * back to the built-in browser tab when nothing claims the URL (the
+ * browser never declares `urlTarget` itself, so it can never shadow a
+ * plugin claim).
+ */
+export function matchUrlTarget(tabs: readonly TabDescriptor[], url: URL): TabDescriptor | undefined {
+  for (const tab of tabs) {
+    if (tab.urlTarget === undefined) continue
+    let claimed = false
+    try {
+      claimed = tab.urlTarget(url) === true
+    } catch (error) {
+      console.error('[dsh-better-sidebar] urlTarget error:', error)
+      continue
+    }
+    if (claimed) return tab
+  }
+  return undefined
+}
+
+/**
  * The plugin version this service instance reports. Keep in lockstep with
  * `package.json`'s version — `tests/service.spec.ts` asserts the pair.
  */
-export const SIDEBAR_SERVICE_VERSION = '0.12.1'
+export const SIDEBAR_SERVICE_VERSION = '0.12.3'
 
 /**
  * Monotonic capability list consumers use to gate new API usage (features
@@ -390,6 +483,8 @@ export const SIDEBAR_SERVICE_VERSION = '0.12.1'
  * - 'stateSubscription': getSnapshot/subscribeState
  * - 'tabMeta': SidebarTab.meta (seeds, createTab, updateTab, persistence)
  * - 'pluginSettings': SidebarSettingsDeclaration.pluginToggles/render
+ * - 'urlTarget' (v0.13.0): TabDescriptor.urlTarget (external-link claims)
+ * - 'settingSelect': SidebarSettingToggle type 'select' (options/multi)
  */
 export const SIDEBAR_FEATURES = [
   'badge',
@@ -400,6 +495,8 @@ export const SIDEBAR_FEATURES = [
   'stateSubscription',
   'tabMeta',
   'pluginSettings',
+  'urlTarget',
+  'settingSelect',
 ] as const
 
 /** Run one plugin callback; a throw is logged and never breaks the caller. */

@@ -1,17 +1,17 @@
 /**
- * The 7 built-in tab descriptors: the plugin registers its own pages
- * (explorer / git / terminal / browser / subagent / editor / diff) through
+ * The 6 built-in tab descriptors: the plugin registers its own pages
+ * (editor / git / terminal / browser / subagent / diff) through
  * the same {@link BetterSidebarService} external plugins use — eating its
  * own dogfood. The terminal descriptor owns its quota (`TERMINAL_LIMIT`)
  * and mints `terminal:<n>` ids through `createTab`; the browser mints
- * `browser:<n>` the same way (no quota).
+ * `browser:<n>` the same way (no quota). The editor IS the files window
+ * (the old standalone explorer merged into it).
  */
-import { IconBranchOutline16, IconCodeOutline16, IconFolderOpen16, IconThinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconBranchOutline16, IconCodeOutline16, IconFolderOpen16, IconPanelLeftOutline16, IconThinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../../context-types.ts'
 import { allLeaves, isAgentTabId, type SidebarState } from '../state.ts'
 import { t } from '../locales.ts'
 import { openSidebarFile } from '../intercept.tsx'
-import { ExplorerView } from '../ExplorerView.tsx'
 import { EditorHost } from '../EditorHost.tsx'
 import { lazyChunkComponent } from '../lazy-chunk.tsx'
 import { GitView } from '../GitView.tsx'
@@ -59,33 +59,52 @@ function uiTerminalCount(state: SidebarState): number {
     .filter(tab => tab.type === 'terminal' && !isAgentTabId(tab.id)).length
 }
 
-/** The 7 built-in tab descriptors. */
+/** The 6 built-in tab descriptors. */
 export function builtinTabs(ctx: Context): readonly TabDescriptor[] {
   return [
     {
       id: 'editor',
-      title: () => t('editor'),
-      icon: (size: number) => <IconCodeOutline16 size={size} />,
-      order: -1,
-      hidden: true,
-      dedupeKey: (tab) => tab.path,
-      component: ({ ctx, store, scope, tab }) => (
-        <EditorHost ctx={ctx} store={store} scope={scope} path={tab.path ?? ''} title={tab.title} />
-      ),
-    },
-    {
-      id: 'explorer',
-      title: () => t('explorer'),
+      // The single files window: an editor tab with no path IS the file
+      // explorer (empty hint + docked tree); with a path it previews/edits
+      // the file. Visible in the + menu in the explorer's old slot.
+      title: () => t('files'),
       icon: (size: number) => <IconFolderOpen16 size={size} />,
       order: 10,
-      single: true,
-      component: ({ ctx, store, scope, expanded, onToggleDir, onReferenceFile }) => (
-        <ExplorerView
-          sessionId={scope.sessionId}
-          cwd={scope.cwd}
+      hidden: false,
+      dedupeKey: (tab) => tab.path,
+      // Declarative settings: the file-open behavior picker (in-place switch
+      // vs per-path windows) renders as an iconed select row under the
+      // editor card's gear in the Side card settings page.
+      settings: {
+        toggles: [{
+          key: 'editorExplorer',
+          type: 'select',
+          title: () => t('editorExplorer'),
+          desc: () => t('editorExplorerDesc'),
+          options: [
+            {
+              value: true,
+              icon: (size: number) => <IconPanelLeftOutline16 size={size} />,
+              title: () => t('editorExplorerMerged'),
+              desc: () => t('editorExplorerMergedDesc'),
+            },
+            {
+              value: false,
+              icon: (size: number) => <IconCodeOutline16 size={size} />,
+              title: () => t('editorExplorerSplit'),
+              desc: () => t('editorExplorerSplitDesc'),
+            },
+          ],
+        }],
+      },
+      component: ({ ctx, store, scope, tab, expanded, onToggleDir, onReferenceFile }) => (
+        <EditorHost
+          ctx={ctx}
+          store={store}
+          scope={scope}
+          tab={tab}
           expanded={expanded ?? []}
-          onToggle={onToggleDir ?? (() => { /* no-op */ })}
-          onOpenFile={(path) => { openSidebarFile(ctx, store, scope.sessionId, path) }}
+          onToggleDir={onToggleDir ?? (() => { /* no-op */ })}
           onReferenceFile={onReferenceFile ?? (() => { /* no-op */ })}
         />
       ),
@@ -187,9 +206,10 @@ export function builtinTabs(ctx: Context): readonly TabDescriptor[] {
       title: () => t('browser'),
       icon: (size: number) => <IconGlobeOutline16 size={size} />,
       order: 50,
-      // Declarative settings: the sandbox escape hatch and the link
-      // takeover render under this tab's row in the Side card settings
-      // page (the sandbox one is warned on).
+      // Declarative settings: the sandbox escape hatch, the link-takeover
+      // MASTER switch, and the per-protocol takeover switches (http on /
+      // https off by default) render under this tab's row in the Side card
+      // settings page (the sandbox one is warned on).
       settings: {
         toggles: [{
           key: 'browserNoSandbox',
@@ -199,6 +219,14 @@ export function builtinTabs(ctx: Context): readonly TabDescriptor[] {
           key: 'browserInterceptLinks',
           title: () => t('settingsBrowserLinksTitle'),
           desc: () => t('settingsBrowserLinksDesc'),
+        }, {
+          key: 'browserInterceptHttp',
+          title: () => t('settingsBrowserHttpTitle'),
+          desc: () => t('settingsBrowserHttpDesc'),
+        }, {
+          key: 'browserInterceptHttps',
+          title: () => t('settingsBrowserHttpsTitle'),
+          desc: () => t('settingsBrowserHttpsDesc'),
         }],
       },
       createTab: (state) => ({

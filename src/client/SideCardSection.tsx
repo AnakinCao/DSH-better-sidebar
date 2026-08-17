@@ -41,9 +41,11 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   IconCheckOutline16,
+  IconChevronDownOutline14,
   IconPlusOutline16,
   IconSettingsOutline16,
   Input,
+  Menu,
   Modal,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import clsx from 'clsx'
@@ -52,6 +54,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   clampWidthPercent,
+  TITLE_BAR_STRIP_MAX,
+  TITLE_BAR_STRIP_MIN,
   WIDTH_PERCENT_MAX,
   WIDTH_PERCENT_MIN,
   type SidebarPrefs,
@@ -207,6 +211,10 @@ export function FeatureSettingsRows(props: {
    *  display (clamped for numbers, the current pref when the input is
    *  invalid). Optional: rows with no handler keep their draft. */
   onCommit?: (toggle: SidebarSettingToggle, raw: string) => string
+  /** Commit one select row: the picked option's value (single) or the array
+   *  of picked values (`multi: true`). Optional: rows with no handler are
+   *  display-only. */
+  onSelectValue?: (toggle: SidebarSettingToggle, next: unknown) => void
   /** Explicit value source (v0.12.0+): when given, rows read their values
    *  from it instead of the `prefs` face — plugin-owned rows read their
    *  own blob, so a plugin key can never collide with (or silently read)
@@ -214,12 +222,23 @@ export function FeatureSettingsRows(props: {
    *  the latter collides with the inherited Object.prototype.valueOf.) */
   valueSource?: (key: string) => unknown
 }) {
-  const { toggles, prefs, onToggle, onCommit, valueSource } = props
+  const { toggles, prefs, onToggle, onCommit, onSelectValue, valueSource } = props
   const read = valueSource ?? ((key: string): unknown => (prefs as unknown as Record<string, unknown>)[key])
   return (
     <div className={css.popupRows}>
       {toggles.map(toggle => {
         const title = textOf(toggle.title)
+        if (toggle.type === 'select') {
+          return (
+            <SelectRow
+              key={toggle.key}
+              toggle={toggle}
+              title={title}
+              value={read(toggle.key)}
+              onSelectValue={onSelectValue}
+            />
+          )
+        }
         if ((toggle.type ?? 'switch') === 'switch') {
           return (
             <div key={toggle.key} className={css.popupRow}>
@@ -301,6 +320,99 @@ function TypedRow(props: {
 }
 
 /**
+ * One select row: a dropdown over the toggle's declared `options`. When any
+ * option carries an icon, the dropdown renders big-icon option cards (icon +
+ * title + desc) and the closed anchor shows the selected option's icon as
+ * well; without icons both are a single line of text. Single-pick commits the
+ * option's value and closes; `multi` toggles membership, commits the picked
+ * values as an array (in options order), and stays open.
+ */
+function SelectRow(props: {
+  toggle: SidebarSettingToggle
+  title: string
+  value: unknown
+  onSelectValue?: (toggle: SidebarSettingToggle, next: unknown) => void
+}) {
+  const { toggle, title, value, onSelectValue } = props
+  const options = toggle.options ?? []
+  const multi = toggle.multi === true
+  const [open, setOpen] = useState(false)
+  const hasIcons = options.some(option => option.icon !== undefined)
+  const picked: readonly unknown[] = multi ? (Array.isArray(value) ? value : []) : [value]
+  const selected = options.filter(option => picked.includes(option.value))
+
+  /** Commit one picked option (toggle semantics under multi). */
+  const pick = (index: number): void => {
+    const option = options[index]
+    if (option === undefined) return
+    if (!multi) {
+      onSelectValue?.(toggle, option.value)
+      setOpen(false)
+      return
+    }
+    const current = Array.isArray(value) ? [...value] : []
+    const at = current.indexOf(option.value)
+    if (at >= 0) current.splice(at, 1)
+    else current.push(option.value)
+    // Stable wire order: follow the declared options order, not pick order.
+    onSelectValue?.(toggle, options.filter(o => current.includes(o.value)).map(o => o.value))
+  }
+
+  const anchor = (
+    <button
+      type="button"
+      className={css.selectAnchor}
+      aria-label={title}
+      aria-haspopup="listbox"
+      aria-expanded={open}
+      onClick={() => { setOpen(now => !now) }}
+    >
+      {!multi && hasIcons && selected[0] !== undefined && (
+        <span className={css.selectAnchorIcon}>{iconOf(selected[0].icon, 16)}</span>
+      )}
+      <span className={css.selectAnchorText}>
+        {selected.length === 0 ? '—' : selected.map(option => textOf(option.title)).join(', ')}
+      </span>
+      <IconChevronDownOutline14 size={12} />
+    </button>
+  )
+
+  return (
+    <div className={css.popupRow}>
+      <span className={css.rowText}>
+        <span className={css.title}>{title}</span>
+        {textOf(toggle.desc) !== '' && <span className={css.desc}>{textOf(toggle.desc)}</span>}
+      </span>
+      <span className={css.control}>
+        <Menu
+          open={open}
+          anchor={anchor}
+          items={options.map((option, index) => ({
+            id: String(index),
+            label: hasIcons
+              ? (
+                <span className={css.selectOption}>
+                  <span className={css.selectOptionIcon}>{iconOf(option.icon, 24)}</span>
+                  <span className={css.selectOptionText}>
+                    <span className={css.title}>{textOf(option.title)}</span>
+                    {textOf(option.desc) !== '' && <span className={css.desc}>{textOf(option.desc)}</span>}
+                  </span>
+                </span>
+              )
+              : textOf(option.title),
+          }))}
+          selectedId={!multi && selected[0] !== undefined ? String(options.indexOf(selected[0])) : undefined}
+          selectedIds={multi ? selected.map(option => String(options.indexOf(option))) : undefined}
+          onSelect={(id) => { pick(Number(id)) }}
+          onClose={() => { setOpen(false) }}
+          portal
+        />
+      </span>
+    </div>
+  )
+}
+
+/**
  * The secondary settings popup body of one feature (tab or viewer):
  * - `settings.render` (custom panel) when declared — rendered with the
  *   shared store/service, the live prefs, the descriptor's own plugin
@@ -316,12 +428,14 @@ export function SettingsBody(props: {
   service: BetterSidebarService
   onToggle: (toggle: SidebarSettingToggle, next: boolean) => void
   onCommit: (toggle: SidebarSettingToggle, raw: string) => string
+  onSelectValue: (toggle: SidebarSettingToggle, next: unknown) => void
   onPluginToggle: (toggle: SidebarSettingToggle, next: boolean) => void
   onPluginCommit: (toggle: SidebarSettingToggle, raw: string) => string
+  onPluginSelectValue: (toggle: SidebarSettingToggle, next: unknown) => void
   onPluginWrite: (key: string, value: unknown) => void
   onClose: () => void
 }) {
-  const { feature, prefs, store, service, onToggle, onCommit, onPluginToggle, onPluginCommit, onPluginWrite, onClose } = props
+  const { feature, prefs, store, service, onToggle, onCommit, onSelectValue, onPluginToggle, onPluginCommit, onPluginSelectValue, onPluginWrite, onClose } = props
   const render = feature.settings?.render
   if (render !== undefined) {
     return (
@@ -354,6 +468,7 @@ export function SettingsBody(props: {
           prefs={prefs}
           onToggle={onToggle}
           onCommit={onCommit}
+          onSelectValue={onSelectValue}
         />
       )}
       {pluginToggles.length > 0 && (
@@ -362,6 +477,7 @@ export function SettingsBody(props: {
           prefs={prefs}
           onToggle={onPluginToggle}
           onCommit={onPluginCommit}
+          onSelectValue={onPluginSelectValue}
           valueSource={(key) => pluginBlob[key]}
         />
       )}
@@ -380,6 +496,8 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
   const [error, setError] = useState<string | null>(null)
   // Which feature's secondary settings popup is open (null = closed).
   const [settingsFor, setSettingsFor] = useState<TabDescriptor | FileViewerDescriptor | null>(null)
+  // Whether the position-compat strip popup (the gear on the 常规 row) is open.
+  const [stripSettingsOpen, setStripSettingsOpen] = useState(false)
   // Whether the "add plugin" modal (a dashed card at the end of the
   // 侧边栏内容 / 文件预览 grids) is open, and for which extension point
   // (null = closed).
@@ -486,6 +604,12 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
 
   /** Flip one declaratively-declared toggle (a SidebarPrefs boolean field). */
   const onToggleSetting = (toggle: SidebarSettingToggle, next: boolean): void => {
+    applyPref({ [toggle.key]: next })
+  }
+
+  /** Commit one declaratively-declared select row (the option's value, or an
+   *  array of values under `multi`). */
+  const onSelectSetting = (toggle: SidebarSettingToggle, next: unknown): void => {
     applyPref({ [toggle.key]: next })
   }
 
@@ -660,6 +784,36 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
             onChange={(next) => { applyPref({ interceptOpenPath: next }) }}
           />
         </div>
+        <div className={css.row}>
+          <span className={css.rowText}>
+            <span className={css.title}>{t('settingsTitleBarTitle')}</span>
+            <span className={css.desc}>{t('settingsTitleBarDesc')}</span>
+          </span>
+          <span className={css.control}>
+            {/*
+              The position-compat row's gear (same popup pattern as the
+              feature cards): opens a Modal with the strip-height number row.
+              Hidden while the mode is off — its related setting is dormant
+              then (the feature-card convention).
+            */}
+            {prefs.titleBarCompat && (
+              <button
+                type="button"
+                className={css.rowGear}
+                aria-label={`${t('settingsTitleBarTitle')} ${t('settingsPopup')}`}
+                title={t('settingsPopup')}
+                onClick={() => { setStripSettingsOpen(true) }}
+              >
+                <IconSettingsOutline16 size={14} />
+              </button>
+            )}
+            <Switch
+              label={t('settingsTitleBarTitle')}
+              checked={prefs.titleBarCompat}
+              onChange={(next) => { applyPref({ titleBarCompat: next }) }}
+            />
+          </span>
+        </div>
       </div>
 
       {/* 侧边栏内容: one small card per registered tab type in a responsive
@@ -773,12 +927,49 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
             prefs={prefs}
             onToggle={onToggleSetting}
             onCommit={onCommitSetting}
+            onSelectValue={onSelectSetting}
             onPluginToggle={(toggle, next) => { onPluginToggle(settingsFor.id, toggle, next) }}
             onPluginCommit={(toggle, raw) => onPluginCommitSetting(settingsFor.id, toggle, raw)}
+            onPluginSelectValue={(toggle, next) => { applyPluginSetting(settingsFor.id, toggle.key, next) }}
             onPluginWrite={(key, value) => { applyPluginSetting(settingsFor.id, key, value) }}
             onClose={() => { setSettingsFor(null) }}
             store={store}
             service={service}
+          />
+        </Modal>
+      )}
+
+      {/* The position-compat strip popup (opened by the gear on the 常规
+          row): one number row for the reserved strip height in px. Same
+          Modal chrome and row machinery as the feature popups — mounted
+          only while open (the Modal SSR rule above). */}
+      {stripSettingsOpen && (
+        <Modal
+          open
+          onClose={() => { setStripSettingsOpen(false) }}
+          title={t('settingsTitleBarTitle')}
+          description={t('settingsPopupDesc', { feature: t('settingsTitleBarTitle') })}
+          closeLabel={t('close')}
+          className={css.popupDialog}
+          footer={(
+            <button type="button" className={css.done} onClick={() => { setStripSettingsOpen(false) }}>
+              {t('settingsDone')}
+            </button>
+          )}
+        >
+          <FeatureSettingsRows
+            toggles={[{
+              key: 'titleBarStripPx',
+              type: 'number',
+              title: () => t('settingsTitleBarStripTitle'),
+              desc: () => t('settingsTitleBarStripDesc'),
+              min: TITLE_BAR_STRIP_MIN,
+              max: TITLE_BAR_STRIP_MAX,
+              unit: 'px',
+            }]}
+            prefs={prefs}
+            onToggle={onToggleSetting}
+            onCommit={onCommitSetting}
           />
         </Modal>
       )}

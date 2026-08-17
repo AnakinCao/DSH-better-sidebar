@@ -11,12 +11,13 @@
 import type { api } from './api.ts'
 import {
   clampTerminalFontSize,
+  clampTitleBarStrip,
   clampWidthPercent,
   SIDEBAR_PREFS_DEFAULTS,
   type SidebarPrefs,
 } from '../prefs-shared.ts'
 
-export { SIDEBAR_PREFS_DEFAULTS, clampTerminalFontSize, clampWidthPercent }
+export { SIDEBAR_PREFS_DEFAULTS, clampTerminalFontSize, clampTitleBarStrip, clampWidthPercent }
 export type { SidebarPrefs }
 
 /** The settings wire face the preferences need (a subset of the plugin api). */
@@ -59,6 +60,15 @@ export function parsePrefs(value: unknown): SidebarPrefs {
     interceptOpenPath: typeof record.interceptOpenPath === 'boolean'
       ? record.interceptOpenPath
       : SIDEBAR_PREFS_DEFAULTS.interceptOpenPath,
+    editorExplorer: typeof record.editorExplorer === 'boolean'
+      ? record.editorExplorer
+      : SIDEBAR_PREFS_DEFAULTS.editorExplorer,
+    titleBarCompat: typeof record.titleBarCompat === 'boolean'
+      ? record.titleBarCompat
+      : SIDEBAR_PREFS_DEFAULTS.titleBarCompat,
+    titleBarStripPx: typeof record.titleBarStripPx === 'number' && Number.isFinite(record.titleBarStripPx)
+      ? clampTitleBarStrip(record.titleBarStripPx)
+      : SIDEBAR_PREFS_DEFAULTS.titleBarStripPx,
     htmlViewerNoSandbox: typeof record.htmlViewerNoSandbox === 'boolean'
       ? record.htmlViewerNoSandbox
       : SIDEBAR_PREFS_DEFAULTS.htmlViewerNoSandbox,
@@ -71,6 +81,12 @@ export function parsePrefs(value: unknown): SidebarPrefs {
     browserInterceptLinks: typeof record.browserInterceptLinks === 'boolean'
       ? record.browserInterceptLinks
       : SIDEBAR_PREFS_DEFAULTS.browserInterceptLinks,
+    browserInterceptHttp: typeof record.browserInterceptHttp === 'boolean'
+      ? record.browserInterceptHttp
+      : SIDEBAR_PREFS_DEFAULTS.browserInterceptHttp,
+    browserInterceptHttps: typeof record.browserInterceptHttps === 'boolean'
+      ? record.browserInterceptHttps
+      : SIDEBAR_PREFS_DEFAULTS.browserInterceptHttps,
     tabsEnabled: booleanMapOf(record.tabsEnabled),
     viewersEnabled: booleanMapOf(record.viewersEnabled),
     pluginSettings: pluginSettingsMapOf(record.pluginSettings),
