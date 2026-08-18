@@ -94,6 +94,15 @@ jobs:
       - name: Mount + headless-render smoke
         run: pnpm test:mount
 
+      # Aggregate double-mount regression: a fixture aggregate bundle mounts
+      # dsh-better-sidebar under its own entry id BEFORE the plugin's bundle
+      # row; the plugin must back off (no duplicate /sidebar/api, boot OK).
+      # Uses the pinned DSH CLI installed above.
+      - name: Aggregate double-mount regression
+        env:
+          DSH_CMD: dsh
+        run: bash scripts/e2e-aggregate-mount.sh
+
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v4
