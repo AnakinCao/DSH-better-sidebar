@@ -1,0 +1,15 @@
+{
+  "name": "fixture-aggregate-better-sidebar",
+  "version": "0.0.0",
+  "private": true,
+  "main": "lib/index.js",
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
