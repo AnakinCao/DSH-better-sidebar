@@ -60,10 +60,14 @@ export DSH_HOME="$DSH_HOME_BASE"
 LOG_DIR="$DSH_HOME/logs"; mkdir -p "$LOG_DIR"
 OUT_LOG="$LOG_DIR/dsh-web.out.log"; ERR_LOG="$LOG_DIR/dsh-web.err.log"
 SERVER_PID=""
+TMP_DIR=""
 cleanup() {
   if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
     kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
+  fi
+  if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
+    rm -rf "$TMP_DIR"
   fi
   if [ -z "$KEEP_HOME" ] && [ -n "$DSH_HOME_BASE" ] && [ -d "$DSH_HOME_BASE" ]; then
     rm -rf "$DSH_HOME_BASE"
@@ -74,7 +78,7 @@ trap cleanup EXIT
 # ── 打包 fixture 聚合包 ─────────────────────────────────────────────────────
 TMP_DIR="$(mktemp -d)"
 ( cd "$FIXTURE_DIR" && npm pack --silent --pack-destination "$TMP_DIR" >/dev/null )
-FIXTURE_TGZ="$(ls "$TMP_DIR"/*.tgz | head -1)"
+FIXTURE_TGZ="$(ls "$TMP_DIR"/*.tgz 2>/dev/null | head -1 || true)"
 [ -n "$FIXTURE_TGZ" ] || die "fixture 打包失败"
 
 # ── 引导 scratch profile（web 模板）────────────────────────────────────────
@@ -117,7 +121,7 @@ say "安装插件 tarball（后到）…"
 $DSH_CMD plugin --profile web add "file:$TARBALL"
 
 # ── 启动真实 dsh web ───────────────────────────────────────────────────────
-say "启动 dsh web（--port $PORT，日志 $LOG_DIR）…"
+say "启动 dsh web（--port ${PORT}，日志 ${LOG_DIR}）…"
 $DSH_CMD web --port "$PORT" >"$OUT_LOG" 2>"$ERR_LOG" &
 SERVER_PID=$!
 
@@ -142,7 +146,7 @@ if grep -q "duplicate prefix route" "$ERR_LOG" "$OUT_LOG" 2>/dev/null; then
 fi
 
 STATUS="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/sidebar/api/__e2e_unknown__" 2>/dev/null || true)"
-say "/sidebar/api POST 未知方法 → HTTP $STATUS（期望 404 = 路由存活）"
-[ "$STATUS" = "404" ] || die "/sidebar/api 未按预期响应（HTTP $STATUS），期望 404"
+say "/sidebar/api POST 未知方法 → HTTP ${STATUS}（期望 404 = 路由存活）"
+[ "$STATUS" = "404" ] || die "/sidebar/api 未按预期响应（HTTP ${STATUS}），期望 404"
 
 say "通过：聚合双挂载场景下插件自动退让，侧边栏由聚合行接管。"

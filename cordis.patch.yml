@@ -39,8 +39,10 @@
 # loader evaluates it when this row is processed (entry-list order, only rows
 # before this one are visible), so the aggregate bundle must precede this one
 # in `dsh.profile.bundles` — the standard install order, since `dsh plugin add`
-# appends new bundles last. Same-id manual duplicates still fail loudly at the
-# loader as before.
+# appends new bundles last. The reverse order (this bundle before the
+# aggregate) is a known limitation: the guard cannot see rows that come after
+# it, and no runtime singleton guard is added. Same-id manual duplicates still
+# fail loudly at the loader as before.
 - insert:
     - id: better-sidebar
       name: 'dsh-better-sidebar'
