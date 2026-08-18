@@ -50,10 +50,6 @@
 - 🎛️ **声明式设置 select 行**（[#151](https://github.com/omdsh-dev/DSH-better-sidebar/pull/151)）：设置项新增 `type: 'select'`（`options` 支持 value/title/desc/icon，`multi` 多选存数组）；带图标的选项渲染大图标选项卡、收起态同样显示图标；`editorExplorer` 改为图标化下拉（合并 / 独立）；能力清单新增 `settingSelect`
 - 🔀 **与 dsh-web-ui 家族右侧面板互斥**（[#181](https://github.com/omdsh-dev/DSH-better-sidebar/pull/181)）：读取 `aionui-panel` 设置命名空间的提供方选择——当选择「使用 aionui-panel」时，整个 better-sidebar（右侧栏 / 底部面板 / 浮动入口 / 各类接管）不再挂载；选择 DSH-better-sidebar（或未安装 aionui）时正常。设置页保存后实时生效（settings-document 推送），无需刷新
 
-**📝 其他**
-
-- 安装 / 更新命令统一为 `dsh-better-sidebar@latest`（双语 README 同步）
-
 ### v0.12.3
 
 **✨ 新功能**
@@ -71,34 +67,6 @@
 - 📝 **Markdown 编辑器**：选区转对话弹窗恢复可用（[#24](https://github.com/omdsh-dev/DSH-better-sidebar/pull/24)）
 - 🐛 **node-pty 加载失败不再拖垮 server**（[#140](https://github.com/omdsh-dev/DSH-better-sidebar/issues/140)）：宿主半改为懒加载 node-pty，缺失时插件照常挂载，终端以修复提示横幅（可复制命令 + 重试按钮）呈现，agent 终端工具自动跳过
 - 🧪 测试工程：单元测试拆分（#141）+ smoke 偶发失败修复
-
-**🚀 工程**
-
-- 接入 GitHub Release 自动发版 npm（Trusted Publishing，产物带 provenance），本版起打 tag 即自动发布（[#148](https://github.com/omdsh-dev/DSH-better-sidebar/pull/148)）
-
-### v0.12.2
-
-- 📐 **位置兼容模式**：设置页新增开关：为 Windows 右上角原生标题栏预留顶部空间，侧边栏按钮与内容整体下移（默认关闭）；下移距离可在齿轮弹窗中自定义（0–120px）
-- 🔌 **服务化基座**：完整类型导出 + `version`/`features` 能力探测、状态订阅（`getSnapshot`/`subscribeState`）、tab 角标、`onOpen`/`onActivate`/`onClose` 生命周期回调、`updateTab`/`activateTab`/`openFile`、定向打开、`meta` 跨刷新持久化、插件自有设置（`pluginToggles`/`render`）、外链点击目标认领（`urlTarget`）
-- ➕ **添加插件**：设置页「推荐插件目录」+ 一键复制安装命令；内置 Office 预览迁至推荐插件
-- 🖱️ **标签页滚轮**：标签页栏支持鼠标滚轮横向滚动
-- 🐛 **修复**：远程访问 403（信任栅栏改用 `trustedHosts`）、侧边栏崩溃 [#31](https://github.com/omdsh-dev/DSH-better-sidebar/issues/31)、Windows 下 HTML 预览盘符路径
-
-### v0.12.1
-
-- 🔌 **服务化基座**：完整类型导出 + `version`/`features` 能力探测、状态订阅（`getSnapshot`/`subscribeState`）、tab 角标、`onOpen`/`onActivate`/`onClose` 生命周期回调、`updateTab`/`activateTab`/`openFile`、定向打开、`meta` 跨刷新持久化、插件自有设置（`pluginToggles`/`render`）
-- ➕ **添加插件**：设置页「推荐插件目录」+ 一键复制安装命令；内置 Office 预览迁至推荐插件
-- 🖱️ **标签页滚轮**：标签页栏支持鼠标滚轮横向滚动
-- 🐛 **修复**：远程访问 403（信任栅栏改用 `trustedHosts`）、侧边栏崩溃 [#31](https://github.com/omdsh-dev/DSH-better-sidebar/issues/31)、Windows 下 HTML 预览盘符路径
-
-> 📝 说明：0.12.0 正式版因 npm 判定版本已发布无法复用，正式发布改用 0.12.1，两者内容一致。
-
-### v0.12.0
-
-- 🔌 **服务化基座**：完整类型导出 + `version`/`features` 能力探测、状态订阅、tab 角标、生命周期回调、定向打开、`meta` 跨刷新持久化、插件自有设置
-- ➕ **添加插件**：设置页「推荐插件目录」+ 一键复制安装命令；内置 Office 预览迁至推荐插件
-- 🖱️ **标签页滚轮**：标签页栏支持鼠标滚轮横向滚动
-- 🐛 **修复**：远程访问 403（信任栅栏改用 `trustedHosts`）、侧边栏崩溃 [#31](https://github.com/omdsh-dev/DSH-better-sidebar/issues/31)、Windows 下 HTML 预览盘符路径
 
 ## 🚀 安装
 
