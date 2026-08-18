@@ -42,6 +42,12 @@
   <a href="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e"><img width="33%" alt="添加插件截图" src="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e" /></a>
 </div>
 
+### v0.13.1
+
+**🐛 修复**
+
+- 🔧 **peer 依赖对齐 DSH 0.1.0-rc.7**（[#206](https://github.com/omdsh-dev/DSH-better-sidebar/issues/206)）：全部 `@deepseek-ai/*` peer / devDependencies 从 `^0.1.0-rc.6` 升至 `^0.1.0-rc.7`，CI 挂载冒烟同步钉版——消除主框架升至 rc.7 后 rc.6 / rc.7 混用依赖树导致的 `agent-presets: refusing to compose an unscoped context`（选模型 / 发消息报错）
+
 ### v0.13.0
 
 **✨ 新功能**
@@ -187,7 +193,7 @@ v0.12.1 补齐基座能力（完整类型导出、能力探测、状态订阅、
 ## 🛠️ 开发与构建
 
 ```sh
-pnpm install      # @deepseek-ai/* 已发布到 npm（^0.1.0-rc.6），直接解析、无需令牌
+pnpm install      # @deepseek-ai/* 已发布到 npm（^0.1.0-rc.7），直接解析、无需令牌
 pnpm typecheck    # tsc --noEmit
 pnpm build        # → lib/index.js + lib/invariant.js + lib/client.js + lib/client-registry.js + lib/types
 pnpm test         # vitest（含 manifest 一致性守卫，需先 build）

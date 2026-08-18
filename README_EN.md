@@ -41,6 +41,12 @@
   <a href="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e"><img width="45%" alt="Add Plugins screenshot" src="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e" /></a>
 </div>
 
+### v0.13.1
+
+**🐛 Fixes**
+
+- 🔧 **Peer dependencies aligned to DSH 0.1.0-rc.7** ([#206](https://github.com/omdsh-dev/DSH-better-sidebar/issues/206)): all `@deepseek-ai/*` peer/devDependencies raised from `^0.1.0-rc.6` to `^0.1.0-rc.7`, and the CI mount lane pins the same version — eliminating the mixed rc.6/rc.7 dependency tree (after the main framework moved to rc.7) that surfaced as `agent-presets: refusing to compose an unscoped context` when picking a model / sending a message
+
 ### v0.13.0
 
 **✨ New features**
@@ -218,7 +224,7 @@ The dashed cards at the end of the "Sidebar content" / "File viewers" grids in t
 ## 🛠️ Development & Build
 
 ```sh
-pnpm install      # @deepseek-ai/* resolved from npm (^0.1.0-rc.6, published) — no token needed
+pnpm install      # @deepseek-ai/* resolved from npm (^0.1.0-rc.7, published) — no token needed
 pnpm typecheck    # tsc --noEmit
 pnpm build        # → lib/index.js + lib/invariant.js + lib/client.js + lib/client-registry.js + lib/types
 pnpm test         # vitest (includes manifest consistency guard; build first)
