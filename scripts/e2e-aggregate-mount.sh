@@ -24,7 +24,10 @@
 #                  （与 pm2 启动器同源，避免依赖可能失效的 PATH dsh）
 #   TARBALL        插件 tarball；缺省仓库根 dsh-better-sidebar-*.tgz（须已 pack）
 #   PORT           固定端口（默认 0 = OS 分配，从日志解析 URL）
-#   KEEP_HOME      非空时保留 scratch home（调试用）
+#   DSH_HOME_BASE  scratch 根目录（默认系统临时目录）。脚本始终在其下新建
+#                  本调用拥有的独立子目录，只写入/删除该子目录；调用方提供
+#                  的目录本身（可能是真实 ~/.dsh）绝不写入或删除。
+#   KEEP_HOME      非空时保留 scratch 目录（调试用）
 #
 # 退出码 = 0 通过；非 0 失败。服务器与 scratch 目录由 trap 兜底清理。
 # =============================================================================
@@ -54,9 +57,16 @@ fi
 [ -n "$TARBALL" ] && [ -f "$TARBALL" ] || die "未找到插件 tarball：先在本仓库跑 pnpm build && npm pack，或用 TARBALL 指定"
 
 # ── scratch home ────────────────────────────────────────────────────────────
+# 始终在本调用拥有的全新目录里运行：调用方给了 DSH_HOME_BASE（可能是真实
+# ~/.dsh）时，只在其下新建子目录并只删除该子目录；缺省时直接用系统临时
+# 目录。调用方提供的目录本身绝不写入或删除。
 DSH_HOME_BASE="${DSH_HOME_BASE:-}"
-if [ -z "$DSH_HOME_BASE" ]; then DSH_HOME_BASE="$(mktemp -d)"; fi
-export DSH_HOME="$DSH_HOME_BASE"
+if [ -n "$DSH_HOME_BASE" ]; then
+  SCRATCH="$(mktemp -d "$DSH_HOME_BASE/dsh-e2e-agg.XXXXXX")"
+else
+  SCRATCH="$(mktemp -d /tmp/dsh-e2e-agg.XXXXXX)"
+fi
+export DSH_HOME="$SCRATCH"
 LOG_DIR="$DSH_HOME/logs"; mkdir -p "$LOG_DIR"
 OUT_LOG="$LOG_DIR/dsh-web.out.log"; ERR_LOG="$LOG_DIR/dsh-web.err.log"
 SERVER_PID=""
@@ -69,8 +79,10 @@ cleanup() {
   if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
     rm -rf "$TMP_DIR"
   fi
-  if [ -z "$KEEP_HOME" ] && [ -n "$DSH_HOME_BASE" ] && [ -d "$DSH_HOME_BASE" ]; then
-    rm -rf "$DSH_HOME_BASE"
+  if [ -z "$KEEP_HOME" ] && [ -d "$SCRATCH" ]; then
+    rm -rf "$SCRATCH"
+  else
+    warn "KEEP_HOME 已设置，保留 $SCRATCH"
   fi
 }
 trap cleanup EXIT
