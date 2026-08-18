@@ -157,8 +157,17 @@ if grep -q "duplicate prefix route" "$ERR_LOG" "$OUT_LOG" 2>/dev/null; then
   die "检测到 duplicate prefix route（双挂载未退让）"
 fi
 
+# 真实方法探活：terminal.deps 是插件自己的 handler（writeOk → HTTP 200 +
+# {"ok":true,...}）。成功响应证明至少一个实例真正注册了 /sidebar/api 路由
+# ——generic missing-route 404 无法冒充（P2: Probe a real sidebar API method）。
+DEPS="$(curl -s -X POST "$URL/sidebar/api/terminal.deps" 2>/dev/null || true)"
+if ! printf '%s' "$DEPS" | grep -q '"ok":true'; then
+  die "/sidebar/api/terminal.deps 未返回 ok:true（响应：$(printf '%s' "$DEPS" | head -c 200)）"
+fi
+say "/sidebar/api/terminal.deps → ok:true（真实 handler 存活）"
+
 STATUS="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/sidebar/api/__e2e_unknown__" 2>/dev/null || true)"
-say "/sidebar/api POST 未知方法 → HTTP ${STATUS}（期望 404 = 路由存活）"
-[ "$STATUS" = "404" ] || die "/sidebar/api 未按预期响应（HTTP ${STATUS}），期望 404"
+say "/sidebar/api POST 未知方法 → HTTP ${STATUS}（期望 404）"
+[ "$STATUS" = "404" ] || die "/sidebar/api 未知方法未按预期返回 404（HTTP ${STATUS}）"
 
 say "通过：聚合双挂载场景下插件自动退让，侧边栏由聚合行接管。"
