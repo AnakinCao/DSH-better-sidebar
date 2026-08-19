@@ -1,6 +1,6 @@
 /**
- * Markdown freshness behavior: clean previews follow an external edit, while
- * dirty previews keep the user's draft until an explicit confirmed refresh.
+ * Markdown refresh behavior: external edits are picked up only when the user
+ * explicitly clicks the refresh button, and unsaved drafts stay protected.
  */
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -55,7 +55,7 @@ function setup(): {
     fetchStrategy: 'fsRead',
     component: FakeMarkdownViewer,
   })
-  store.setSession('markdown-refresh-session')
+  store.setSession('markdown-manual-refresh-session')
   const home = allLeaves(store.getSnapshot().state!.splits)
     .flatMap(leaf => leaf.tabs)
     .find(candidate => candidate.type === 'editor')!
@@ -72,12 +72,11 @@ function mount(ctx: Context, store: ReturnType<typeof createSidebarStore>, tab: 
     root.render(createElement(EditorHost, {
       ctx,
       store,
-      scope: { sessionId: 'markdown-refresh-session', cwd: '/tmp' },
+      scope: { sessionId: 'markdown-manual-refresh-session', cwd: '/tmp' },
       tab,
       expanded: [],
       onToggleDir: () => {},
       onReferenceFile: () => {},
-      visible: true,
     }))
   })
   return {
@@ -102,27 +101,33 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('Markdown external refresh', () => {
-  it('reloads a clean visible preview after the file version changes', async () => {
+describe('Markdown manual refresh', () => {
+  it('does not poll after an external edit and reloads only after clicking refresh', async () => {
     vi.useFakeTimers()
-    let disk = { content: 'before', version: { mtimeMs: 1, size: 6 } }
+    let disk = 'before'
     const read = vi.spyOn(api, 'fsRead').mockImplementation(async () => ({
-      kind: 'text', content: disk.content, truncated: false, version: disk.version,
+      kind: 'text', content: disk, truncated: false,
     }))
-    const stat = vi.spyOn(api, 'fsStat').mockImplementation(async () => ({ version: disk.version }))
     const { store, ctx, tab } = setup()
     const view = mount(ctx, store, tab)
     try {
       await flush()
       expect(view.container.querySelector('[data-testid="markdown-content"]')?.textContent).toBe('before')
       const initialReads = read.mock.calls.length
-      disk = { content: 'after', version: { mtimeMs: 2, size: 5 } }
+
+      disk = 'after'
       await act(async () => {
-        vi.advanceTimersByTime(1000)
+        vi.advanceTimersByTime(3000)
         await Promise.resolve()
         await Promise.resolve()
       })
-      expect(stat).toHaveBeenCalled()
+      expect(read.mock.calls.length).toBe(initialReads)
+      expect(view.container.querySelector('[data-testid="markdown-content"]')?.textContent).toBe('before')
+
+      const refresh = view.container.querySelector<HTMLButtonElement>('button[aria-label="刷新"], button[aria-label="Refresh"]')
+      expect(refresh).not.toBeNull()
+      act(() => { refresh!.click() })
+      await flush()
       expect(read.mock.calls.length).toBeGreaterThan(initialReads)
       expect(view.container.querySelector('[data-testid="markdown-content"]')?.textContent).toBe('after')
     } finally {
@@ -130,13 +135,11 @@ describe('Markdown external refresh', () => {
     }
   })
 
-  it('keeps dirty content and requires confirmation before manual refresh', async () => {
-    vi.useFakeTimers()
-    let disk = { content: 'before', version: { mtimeMs: 1, size: 6 } }
+  it('protects dirty content until the user confirms manual refresh', async () => {
+    let disk = 'before'
     const read = vi.spyOn(api, 'fsRead').mockImplementation(async () => ({
-      kind: 'text', content: disk.content, truncated: false, version: disk.version,
+      kind: 'text', content: disk, truncated: false,
     }))
-    vi.spyOn(api, 'fsStat').mockImplementation(async () => ({ version: disk.version }))
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const { store, ctx, tab } = setup()
     const view = mount(ctx, store, tab)
@@ -146,14 +149,7 @@ describe('Markdown external refresh', () => {
       act(() => { markDirty?.() })
       await flush()
       const before = read.mock.calls.length
-      disk = { content: 'external', version: { mtimeMs: 2, size: 8 } }
-      await act(async () => {
-        vi.advanceTimersByTime(1000)
-        await Promise.resolve()
-        await Promise.resolve()
-      })
-      expect(view.container.querySelector('[data-testid="markdown-content"]')?.textContent).toBe('before')
-      expect(view.container.textContent).toMatch(/文件已更新|File changed on disk/)
+      disk = 'external'
 
       const refresh = view.container.querySelector<HTMLButtonElement>('button[aria-label="刷新"], button[aria-label="Refresh"]')
       expect(refresh).not.toBeNull()
@@ -161,6 +157,7 @@ describe('Markdown external refresh', () => {
       await flush()
       expect(confirm).toHaveBeenCalled()
       expect(read.mock.calls.length).toBe(before)
+      expect(view.container.querySelector('[data-testid="markdown-content"]')?.textContent).toBe('before')
 
       confirm.mockReturnValue(true)
       act(() => { refresh!.click() })

@@ -58,15 +58,11 @@ export interface GitLogEntry {
   refs: string
 }
 
-/** File version used by the Markdown freshness poll. */
-export interface FsFileVersion { mtimeMs: number; size: number }
 /** Text read result. */
-export interface FsTextResult { kind: 'text'; content: string; truncated: boolean; version?: FsFileVersion }
+export interface FsTextResult { kind: 'text'; content: string; truncated: boolean }
 /** Binary read result (no content; images load through the media route).
  *  `head` carries the first bytes (base64) for viewer detect sniffing. */
-export interface FsBinaryResult { kind: 'binary'; size: number; truncated: boolean; head: string; version?: FsFileVersion }
-/** Lightweight file metadata response used to avoid polling full contents. */
-export interface FsStatResult { version: FsFileVersion }
+export interface FsBinaryResult { kind: 'binary'; size: number; truncated: boolean; head: string }
 
 /**
  * One jobs.output response: the output the MODEL has read so far for the
@@ -143,8 +139,6 @@ export const api = {
    *  side panel's search box); matches are cwd-relative '/'-separated paths. */
   fsSearch: (scope: SessionScope, query: string, signal?: AbortSignal) =>
     call<{ matches: string[]; truncated: boolean }>('fs.search', scopePayload(scope, { query }), signal),
-  fsStat: (scope: SessionScope, path: string, signal?: AbortSignal) =>
-    call<FsStatResult>('fs.stat', scopePayload(scope, { path }), signal),
   fsRead: (scope: SessionScope, path: string, signal?: AbortSignal) =>
     call<FsTextResult | FsBinaryResult>('fs.read', scopePayload(scope, { path }), signal),
   fsWrite: (scope: SessionScope, path: string, content: string) =>
