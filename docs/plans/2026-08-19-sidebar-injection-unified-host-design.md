@@ -46,6 +46,20 @@
 | profile 可禁用内置插件行：`cordis.patch.yml` `- id: <plugin-id>` + `disabled: true`（皮肤 10 款禁用先例） | `~/.dsh/profiles/web/cordis.patch.yml` |
 | 性能参考：拖拽 rAF 合并最新 delta 单帧应用 + `[data-dragging]` 禁过渡 + 纯函数让步结算 + 「关闭=宽 0 保活不卸载」 | `AppFrame.tsx:59-62`、`AppFrame.module.css:8-17`、`columns.ts:62-77` |
 
+### 3.4 实证核对（真实 dsh web 页面，Playwright 探针，2026-08-19）
+
+对 http://127.0.0.1:3080/（本机 profile，better-sidebar 已挂载）实测 DOM 与推挤行为：
+
+| 事实 | 实测结果 |
+|---|---|
+| 外壳 DOM 链 | `#root > div[data-slot="root"]`（**display:contents**）`> div[data-dsh-frame]`（grid，CSS module 哈希类名） |
+| frame 子项 | **5 个**：`[data-pane=sidebar]` / `[data-pane=conversation]` / `[data-pane=details]` / `[data-shell-overlay]`（浮层）/ 拖拽 handle——`nth-child(2)` 当前仍命中 centerCol，但**位置脆弱性实锤**（浮层/handle 已混入子项序列） |
+| 稳定锚点 | centerCol 带 `data-pane="conversation"`；frame 带 `data-dsh-frame` → 弱锚点 = `#root [data-dsh-frame] > [data-pane="conversation"]` |
+| ~~`[data-slot="conversation"]` 锚点候选~~ | **作废**：该元素 `display: contents`（无盒，margin 无效，rect 0×0） |
+| 推挤无溢出（web） | 设 `--dsh-sidebar-width:300px` 后：`#root` margin-right 生效（过渡中 92px），`scrollWidth == clientWidth == 1440`，**无水平溢出** → `width: calc(100% - var)` 改动在 web 无副作用；桌面壳溢出修复（#226 目标）保留并标注「web 已验证无害、Desktop 待实测」 |
+| 当前 host 本体 | `[data-dsh-better-sidebar]` 为 `position: static` 的普通块（fixed 在**内层面板**上）→ 新增 `data-dsh-panel-host` 固定含块层是宿主内新元素，外部契约不变 |
+| 页面错误 | 0 个 pageerror（探针期间） |
+
 ### 3.3 桌面套壳（本机 DSH Desktop.app，Electron）
 
 | 事实 | 证据 |
@@ -121,7 +135,7 @@ document.body
 
 ### 5.3 契约层（可维护性）
 
-- **锚点弱化**：`layout.css:31` 的 `#root > [data-slot=root] > div > div:nth-child(2)` 替换为 `:has()`/数据属性弱锚定；推挤逻辑收敛进几何写入器（一处实现）。
+- **锚点弱化**：`layout.css:31` 的 `#root > [data-slot=root] > div > div:nth-child(2)` 替换为 `#root [data-dsh-frame] > [data-pane="conversation"]`（稳定 data 属性锚定，实证见 §3.4；`[data-slot="conversation"]` 为 display:contents 不可用）；推挤逻辑收敛进几何写入器（一处实现）。
 - **推挤可关闭**：`SidebarPrefs` 新增（或复用既有）「宿主推挤」开关，默认开；桌面套壳/移动端自动切 overlay 时关闭推挤（修 #226 根因：不再依赖 `#root{width:100%}` 之外的宿主形状）。
 - **契约文档化**：挂载点（`data-dsh-better-sidebar` / `data-dsh-panel-host`）、z-index 栈、CSS 变量（`--dsh-sidebar-width/height` 保持对外）、桌面信号（URL/全局标记）、推挤锚点策略 —— 同步 AGENTS.md §8 与本文档。
 - **服务契约不变**：`ctx.betterSidebar` API 零变化；#135 的 service 读取问题（dsh-web-mobile 下 `ctx.betterSidebar` 直接读抛错）由「注入层与服务的解耦」顺带收敛（面板渲染不再假设服务存在即可读）。
@@ -194,7 +208,7 @@ document.body
   - `src/client/index.tsx`：挂载结构升级——`host` 内新增 `data-dsh-panel-host` 固定含块层（`position:fixed; inset:0; pointer-events:none; z-index:40`），面板子级 `pointer-events:auto`；挂载后一次性自检（`host.getBoundingClientRect()` vs 视口，偏差阈值内通过；否则降级 absolute+同步模式并 warn 一次）；`MutationObserver`（仅 body childList）守卫锚点被宿主清空时重挂。
   - `src/client/Sidebar.tsx`：抽取 `writeGeometry` 统一两条写路径（`applyDrag` + 打开态 effect）；拖拽/折叠行为不变。
   - `src/client/chunk-loader.ts` + `index.tsx`：缓存键加内容哈希，激活时哈希未变保留内存缓存（跳过重注入）。
-  - `src/client/layout.css`：底部推挤锚点 `nth-child(2)` → `#root [data-slot="conversation"]`（与既有 header 弱锚点同型，注释更新）；`#root` 增加 `width: calc(100% - var(--dsh-sidebar-width, 0px))` 消除桌面壳 margin 溢出（#226 目标以根因方式吸收，实施时在真实 DSH web 与 Desktop 验证不回归）；面板根 `contain: layout style` + 拖拽期 `will-change`。
+  - `src/client/layout.css`：底部推挤锚点 `nth-child(2)` → `#root [data-dsh-frame] > [data-pane="conversation"]`（§3.4 实证的稳定锚点，注释更新）；`#root` 增加 `width: calc(100% - var(--dsh-sidebar-width, 0px))` 消除桌面壳 margin 溢出（#226 目标以根因方式吸收；web 环境实测无溢出、改动无副作用，Desktop 实测待 PR1 验证）；面板根 `contain: layout style` + 拖拽期 `will-change`。
   - 测试：`tests/` 新增几何写入器单测（fake timers 断言单帧单写）、挂载自检降级单测；`tests/e2e/mount.e2e.ts` 深扫不变并新增 `data-dsh-panel-host` 断言。
 - **PR2（桌面/移动自动适配 + 契约文档）**
   - 新增 `src/client/desktop-env.ts`：解析 URL `dsh-desktop-mode/platform` + `__DSH_DESKTOP_FILE_PATH__` → 类型化 `DesktopEnv`（win32-advanced / darwin / compatibility / web / unknown）。
@@ -234,4 +248,5 @@ document.body
 
 - 2026-08-19（第一轮）：方案定稿——路线 A（统一面板宿主）为主线、路线 B（官方槽位）并行提 issue；先出设计文档，实现拆 PR1/PR2 待批准。
 - 2026-08-19（第二轮，实施就绪打磨）：对照源码核实现状——拖拽 rAF 批处理/窄屏不推挤/观察器节流/header 弱锚点**已具备**（§3.1 已标注「实施勿重做」）；chunk 缺口精确为「激活后内存缓存清空重注入」（HTTP 已 304）；§8.1 落到文件级改动清单；§6.2 备好上游 issue 草案。**等待用户批准后开 PR1**。
+- 2026-08-19（第三轮，实证核对）：真实 dsh web 页面 Playwright 探针（§3.4）——frame 子项已含 overlay/handle（nth-child 脆弱性实锤）；`data-pane="conversation"` 为新弱锚点（`[data-slot=conversation]` display:contents 作废）；推挤在 web 无溢出（calc 改动无害）；host 本体 static（fixed 在内层面板，含块层为新元素）。设计文档据此更新 §5.3/§8.1。
 - 实施偏差记录：待实施时按既有文档惯例补充。
