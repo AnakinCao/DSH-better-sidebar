@@ -139,6 +139,7 @@ async function readText(path: string, readLimit: number): Promise<{
   truncated: boolean
   binary: boolean
   size: number
+  mtimeMs: number
   head?: string
 }> {
   const info = await stat(path).catch((error: unknown) => {
@@ -160,7 +161,14 @@ async function readText(path: string, readLimit: number): Promise<{
     const head = binary
       ? slice.subarray(0, Math.min(slice.length, READ_HEAD_LIMIT)).toString('base64')
       : undefined
-    return { content: binary ? '' : slice.toString('utf8'), truncated, binary, size, head }
+    return {
+      content: binary ? '' : slice.toString('utf8'),
+      truncated,
+      binary,
+      size,
+      mtimeMs: info.mtimeMs,
+      head,
+    }
   } finally {
     await handle.close()
   }
@@ -231,14 +239,24 @@ function buildApi(
       const query = requireString(payload, 'query')
       return searchFiles(cwd, query)
     },
+    'fs.stat': async (payload) => {
+      const { cwd } = cwdOf(payload)
+      const path = await resolveGitPath(cwd, requireString(payload, 'path'))
+      const info = await stat(path).catch((error: unknown) => {
+        throw new SidebarError('fs-error', `cannot stat "${path}": ${error instanceof Error ? error.message : String(error)}`, 400)
+      })
+      if (info.isDirectory()) throw new SidebarError('fs-error', `"${path}" is a directory`, 400)
+      return { version: { mtimeMs: info.mtimeMs, size: info.size } }
+    },
     'fs.read': async (payload) => {
       const { cwd } = cwdOf(payload)
       // Relative paths are git-derived (status/diff report repo-root-relative
       // names; the untracked diff view reads the file through this route).
       const path = await resolveGitPath(cwd, requireString(payload, 'path'))
-      const { content, truncated, binary, size, head } = await readText(path, resolved.readLimit)
-      if (binary) return { kind: 'binary', size, truncated, head }
-      return { kind: 'text', content, truncated }
+      const { content, truncated, binary, size, mtimeMs, head } = await readText(path, resolved.readLimit)
+      const version = { mtimeMs, size }
+      if (binary) return { kind: 'binary', size, truncated, head, version }
+      return { kind: 'text', content, truncated, version }
     },
     'fs.write': async (payload) => {
       const { cwd } = cwdOf(payload)

@@ -25,9 +25,9 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createElement } from 'react'
 import clsx from 'clsx'
-import { IconCheckOutline16, IconFolderOpen16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCheckOutline16, IconFolderOpen16, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../context-types.ts'
-import { api, mediaUrl, type SessionScope } from './api.ts'
+import { api, mediaUrl, type FsFileVersion, type SessionScope } from './api.ts'
 import { BinaryDownload } from './binary-download.tsx'
 import { planFirstMatch, planFsReadOutcome, type EditorLoadAction } from './editor-load.ts'
 import { baseName } from './FileTree.tsx'
@@ -48,6 +48,8 @@ type EditorLoad =
 
 /** The docked tree panel's width bounds (drag-resize clamps into them). */
 const TREE_WIDTH_DEFAULT = 240
+/** Poll Markdown files once per second while their visible preview is open. */
+const MARKDOWN_POLL_MS = 1000
 const TREE_WIDTH_MIN = 160
 const TREE_WIDTH_MAX = 480
 
@@ -92,11 +94,23 @@ export function EditorHost(props: {
   expanded: string[]
   onToggleDir: (path: string) => void
   onReferenceFile: (path: string) => void
+  /** Whether this editor tab is currently visible in an open panel. */
+  visible?: boolean
 }) {
-  const { ctx, store, scope, tab, expanded, onToggleDir, onReferenceFile } = props
+  const { ctx, store, scope, tab, expanded, onToggleDir, onReferenceFile, visible = true } = props
   const path = tab.path ?? ''
   const title = tab.title
   const [load, setLoad] = useState<EditorLoad>({ status: 'loading' })
+  /** Bump to explicitly or automatically re-read the current file. */
+  const [reloadTick, setReloadTick] = useState(0)
+  /** True when the disk copy changed while the editor has unsaved edits. */
+  const [externalChanged, setExternalChanged] = useState(false)
+  /** The last file version successfully loaded into the viewer. */
+  const loadedVersionRef = useRef<FsFileVersion | undefined>(undefined)
+  /** A changed version already noticed and scheduled for a reload. */
+  const pendingVersionRef = useRef<FsFileVersion | undefined>(undefined)
+  /** Prevent overlapping polling reads when the host is slow. */
+  const pollingRef = useRef(false)
 
   // Reactive prefs read: flipping editorExplorer re-renders this tab with no
   // reload. The snapshot is the bare boolean so unrelated store churn never
@@ -153,8 +167,10 @@ export function EditorHost(props: {
   // its state and registers its commands (both null/absent for viewers
   // without a toolbar — image, pdf, binary download).
   const [toolbar, setToolbar] = useState<EditorToolbarState | null>(null)
+  const toolbarRef = useRef<EditorToolbarState | null>(null)
   const controlsRef = useRef<EditorToolbarControls | null>(null)
   const onToolbarState = useCallback((next: EditorToolbarState) => {
+    toolbarRef.current = next
     setToolbar(prev => prev !== null && JSON.stringify(prev) === JSON.stringify(next) ? prev : next)
   }, [])
   const onToolbarControls = useCallback((controls: EditorToolbarControls | null) => {
@@ -189,9 +205,19 @@ export function EditorHost(props: {
     if (finalWidth !== treeWidthOf(tab)) patchMeta(ctx, tab, { treeWidth: finalWidth })
   }
 
+  // A path/session switch starts a new observation baseline. A reloadTick does
+  // not clear this before the new read finishes, otherwise the polling loop
+  // could schedule the same reload repeatedly while the request is in flight.
+  useEffect(() => {
+    loadedVersionRef.current = undefined
+    pendingVersionRef.current = undefined
+    setExternalChanged(false)
+  }, [scope.sessionId, scope.cwd, path, showEmpty])
+
   useEffect(() => {
     // A (re)load or a path-less tab clears any hoisted toolbar state — the
     // fresh viewer re-registers its own.
+    toolbarRef.current = null
     setToolbar(null)
     // The seeded home tab (no path) never loads a viewer — the empty-state
     // hint renders until the user picks a file.
@@ -209,6 +235,8 @@ export function EditorHost(props: {
           setLoad({ status: 'binary' })
           return
         case 'render':
+          pendingVersionRef.current = undefined
+          setExternalChanged(false)
           setLoad({
             status: 'ready',
             viewer: action.viewer,
@@ -230,6 +258,7 @@ export function EditorHost(props: {
         case 'fetchFsRead':
           api.fsRead(scope, path).then((result) => {
             if (cancelled) return
+            if (result.version !== undefined) loadedVersionRef.current = result.version
             // Binary reads carry the head bytes for the detect re-match.
             const outcome = planFsReadOutcome(action.viewer, {
               binary: result.kind === 'binary',
@@ -247,7 +276,76 @@ export function EditorHost(props: {
     }
     apply(planFirstMatch(ctx.betterSidebar?.matchFileViewer(path), mediaUrlOf))
     return () => { cancelled = true; controller.abort() }
-  }, [scope.sessionId, scope.cwd, path, ctx, showEmpty])
+  }, [scope.sessionId, scope.cwd, path, ctx, showEmpty, reloadTick])
+
+  // Markdown preview freshness: read the current file once per second while
+  // this tab is visible. This intentionally uses the existing fs.stat route
+  // instead of relying on fs.watch, which is inconsistent on WSL/network
+  // filesystems. The manual button below remains available if polling fails.
+  useEffect(() => {
+    if (!visible || showEmpty || path === '') return
+    if (ctx.betterSidebar?.matchFileViewer(path)?.id !== 'markdown') return
+    let cancelled = false
+    const check = async (): Promise<void> => {
+      if (cancelled || pollingRef.current || loadedVersionRef.current === undefined) return
+      pollingRef.current = true
+      try {
+        const result = await api.fsStat(scope, path)
+        if (cancelled) return
+        const loadedVersion = loadedVersionRef.current
+        if (loadedVersion === undefined) return
+        const changed = result.version.mtimeMs !== loadedVersion.mtimeMs || result.version.size !== loadedVersion.size
+        if (!changed) {
+          pendingVersionRef.current = undefined
+          if (toolbarRef.current?.dirty !== true) setExternalChanged(false)
+          return
+        }
+        const alreadyPending = pendingVersionRef.current !== undefined
+          && pendingVersionRef.current.mtimeMs === result.version.mtimeMs
+          && pendingVersionRef.current.size === result.version.size
+        pendingVersionRef.current = result.version
+        if (toolbarRef.current?.dirty === true) {
+          if (!alreadyPending) setExternalChanged(true)
+          return
+        }
+        if (!alreadyPending) {
+          setExternalChanged(false)
+          setReloadTick(value => value + 1)
+        }
+      } catch {
+        // The explicit refresh button is the fallback for transient poll errors.
+      } finally {
+        pollingRef.current = false
+      }
+    }
+    void check()
+    const timer = window.setInterval(() => { void check() }, MARKDOWN_POLL_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [visible, showEmpty, path, scope.sessionId, scope.cwd, ctx, toolbar?.mode])
+
+  // If a disk change was detected while the editor was dirty, keep the draft
+  // in place. Once it becomes clean (for example after saving), follow the
+  // still-pending disk version exactly once.
+  useEffect(() => {
+    if (!externalChanged || toolbar?.dirty === true) return
+    setExternalChanged(false)
+    setReloadTick(value => value + 1)
+  }, [externalChanged, toolbar?.dirty])
+
+  const refreshFile = (): void => {
+    if (toolbarRef.current?.dirty === true) {
+      const confirmed = typeof window.confirm === 'function'
+        ? window.confirm(t('refreshUnsavedConfirm'))
+        : false
+      if (!confirmed) return
+    }
+    pendingVersionRef.current = undefined
+    setExternalChanged(false)
+    setReloadTick(value => value + 1)
+  }
 
   const treeOpen = treeOpenOf(tab)
   /** Persist the panel flag on the tab (survives reloads with the layout). */
@@ -256,6 +354,7 @@ export function EditorHost(props: {
     : toolbar.saveState === 'saving' ? t('loading')
       : toolbar.saveState === 'saved' ? t('saved')
         : toolbar.saveState === 'failed' ? t('saveFailed') : ''
+  const markdownFile = !showEmpty && ctx.betterSidebar?.matchFileViewer(path)?.id === 'markdown'
 
   // Split mode: the path-less window IS the standalone explorer — the tree
   // panel fills the whole tab (search + FileTree, full form), no editor
@@ -314,6 +413,20 @@ export function EditorHost(props: {
         )}
         {saveLabel !== '' && (
           <span className={clsx(css.editorStatus, toolbar?.saveState === 'failed' && css.editorStatusError)}>{saveLabel}</span>
+        )}
+        {markdownFile && (
+          <button
+            type="button"
+            className={css.iconButton}
+            aria-label={t('refresh')}
+            title={t('refresh')}
+            onClick={refreshFile}
+          >
+            <IconRefreshOutline16 size={14} />
+          </button>
+        )}
+        {externalChanged && (
+          <span className={css.editorStatus}>{t('fileChanged')}</span>
         )}
         <button
           type="button"
