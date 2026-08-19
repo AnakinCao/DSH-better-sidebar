@@ -9,7 +9,7 @@
 ## 1. 目标
 
 1. 解决侧边栏面板的**注入方法**问题：找到一个同时兼容「纯浏览器 / Electron 套壳（DSH Desktop）/ 各类 Tauri/WebView 套壳 / 移动 webview」且**性能良好**的统一注入方案。
-2. 消灭现有症状级补丁 PR 簇（#226 desktop 布局推挤、#135 dsh-web-mobile、#82/#108/#111/#138/#153 桌面标题栏）背后的结构性根因：**插件选择器深入宿主 DOM 形状 + 桌面壳依赖手动设置 + 拖拽期整壳 layout + 懒加载缓存每次激活全清**。
+2. 消灭现有症状级补丁 PR 簇（#226 desktop 布局推挤、#135 dsh-web-mobile、#82/#108/#111/#138/#153 桌面标题栏）背后的结构性根因：**插件选择器深入宿主 DOM 形状（nth-child 锚点）+ 桌面壳依赖手动设置（titleBarCompat）+ 几何写路径分散（拖拽/状态两条）+ 懒加载缓存每次激活清空（重注入重执行）**。
 3. 探索并文档化「官方槽位路线」：参考 DSH 内置插件 `ui-sidebar`（官方左侧边栏本身就是以插件方式占用 `sidebar` 槽），评估外部插件接管官方面板槽的可行性与代价，作为中期北极星；上游未落地前以插件侧方案为主线。
 
 ## 2. 非目标（Out of Scope）
@@ -29,8 +29,9 @@
 | 注入 = body 直下 `div[data-dsh-better-sidebar]` + **第二个 React root**（非 portal） | `src/client/index.tsx:120-141` |
 | 宿主推挤 = html 上 `--dsh-sidebar-width/height` + `#root{margin-right}` + **`#root > [data-slot=root] > div > div:nth-child(2)` 锚点** | `src/client/layout.css:22-32` |
 | 拖拽：pointer 事件 + rAF 单帧写面板尺寸与 html 变量（无强制 reflow 读） | `src/client/Sidebar.tsx:494-518` |
-| 懒加载 chunk：**每次激活 `resetChunks()` 全清内存缓存**（HMR 安全但二次打开重拉脚本） | `src/client/index.tsx:120` 注释、`chunk-loader.ts` |
+| 懒加载 chunk：每次激活 `resetChunks()` 清内存缓存 → 下次懒打开**重注入+重执行**脚本；HTTP 层已有 ETag 304（**不重下载**） | `src/client/index.tsx:120` 注释、`chunk-loader.ts` |
 | 会话切换：只换 snapshot，面板 DOM 不重建（保持） | `Sidebar.tsx` store 驱动 |
+| **已具备（实施勿重做）**：拖拽 rAF 批处理（`scheduleDrag` 单帧一次 `applyDrag`，无强制 reflow 读）；窄屏不推挤宿主（narrow 时宽/高变量写 0）；`measureCenter` ResizeObserver 已 rAF 节流；header 推挤已用弱锚点 `[data-slot="conversation.session.header"]` | `Sidebar.tsx:368-424,487-533,563-585`、`layout.css:45` |
 
 ### 3.2 DSH 官方架构（`~/.dsh/source/current`，只读）
 
@@ -106,15 +107,15 @@ document.body
 
 ### 5.2 几何层（性能）
 
-**A2.1 单一 rAF 几何写入器**：所有尺寸变更（拖拽/折叠/会话恢复/宿主尺寸变化）汇聚到一个函数，**一帧内一次写**：面板 inline 尺寸 + html `--dsh-sidebar-width/height` + `#root` margin。杜绝多帧多次写导致的级联 layout。
+**A2.1 单一几何写入器**：现状有两条写路径——拖拽的 `applyDrag`（Sidebar.tsx:487-505）与打开态 effect（:563-585），都写同一组变量但互不感知。统一为 `writeGeometry({width,height})` 单函数，两条路径共用（拖拽仍走 `scheduleDrag` 的 rAF 单帧批写）；折叠/会话恢复等非拖拽变更也收敛到它。**不改变对外契约**：`--dsh-sidebar-width/height` 变量与 `#root` margin 推挤机制不变。
 
-**A2.2 拖拽**（对齐官方 AppFrame 模式）：
+**A2.2 拖拽**（现状已达标，微调即可）：
 
-- pointer capture + 只存最新 delta + 单帧 rAF 应用（现状已满足，保留）；
-- 拖拽期 `body[data-dsh-sidebar-dragging]` 禁过渡（`layout.css:49` 已有，保留）；
-- 拖拽期面板根挂 `will-change: transform`（仅拖拽期，结束移除）；面板根常驻 `contain: layout style` 隔离内部布局。
+- pointer capture + 最新 delta + 单帧 rAF 应用（**已具备**，保留）；
+- 拖拽期 `body[data-dsh-sidebar-dragging]` 禁过渡（**已具备**，`layout.css:49`）；
+- 新增：拖拽期面板根挂 `will-change: transform`；面板根常驻 `contain: layout style`（CSS 一处，隔离内部布局回流）。
 
-**A2.3 chunk 缓存修复**：`resetChunks()` 从「每次激活全清」改为「按 chunk 名 + 内容哈希缓存，仅 HMR（fiber 重挂 + 版本变化）失效清」——二次打开懒加载 tab 直接命中缓存，不重拉脚本。
+**A2.3 chunk 缓存精确化**：HTTP 层已 304 不重下载；缺口只在「激活后内存缓存清空 → 重注入+重执行」。改为：缓存键 = chunk 名 + 脚本内容哈希；激活时若哈希未变则保留内存缓存（跳过重注入），仅 HMR 核心 bundle 变化（版本变化）才清。保留失败路径（失败清缓存重试）。
 
 **A2.4 保活策略（保持现状并文档化）**：面板 DOM 跨会话不重建；tab 内容按 `visible` prop 懒挂载/卸载；树/终端等重组件不随会话切换重挂。
 
@@ -129,11 +130,11 @@ document.body
 
 | 指标 | 现状 | 目标 |
 |---|---|---|
-| 拖拽期宿主 layout 次数 | 每帧 ≥1 次整壳 layout（margin 写 + 变量写分帧） | 每帧 1 次、单次批写；拖拽 0 次 reflow 读 |
-| 懒加载 chunk 二次打开 | 每次激活重拉脚本 | 缓存命中 0 网络 |
+| 拖拽期宿主 layout 次数 | 每帧 1 次批写（`applyDrag` rAF，已达标） | 保持；拖拽 0 次 reflow 读 |
+| 懒加载 chunk 二次打开 | 不重下载（304）但重注入+重执行 | 内容哈希不变 → 内存缓存命中，0 脚本执行 |
 | 会话切换 | 面板 DOM 不重建（已满足） | 保持 + 重组件懒挂载 |
 | 面板显隐动画 | transform+width/margin 过渡 | transform 优先（overlay 模式），推挤模式过渡保留 |
-| 观察器 | 常驻双观察器 | 合并为 rAF 节流单观察器（对齐 AppFrame:110-128） |
+| 观察器 | ResizeObserver 已 rAF 节流（已达标） | 保持；新增挂载自检/MutationObserver 守卫均为一次性廉价检查 |
 
 ## 6. 路线 B 详细设计：官方槽位迁移（ui-sidebar 模式）
 
@@ -148,6 +149,15 @@ document.body
 1. 将 `details` 槽的占用者改为**可替换**（如 single 槽支持「替换注册」或 DetailsPanel 拆独立包），使外部插件能接管右侧面板。
 2. 新增（或声明）`bottom-panel` 槽，供底部面板类插件使用。
 3. ui-sidebar 宽度/折叠持久化下沉到 layout store（官方侧目前不持久化）。
+
+**issue 草案（PR3 提交时使用，已备好）**：
+
+> **Title**: External plugins cannot take over the `details` panel slot
+> **Repo**: deepseek-ai/dsh（或官方插件仓库）
+> **Body**:
+> - Context: `ui-layout` declares `root` → `{sidebar, conversation, details}` as single-exclusive child slots. `ui-conversation`'s DetailsPanel is the sole occupant of `details`; an external panel plugin (e.g. dsh-better-sidebar) cannot register into it without disabling `ui-conversation` (which empties the conversation column). Meanwhile `ui-sidebar` (the official left sidebar) is itself a plugin and CAN be replaced from the profile layer (`cordis.patch.yml` `disabled: true`), which proves the pattern.
+> - Ask: make the `details` occupant replaceable — either (a) allow single-slot "replacement registration" with explicit opt-out by the default occupant, (b) extract DetailsPanel into a standalone optional plugin so profiles can disable it without losing the conversation column, or (c) declare a new `bottom-panel` slot for bottom panel plugins.
+> - Reference implementation to mirror: `ui-sidebar/src/client/index.ts:39` (register `name:'sidebar'`), `ui-layout/src/client/AppFrame.tsx:164-196` (grid geometry + drag handles come free), `runtime/src/client/slots.ts:130-192` (`slots.inject` consumers skip silently when a slot is undeclared).
 
 ### 6.3 迁移路径（上游落地后）
 
@@ -178,11 +188,20 @@ document.body
 
 ## 8. 实施拆分与验证
 
-### 8.1 拆分
+### 8.1 拆分（文件级改动清单）
 
-- **PR1（核心注入 + 性能）**：5.1 挂载层（含块包裹层 + 自检降级）+ 5.2 几何层（rAF 写入器 + chunk 缓存）+ 5.3 锚点弱化；外部契约（CSS 变量/锚点属性/服务 API）零变化，CI 全绿。
-- **PR2（桌面/移动自动适配 + 契约文档）**：5.1.2 桌面信号探测 + 5.1.3 移动端 overlay + 推挤可关闭 + AGENTS.md §8/本文档同步。
-- **PR3（可选）**：路线 B 上游 issue 提交 + 槽位渲染后端原型（feature-flag 后）。
+- **PR1（核心注入 + 性能，外部契约零变化）**
+  - `src/client/index.tsx`：挂载结构升级——`host` 内新增 `data-dsh-panel-host` 固定含块层（`position:fixed; inset:0; pointer-events:none; z-index:40`），面板子级 `pointer-events:auto`；挂载后一次性自检（`host.getBoundingClientRect()` vs 视口，偏差阈值内通过；否则降级 absolute+同步模式并 warn 一次）；`MutationObserver`（仅 body childList）守卫锚点被宿主清空时重挂。
+  - `src/client/Sidebar.tsx`：抽取 `writeGeometry` 统一两条写路径（`applyDrag` + 打开态 effect）；拖拽/折叠行为不变。
+  - `src/client/chunk-loader.ts` + `index.tsx`：缓存键加内容哈希，激活时哈希未变保留内存缓存（跳过重注入）。
+  - `src/client/layout.css`：底部推挤锚点 `nth-child(2)` → `#root [data-slot="conversation"]`（与既有 header 弱锚点同型，注释更新）；`#root` 增加 `width: calc(100% - var(--dsh-sidebar-width, 0px))` 消除桌面壳 margin 溢出（#226 目标以根因方式吸收，实施时在真实 DSH web 与 Desktop 验证不回归）；面板根 `contain: layout style` + 拖拽期 `will-change`。
+  - 测试：`tests/` 新增几何写入器单测（fake timers 断言单帧单写）、挂载自检降级单测；`tests/e2e/mount.e2e.ts` 深扫不变并新增 `data-dsh-panel-host` 断言。
+- **PR2（桌面/移动自动适配 + 契约文档）**
+  - 新增 `src/client/desktop-env.ts`：解析 URL `dsh-desktop-mode/platform` + `__DSH_DESKTOP_FILE_PATH__` → 类型化 `DesktopEnv`（win32-advanced / darwin / compatibility / web / unknown）。
+  - `Sidebar.tsx` + CSS：win32-advanced → `--dsh-desktop-top-inset: 32px`（折叠按钮簇/面板顶部内边距避让）；darwin → 左侧红绿灯区避让（~78px，仅左侧贴边控件）；现有 `titleBarCompat/titleBarStripPx`（`lib/types/prefs-shared.d.ts:77-84`）降级为手动覆盖位，默认「自动」。
+  - 移动端：`visualViewport` 键盘弹起时底部面板上移（`resize` 事件 + rAF 节流，沿用 `useNarrowViewport` 模式）；CSS 加 `env(safe-area-inset-*)` 内边距。
+  - 契约文档：AGENTS.md §8 同步（挂载点/`data-dsh-panel-host`/z-index/桌面信号/推挤锚点策略）。
+- **PR3（可选）**：路线 B 上游 issue 提交（§6.2 草案已备）+ 槽位渲染后端原型（feature-flag 后）。
 - 各 PR 独立可验证；PR1 不依赖 PR2。
 
 ### 8.2 验证
@@ -213,5 +232,6 @@ document.body
 
 ## 11. 决策记录与实施偏差记录
 
-- 2026-08-19：方案定稿——路线 A（统一面板宿主）为主线、路线 B（官方槽位）并行提 issue；先出设计文档，实现拆 PR1/PR2 待批准。
+- 2026-08-19（第一轮）：方案定稿——路线 A（统一面板宿主）为主线、路线 B（官方槽位）并行提 issue；先出设计文档，实现拆 PR1/PR2 待批准。
+- 2026-08-19（第二轮，实施就绪打磨）：对照源码核实现状——拖拽 rAF 批处理/窄屏不推挤/观察器节流/header 弱锚点**已具备**（§3.1 已标注「实施勿重做」）；chunk 缺口精确为「激活后内存缓存清空重注入」（HTTP 已 304）；§8.1 落到文件级改动清单；§6.2 备好上游 issue 草案。**等待用户批准后开 PR1**。
 - 实施偏差记录：待实施时按既有文档惯例补充。
