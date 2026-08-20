@@ -33,8 +33,25 @@ describe('linked Git worktrees', () => {
       'detached',
       '',
     ].join('\n'))).toEqual([
-      { path: 'C:/repo/main checkout', branch: 'main' },
-      { path: 'C:/repo/agent checkout', branch: 'HEAD' },
+      { path: 'C:/repo/main checkout', branch: 'main', locked: false, prunable: false },
+      { path: 'C:/repo/agent checkout', branch: 'HEAD', locked: false, prunable: false },
+    ])
+  })
+
+  it('preserves locked metadata and marks stale records prunable', () => {
+    expect(parseWorktreeList([
+      'worktree C:/repo/locked',
+      'HEAD abc',
+      'branch refs/heads/locked',
+      'locked in use',
+      '',
+      'worktree C:/repo/missing',
+      'HEAD def',
+      'prunable gitdir file points to non-existent location',
+      '',
+    ].join('\0'))).toEqual([
+      { path: 'C:/repo/locked', branch: 'locked', locked: true, prunable: false },
+      { path: 'C:/repo/missing', branch: 'HEAD', locked: false, prunable: true },
     ])
   })
 
@@ -60,6 +77,16 @@ describe('linked Git worktrees', () => {
         { path: 'tracked.txt', xy: ' M' },
       ])
       await expect(resolveWorktree(main, root)).rejects.toThrow('unknown linked worktree')
+
+      // Git retains administrative metadata after a checkout directory is
+      // deleted, reporting the record as prunable. It must disappear from both
+      // the selector inventory and the accepted command-target allowlist.
+      rmSync(agent, { recursive: true, force: true })
+      const remaining = await worktrees(main)
+      expect(remaining).toHaveLength(1)
+      expect(resolve(remaining[0]!.path)).toBe(resolve(main))
+      expect(remaining[0]!.current).toBe(true)
+      await expect(resolveWorktree(main, agent)).rejects.toThrow('unknown linked worktree')
     } finally {
       try { git(main, ['worktree', 'remove', '--force', agent]) } catch { /* fixture may not be fully initialized */ }
       rmSync(root, { recursive: true, force: true })

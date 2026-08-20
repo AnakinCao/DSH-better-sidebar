@@ -84,17 +84,31 @@ export function parsePorcelainZ(output: string): GitStatusEntry[] {
   return entries
 }
 
+/** One raw porcelain worktree record. Prunable checkouts are retained by
+ * Git's administrative metadata after their directory disappears and must not
+ * become selectable command targets. Locked checkouts remain usable. */
+export interface GitWorktreeRecord {
+  path: string
+  branch: string
+  locked: boolean
+  prunable: boolean
+}
+
 /** Parse `git worktree list --porcelain` records. Production requests use
  * `-z` so even newlines and non-ASCII bytes in checkout paths stay lossless;
  * newline framing remains accepted for small fixtures and older Git output. */
-export function parseWorktreeList(output: string): Array<{ path: string; branch: string }> {
-  const rows: Array<{ path: string; branch: string }> = []
+export function parseWorktreeList(output: string): GitWorktreeRecord[] {
+  const rows: GitWorktreeRecord[] = []
   let path: string | undefined
   let branch = 'HEAD'
+  let locked = false
+  let prunable = false
   const flush = (): void => {
-    if (path !== undefined) rows.push({ path, branch })
+    if (path !== undefined) rows.push({ path, branch, locked, prunable })
     path = undefined
     branch = 'HEAD'
+    locked = false
+    prunable = false
   }
   const sep = output.includes('\0') ? '\0' : '\n'
   const framed = output.endsWith(sep) ? output : `${output}${sep}`
@@ -105,6 +119,10 @@ export function parseWorktreeList(output: string): Array<{ path: string; branch:
       path = line.slice('worktree '.length)
     } else if (line.startsWith('branch refs/heads/')) {
       branch = line.slice('branch refs/heads/'.length)
+    } else if (line === 'locked' || line.startsWith('locked ')) {
+      locked = true
+    } else if (line === 'prunable' || line.startsWith('prunable ')) {
+      prunable = true
     }
   }
   return rows
@@ -199,10 +217,12 @@ function pathIdentity(path: string): string {
   return process.platform === 'win32' ? absolute.toLowerCase() : absolute
 }
 
-/** Raw linked checkout records, shared by inventory and target validation. */
-async function listedWorktrees(cwd: string): Promise<Array<{ path: string; branch: string }>> {
+/** Raw usable checkout records, shared by inventory and target validation.
+ * Prunable records point at missing paths and are deliberately excluded from
+ * both the selector and the command-target allowlist. */
+async function listedWorktrees(cwd: string): Promise<GitWorktreeRecord[]> {
   const raw = await runGit(cwd, ['worktree', 'list', '--porcelain', '-z'])
-  return parseWorktreeList(raw)
+  return parseWorktreeList(raw).filter(entry => !entry.prunable)
 }
 
 /** All linked checkouts of the repository containing `cwd`, enriched with a
@@ -216,7 +236,9 @@ export async function worktrees(cwd: string): Promise<GitWorktree[]> {
     path: entry.path,
     branch: entry.branch,
     current: pathIdentity(entry.path) === pathIdentity(currentRoot),
-    changes: (await status(entry.path)).entries.length,
+    // One stale/permission-raced linked checkout must not hide the valid
+    // current repository from the panel. Targeted operations still fail loud.
+    changes: await status(entry.path).then(result => result.entries.length, () => 0),
   })))
   return rows.sort((left, right) => Number(right.current) - Number(left.current))
 }

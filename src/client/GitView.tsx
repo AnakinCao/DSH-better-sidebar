@@ -111,6 +111,9 @@ export function GitView(props: {
   /** The pending destructive action awaiting confirmation. */
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
   const refreshInFlight = useRef(false)
+  /** Monotonic request id: a manual worktree switch invalidates any older poll
+   *  before it can publish state from the previous checkout. */
+  const refreshGeneration = useRef(0)
   const worktreeChosenByUser = useRef(false)
   /** selectedWorktree read inside refresh without re-creating the callback:
    *  avoids a spurious full refresh on every auto-select (the very state
@@ -119,13 +122,41 @@ export function GitView(props: {
   const selectedRef = useRef<string | undefined>(undefined)
   useEffect(() => { selectedRef.current = selectedWorktree }, [selectedWorktree])
 
+  /** Publish a complete checkout-derived view. Status, branch choices and
+   *  history are one consistency unit: never mix rows from two worktrees. */
+  const refreshTarget = useCallback(async (
+    target: string | undefined,
+    options: { loading: boolean; generation: number },
+  ): Promise<void> => {
+    if (options.loading) setLoading(true)
+    setError(null)
+    try {
+      const [statusResult, branchResult, logResult] = await Promise.all([
+        api.gitStatus(scope, target),
+        api.gitBranch(scope, target).catch(() => ({ current: '', names: [] as string[] })),
+        api.gitLog(scope, LOG_BATCH, 0, target).catch(() => [] as GitLogEntry[]),
+      ])
+      if (options.generation !== refreshGeneration.current) return
+      setStatus(statusResult)
+      setBranchNames(branchResult.names)
+      setLogEntries(logResult)
+      setLogEnded(logResult.length < LOG_BATCH)
+    } catch (reason) {
+      if (options.generation === refreshGeneration.current) {
+        setError(reason instanceof Error ? reason.message : String(reason))
+      }
+    } finally {
+      if (options.loading && options.generation === refreshGeneration.current) setLoading(false)
+    }
+  }, [scope.sessionId, scope.cwd])
+
   const refresh = useCallback(async (silent = false): Promise<void> => {
     if (refreshInFlight.current) return
     refreshInFlight.current = true
-    if (!silent) setLoading(true)
-    setError(null)
+    let generation = refreshGeneration.current
     try {
       const listed = await api.gitWorktrees(scope)
+      if (generation !== refreshGeneration.current) return
       setWorktrees(listed)
       const selectedStillExists = listed.some(entry => entry.path === selectedRef.current)
       let target = selectedStillExists ? selectedRef.current : listed.find(entry => entry.current)?.path
@@ -139,42 +170,63 @@ export function GitView(props: {
           ? dirtyLinked[0]!.path
           : current?.path
       }
-      if (target !== selectedRef.current) setSelectedWorktree(target)
-      if (silent) {
-        setStatus(await api.gitStatus(scope, target))
+      const targetChanged = target !== selectedRef.current
+      if (targetChanged) {
+        // Changing the automatically selected checkout invalidates any direct
+        // target refresh that may still be resolving for the previous one.
+        generation = refreshGeneration.current += 1
+        selectedRef.current = target
+        setSelectedWorktree(target)
+        // Remove rows owned by the previous checkout immediately: keeping them
+        // interactive while the target changes could apply a destructive action
+        // to the new checkout with stale history from the old one.
+        setStatus(null)
+        setBranchNames([])
+        setLogEntries([])
+        setLogEnded(false)
+        setLogLoadingMore(false)
+      }
+      // A poll may update status alone only while staying on the same checkout.
+      // Any automatic selection change refreshes the complete derived view.
+      if (silent && !targetChanged) {
+        const statusResult = await api.gitStatus(scope, target)
+        if (generation === refreshGeneration.current) setStatus(statusResult)
         return
       }
-      const [statusResult, branchResult, logResult] = await Promise.all([
-        api.gitStatus(scope, target),
-        api.gitBranch(scope, target).catch(() => ({ current: '', names: [] as string[] })),
-        // The first history page only; the rest arrives via "load more".
-        api.gitLog(scope, LOG_BATCH, 0, target).catch(() => [] as GitLogEntry[]),
-      ])
-      setStatus(statusResult)
-      setBranchNames(branchResult.names)
-      setLogEntries(logResult)
-      setLogEnded(logResult.length < LOG_BATCH)
+      await refreshTarget(target, { loading: !silent, generation })
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason))
+      if (generation === refreshGeneration.current) {
+        setError(reason instanceof Error ? reason.message : String(reason))
+        if (!silent) setLoading(false)
+      }
     } finally {
       refreshInFlight.current = false
-      if (!silent) setLoading(false)
     }
-  }, [scope.sessionId, scope.cwd])
+  }, [scope.sessionId, scope.cwd, refreshTarget])
 
   useEffect(() => {
+    refreshGeneration.current += 1
+    refreshInFlight.current = false
     worktreeChosenByUser.current = false
+    selectedRef.current = undefined
     setSelectedWorktree(undefined)
   }, [scope.sessionId, scope.cwd])
   useEffect(() => { void refresh() }, [refresh])
-  // When the user picks a worktree from the dropdown, fetch its status
-  // immediately instead of waiting for the next 2s poll tick. Gated on
-  // worktreeChosenByUser so the auto-select inside refresh() doesn't
-  // trigger a redundant fetch (that was the N→N+1 loop the ref fix avoids).
-  useEffect(() => {
-    if (!worktreeChosenByUser.current) return
-    void refresh(true)
-  }, [selectedWorktree, refresh])
+
+  /** A user choice invalidates any older poll and atomically refreshes every
+   *  checkout-derived surface before destructive history actions can run. */
+  const chooseWorktree = (target: string): void => {
+    worktreeChosenByUser.current = true
+    selectedRef.current = target
+    setSelectedWorktree(target)
+    setStatus(null)
+    setBranchNames([])
+    setLogEntries([])
+    setLogEnded(false)
+    setLogLoadingMore(false)
+    const generation = refreshGeneration.current += 1
+    void refreshTarget(target, { loading: true, generation })
+  }
   useEffect(() => {
     if (!visible) return
     const timer = window.setInterval(() => { void refresh(true) }, 2_000)
@@ -184,15 +236,22 @@ export function GitView(props: {
   /** Append the next history page (lazy: only when the user asks for more). */
   const loadMoreLog = async (): Promise<void> => {
     if (logLoadingMore || logEnded) return
+    const generation = refreshGeneration.current
+    const target = selectedRef.current
     setLogLoadingMore(true)
     try {
-      const next = await api.gitLog(scope, LOG_BATCH, logEntries.length, selectedWorktree)
+      const next = await api.gitLog(scope, LOG_BATCH, logEntries.length, target)
+      // A worktree switch clears the old history and increments generation.
+      // Never append a late page from that checkout into the new one.
+      if (generation !== refreshGeneration.current || target !== selectedRef.current) return
       setLogEntries(entries => [...entries, ...next])
       if (next.length < LOG_BATCH) setLogEnded(true)
     } catch (reason) {
-      setCommitError(`${t('historyLoadError')}: ${reason instanceof Error ? reason.message : String(reason)}`)
+      if (generation === refreshGeneration.current && target === selectedRef.current) {
+        setCommitError(`${t('historyLoadError')}: ${reason instanceof Error ? reason.message : String(reason)}`)
+      }
     } finally {
-      setLogLoadingMore(false)
+      if (generation === refreshGeneration.current && target === selectedRef.current) setLogLoadingMore(false)
     }
   }
 
@@ -341,10 +400,7 @@ export function GitView(props: {
             value={selectedWorktree ?? ''}
             title={selectedWorktree}
             disabled={busy}
-            onChange={(event) => {
-              worktreeChosenByUser.current = true
-              setSelectedWorktree(event.target.value)
-            }}
+            onChange={(event) => { chooseWorktree(event.target.value) }}
           >
             {worktrees.map(entry => (
               <option key={entry.path} value={entry.path}>
