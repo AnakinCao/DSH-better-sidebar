@@ -42,7 +42,7 @@ import {
 } from './state.ts'
 import { IconPanelBottomOutline16, IconPanelRightOutline16 } from './icons.tsx'
 import { Workbench, type WorkbenchActions } from './split-pane.tsx'
-import { useNarrowViewport } from './breakpoints.ts'
+import { isNarrowWidth, useViewportSize } from './breakpoints.ts'
 import { layoutPushSize } from './layout-push.ts'
 import { parseDesktopEnv } from './desktop-env.ts'
 import { getWcoSnapshot, subscribeWco } from './wco.ts'
@@ -184,7 +184,8 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   // — the merged display is the right sidebar alone, the bottom tabs thrown
   // into its strips. Widening never rewrites the migrated state: the tabs
   // keep living in the right tree.
-  const narrow = useNarrowViewport()
+  const viewport = useViewportSize()
+  const narrow = isNarrowWidth(viewport.width)
 
   // On-screen keyboard / visual-viewport inset (mobile, split-screen, …):
   // when the visual viewport shrinks below the layout viewport, bottom-
@@ -836,11 +837,11 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       bottomOpen: snapshot.state?.bottomOpen === true,
       width: snapshot.state?.width ?? 0,
       bottomHeight: snapshot.state?.bottomHeight ?? 0,
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight,
+      viewportWidth: viewport.width,
+      viewportHeight: viewport.height,
     })
     writeGeometry(width, height)
-  }, [narrow, snapshot.state?.panelOpen, snapshot.state?.width, snapshot.state?.bottomOpen, snapshot.state?.bottomHeight])
+  }, [narrow, snapshot.state?.panelOpen, snapshot.state?.width, snapshot.state?.bottomOpen, snapshot.state?.bottomHeight, viewport.width, viewport.height])
   // Unmount must release the push (issue #31): when the boundary swaps the
   // whole sidebar after a render crash (or the plugin fiber is disposed /
   // HMR), the CSS variables would otherwise stay on <html> and layout.css
@@ -954,6 +955,18 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       </div>
     )
   }
+
+  const bottomPanelHeight = layoutPushSize({
+    narrow,
+    panelOpen: state.panelOpen,
+    // Keep the hidden panel's geometry ready for its slide-in transition;
+    // only the layout push itself becomes zero while it is closed.
+    bottomOpen: true,
+    width: state.width,
+    bottomHeight: state.bottomHeight,
+    viewportWidth: viewport.width,
+    viewportHeight: viewport.height,
+  }).height
 
   const onNewTab = (optionId: string): void => {
     const service = ctx.betterSidebar
@@ -1205,7 +1218,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
         data-dsh-panel
         data-dsh-bottom-panel
         style={{
-          height: Math.min(state.bottomHeight, window.innerHeight),
+          height: bottomPanelHeight,
           left: centerRect.left,
           // Keep the panel above the on-screen keyboard when the visual
           // viewport shrinks (see the keyboardInset effect).
