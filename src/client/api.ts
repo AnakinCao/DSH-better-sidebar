@@ -7,6 +7,7 @@
  * request). Failures surface as {@link SidebarApiError} with the wire code.
  */
 import { encodeHtmlUrl } from '../html-route.ts'
+import type { SidechatThreadInfo } from '../sidechat-core.ts'
 import type { BrowserProbeResult } from './browser.ts'
 
 /** One wire failure. */
@@ -244,6 +245,23 @@ export const api = {
       id,
       ...(reason !== undefined ? { reason } : {}),
     })),
+  /** Create a Side Chat thread: a child session seeded with the parent's
+   *  full log up to now. Empty question = immediate create (Codex-style):
+   *  the thread opens empty, the first prompt carries the boundary. */
+  sidechatStart: (sessionId: string, question?: string) =>
+    call<{ childId: string }>('sidechat.start', { sessionId, question: question ?? '' }),
+  /** Deliver one follow-up message to a Side Chat thread. */
+  sidechatPrompt: (childId: string, text: string) =>
+    call<{ accepted: true }>('sidechat.prompt', { childId, text }),
+  /** Abort a Side Chat thread's running turn (queued work is preserved). */
+  sidechatCancel: (childId: string) =>
+    call<{ accepted: true }>('sidechat.cancel', { childId }),
+  /** Release a Side Chat thread's live agent (history stays persisted). */
+  sidechatDispose: (childId: string) =>
+    call<{ accepted: true }>('sidechat.dispose', { childId }),
+  /** Live state + agent identity (provider/model/preset) of a thread. */
+  sidechatInfo: (childId: string) =>
+    call<SidechatThreadInfo>('sidechat.info', { childId }),
   /** The effective terminal shell and its display name (plugin-global). */
   shellGet: () =>
     call<{ shell: string; name: string }>('shell.get', {}),
