@@ -235,6 +235,15 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   const state = snapshot.state
   const sessionId = snapshot.sessionId
   const summaryCwd = sessionId === undefined ? undefined : sessionList.byId[sessionId]?.cwd
+  const pushedBottomHeight = (bottomOpen: boolean, bottomHeight: number): number => layoutPushSize({
+    narrow,
+    panelOpen: false,
+    bottomOpen,
+    width: 0,
+    bottomHeight,
+    viewportWidth: viewport.width,
+    viewportHeight: viewport.height,
+  }).height
 
   // The collapsed toggle cluster reclaims the top-right corner, so the DSH
   // session header's right-aligned utilities (the "Session log" download
@@ -776,7 +785,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       // (clamped) instead of rolling back the flick.
       if (draggingWidth) {
         width = clampWidth(widthDrag.current.startWidth + (widthDrag.current.startX - event.clientX))
-        height = state?.bottomOpen === true ? Math.min(state.bottomHeight, window.innerHeight) : 0
+        height = pushedBottomHeight(state?.bottomOpen === true, state?.bottomHeight ?? 0)
       } else if (draggingBottom) {
         width = Math.min(state?.width ?? 0, window.innerWidth)
         height = clampHeight(bottomDrag.current.startHeight + (bottomDrag.current.startY - event.clientY))
@@ -1110,7 +1119,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
                 if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
                 const { startX, startWidth } = widthDrag.current
                 const width = clampWidth(startWidth + (startX - event.clientX))
-                const height = state.bottomOpen ? Math.min(state.bottomHeight, window.innerHeight) : 0
+                const height = pushedBottomHeight(state.bottomOpen, state.bottomHeight)
                 scheduleDrag(width, height)
               }}
               onPointerUp={(event) => {
@@ -1124,7 +1133,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
                 // pointermove (the rAF pending value) can be stale. Commit
                 // from the up position (v0.13.1 semantics; issue #247).
                 const width = clampWidth(startWidth + (startX - event.clientX))
-                const height = state.bottomOpen ? Math.min(state.bottomHeight, window.innerHeight) : 0
+                const height = pushedBottomHeight(state.bottomOpen, state.bottomHeight)
                 commitDrag(width, height, s => setWidth(s, width))
                 setDraggingWidth(false)
               }}
