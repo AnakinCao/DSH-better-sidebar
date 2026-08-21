@@ -72,4 +72,28 @@ describe('layoutPushSize', () => {
       viewportHeight: 800,
     })).toEqual({ width: 400, height: 220 })
   })
+
+  it('never pushes beyond a viewport smaller than the normal panel minima', () => {
+    expect(layoutPushSize({
+      narrow: false,
+      panelOpen: true,
+      bottomOpen: true,
+      width: 400,
+      bottomHeight: 220,
+      viewportWidth: 200,
+      viewportHeight: 200,
+    })).toEqual({ width: 200, height: 0 })
+  })
+
+  it('turns non-finite geometry into a safe zero push', () => {
+    expect(layoutPushSize({
+      narrow: false,
+      panelOpen: true,
+      bottomOpen: true,
+      width: Number.NaN,
+      bottomHeight: Number.POSITIVE_INFINITY,
+      viewportWidth: Number.NaN,
+      viewportHeight: Number.POSITIVE_INFINITY,
+    })).toEqual({ width: 0, height: 0 })
+  })
 })

@@ -16,7 +16,14 @@ describe('layout.css conversation column', () => {
 
   it('allows the center column to shrink and wrap long tokens', () => {
     expect(css).toMatch(/min-height:\s*0/)
-    expect(css).toMatch(/overflow:\s*hidden/)
     expect(css).toMatch(/overflow-wrap:\s*anywhere/)
+  })
+
+  it('leaves overflow ownership to the host conversation descendants', () => {
+    const conversationRule = css.match(
+      /#root \[data-dsh-frame\][\s\S]*?\{([\s\S]*?)\n\}/,
+    )?.[1]
+    expect(conversationRule).toBeDefined()
+    expect(conversationRule).not.toMatch(/(?:^|[;\s])overflow\s*:/)
   })
 })
