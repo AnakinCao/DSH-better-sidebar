@@ -11,7 +11,7 @@
   <a href="https://dshfind.com/en/plugins/omdsh-dev/DSH-better-sidebar?ref=badge"><img alt="dshfind" src="https://dshfind.com/api/badge/omdsh-dev/DSH-better-sidebar?lang=en" /></a><br /><br />
   <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions: 0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a>
   <a href="https://github.com/topics/dsh-better-sidebar"><img alt="Plugin ecosystem: GitHub topic dsh-better-sidebar" src="https://img.shields.io/badge/plugin%20ecosystem-topic%20dsh--better--sidebar-4d6bfe" /></a><br /><br />
-  <img alt="File management" src="https://img.shields.io/badge/-File%20management-4d6bfe" /> <img alt="Edit &amp; preview" src="https://img.shields.io/badge/-Edit%20%26%20preview-4d6bfe" /> <img alt="Embedded browser" src="https://img.shields.io/badge/-Embedded%20browser-4d6bfe" /> <img alt="Real terminal" src="https://img.shields.io/badge/-Real%20terminal-4d6bfe" /> <img alt="Git panel" src="https://img.shields.io/badge/-Git%20panel-4d6bfe" /> <img alt="Background tasks" src="https://img.shields.io/badge/-Background%20tasks-4d6bfe" /> <img alt="Plugin integration" src="https://img.shields.io/badge/-Plugin%20integration-4d6bfe" /><br /><br />
+  <img alt="File management" src="https://img.shields.io/badge/-File%20management-4d6bfe" /> <img alt="Edit &amp; preview" src="https://img.shields.io/badge/-Edit%20%26%20preview-4d6bfe" /> <img alt="Embedded browser" src="https://img.shields.io/badge/-Embedded%20browser-4d6bfe" /> <img alt="Real terminal" src="https://img.shields.io/badge/-Real%20terminal-4d6bfe" /> <img alt="Git panel" src="https://img.shields.io/badge/-Git%20panel-4d6bfe" /> <img alt="Background tasks" src="https://img.shields.io/badge/-Background%20tasks-4d6bfe" /> <img alt="Side Chat" src="https://img.shields.io/badge/-Side%20Chat-4d6bfe" /> <img alt="Plugin integration" src="https://img.shields.io/badge/-Plugin%20integration-4d6bfe" /><br /><br />
   <b>A dual workbench (right sidebar + bottom panel)</b> that opens its <code>ctx.betterSidebar</code> service to every plugin —<br />
   register new sidebar pages and file viewers via <code>registerTab</code> / <code>registerFileViewer</code>.
 </div>
@@ -40,7 +40,7 @@
 
 ## ✨ Features
 
-- **🗂️ File Workbench**: file explorer (lazy-loading tree; symlinks show their target kind — directory links expand, dangling links flagged) + CodeMirror editor; inline preview for images / Markdown (incl. Mermaid diagrams, strict-mode safe rendering + click-to-zoom) / HTML / PDF / Office
+- **🗂️ File Workbench**: file explorer (lazy-loading tree; symlinks show their target kind — directory links expand, dangling links flagged) + CodeMirror editor; inline preview for images / Markdown (incl. Mermaid diagrams, strict-mode safe rendering + click-to-zoom) / HTML / PDF
 - **🌐 Embedded Browser**: multiple web tabs with back / forward / refresh; content runs in a sandboxed iframe; external links are routed by protocol by default — HTTP opens in the sidebar, HTTPS goes to the system browser (both adjustable in settings)
 - **💻 Real Terminal**: xterm.js + node-pty real shell, reconnect with transcript replay; optionally injects `terminal_*` tools for the model
 - **🌿 Git Panel**: real diff + VSCode-style diff tabs, history, right-click to stage / commit / revert
@@ -149,131 +149,69 @@ Update: `git pull && pnpm install && pnpm build` → `node scripts/package-regis
 
 ## 🖼️ Feature Tour
 
-> All screenshots below are taken from the real UI (dark theme). Placeholder slots will be filled in over time.
+> Below are real UI screenshots.
 
 ### 🗂️ File Workbench: Explorer
 
-Lazy-loading directory tree, symlinks classified by target kind (directory links expand, dangling links flagged), global filename search, file/folder upload buttons plus drag-drop upload, context menu (open in new tab / open to the side / copy paths), and a hover `@file` button that references a file straight into the composer.
+Two explorer modes: embedded in the file preview / standalone file tree. Lazy-loading directory tree, symlinks classified by target kind (directory links expand, dangling links flagged), global filename search, file/folder upload buttons plus drag-drop upload, context menu (open in new tab / open to the side / copy paths), and a hover `@file` button that references a file straight into the composer.
 
-<!-- 📸 Image slot (upload pending): file explorer — the Files window showing the full directory tree (.git / assets / data / docs / src with file icons).
-     Ready-to-upload file: ~/Desktop/dsh-readme-images/workbench-explorer.webp (original png/01-explorer.png)
-     After uploading on github.com, replace the src below with the returned user-attachments URL and uncomment:
-     <div align="center"><img width="880" alt="File explorer" src="PASTE_user-attachments_URL_here" /></div>
--->
-
-### ✍️ CodeMirror Editor
-
-Open per path (new tab) or switch in place (opt-in merged mode), preview / edit / save in one window, syntax highlighting for 20+ languages, `Ctrl/Cmd+S` to save.
-
-<!-- 📸 Image slot (upload pending): code editor — app.ts open with syntax highlighting, path-input header and a multi-tab strip.
-     Ready-to-upload file: ~/Desktop/dsh-readme-images/editor.webp (original png/02-editor.png)
-     <div align="center"><img width="880" alt="CodeMirror editor" src="PASTE_user-attachments_URL_here" /></div>
--->
+<div align="center"><img width="880" alt="File explorer" src="https://github.com/user-attachments/assets/a410bfd2-a8ba-43e6-873e-22417756e94d" /></div>
+<div align="center"><img width="880" alt="CodeMirror editor" src="https://github.com/user-attachments/assets/b44b488e-568c-4ee0-b96c-e9c906598a77" /></div>
 
 ### 📝 Inline Preview: Markdown · Images · PDF
 
 The Markdown preview renders **Mermaid diagrams** (strict-mode safe rendering + a second sanitize pass; click a diagram for a zoom modal with wheel-zoom and drag-pan); images / PDFs display inline via the media route; the Office suite is covered by an ecosystem plugin.
 
-<div align="center">
-<!-- 📸 Image slot (upload pending): Markdown preview — architecture.md in preview mode with a rendered Mermaid flowchart + the Preview/Edit toggle.
-     Ready-to-upload file: ~/Desktop/dsh-readme-images/markdown-mermaid.webp (original png/03-markdown.png)
-     <img width="880" alt="Markdown + Mermaid preview" src="PASTE_user-attachments_URL_here" />
--->
-</div>
-
-<div align="center">
-<!-- 📸 Image slot (upload pending): image preview — logo.png rendered inline in a file window.
-     Ready-to-upload file: ~/Desktop/dsh-readme-images/image-preview.webp (original png/04-image.png)
-     <img width="880" alt="Inline image preview" src="PASTE_user-attachments_URL_here" />
--->
-</div>
+<div align="center"><img width="880" alt="Markdown + Mermaid preview" src="https://github.com/user-attachments/assets/fe0e5182-55bb-45cc-b98b-a2877c2bdd38" /></div>
+<div align="center"><img width="880" alt="Inline image preview" src="https://github.com/user-attachments/assets/f9a58c30-5b7a-48b5-9e22-37d7e071f593" /></div>
 
 ### 💻 Real Terminal
 
 xterm.js + node-pty real shell (not an emulator): transcript replay on reconnect, configurable shell / shellArgs (settings page or `cordis.patch.yml`), and optional `terminal_*` model tools so the agent can open terminals and run commands itself.
 
-<!-- 📸 Image slot (upload pending): real terminal — a terminal tab showing git log --graph and ls output.
-     Ready-to-upload file: ~/Desktop/dsh-readme-images/terminal.webp (original png/05-terminal.png)
-     ⚠️ Note: this shot's prompt contains the local username/hostname (menghuan / MenghuandeMacBook-Pro); if that bothers you, run `export PS1='$ '` before the demo commands and retake.
-     <div align="center"><img width="880" alt="Real terminal" src="PASTE_user-attachments_URL_here" /></div>
--->
+<div align="center"><img width="880" alt="Real terminal" src="https://github.com/user-attachments/assets/0dad6ad3-ff3f-4b5a-86d2-f832ce65323e" /></div>
 
 ### 🌿 Git Panel
 
-Stage / unstage / commit (`Ctrl+Enter`) / revert, plus a history list; clicking a changed file opens a **VSCode-style diff tab** (line-level red/green). push / pull / fetch are covered by the ecosystem plugins [dsh-git-remotes](https://github.com/yq04/dsh-git-remotes) and [dsh-git-forge](https://github.com/thirsty5034/dsh-git-forge).
+Stage / unstage / commit (`Ctrl+Enter`) / revert, plus a history list; clicking a changed file opens a **VSCode-style diff tab** (line-level red/green).
 
-<!-- 📸 Image slot (upload pending): Git panel — STAGED/UNSTAGED groups + commit box + HISTORY list.
-     Ready-to-upload file: ~/Desktop/dsh-readme-images/git-panel.webp (original png/06-git.png)
-     ⚠️ Note: the HISTORY rows show the local git global identity (Menghuan1918) as commit author.
-     <div align="center"><img width="880" alt="Git panel" src="PASTE_user-attachments_URL_here" /></div>
--->
-
-<!-- 📸 Image slot (manual shot needed): VSCode-style diff tab — click a changed file (e.g. src/app.ts) in the Git panel to open the diff tab with line-level red/green diff.
-     Suggested name: git-diff; 1600×1000 @2x, dark theme.
-     <div align="center"><img width="880" alt="VSCode-style diff tab" src="PASTE_user-attachments_URL_here" /></div>
--->
+<div align="center"><img width="880" alt="Git panel" src="https://github.com/user-attachments/assets/e7fc1220-305f-4bca-8583-e77ab4f4fa78" /></div>
 
 ### 🌐 Embedded Browser
 
 Multiple web tabs with back / forward / reload / address bar; content runs in an **opaque-origin sandboxed iframe** (live sandbox status in the UI, per-page temporary unlock available); external-link clicks in the chat can be taken over into the sidebar (protocol-based routing, configurable).
 
-<!-- 📸 Image slot (upload pending): embedded browser — a web tab showing a docs site; note the "Sandbox mode: on" safety bar at the top.
-     Ready-to-upload file: ~/Desktop/dsh-readme-images/browser.webp (original png/08-browser.png)
-     <div align="center"><img width="880" alt="Embedded browser" src="PASTE_user-attachments_URL_here" /></div>
--->
+<div align="center"><img width="880" alt="Embedded browser" src="https://github.com/user-attachments/assets/9bc6b65a-64fc-4942-a685-76e391e55606" /></div>
 
 ### 🧩 Tasks: Agent Topology + Background Jobs
 
 Live subagent-tree topology (run states, batched live previews) plus the background-jobs list (exit codes / live output / force-kill); new subagents / jobs can auto-expand the sidebar (configurable).
 
-<!-- 📸 Image slot (upload pending): tasks page — the subagent topology (Main agent node).
-     Ready-to-upload file: ~/Desktop/dsh-readme-images/tasks.webp (original png/tasks-src.png)
-     💡 An even better shot: a real session with several running subagents; the current one shows the idle topology.
-     <div align="center"><img width="880" alt="Tasks: subagent topology" src="PASTE_user-attachments_URL_here" /></div>
--->
+<div align="center"><img width="880" alt="Tasks: subagent topology" src="https://github.com/user-attachments/assets/dcd8ed2f-59fa-405b-937b-2d250f5034dd" /></div>
 
 ### 💬 Side Chat (beta)
 
 Codex-style side threads: **one independent tab per conversation**; the thread inherits the parent's full context (including the in-progress turn, honestly frozen as "interrupted") and runs independently without polluting the main session; follow-ups survive restarts; one click promotes the thread to a top-level session.
 
-<!-- 📸 Image slot (manual shot needed): Side Chat (beta) — open via the + menu → Side Chat (beta); show the thread composer and the header thread menu; ideally with one or two messages exchanged.
-     Suggested name: sidechat; 1600×1000 @2x, dark theme.
-     <div align="center"><img width="880" alt="Side Chat (beta)" src="PASTE_user-attachments_URL_here" /></div>
--->
+<div align="center"><img width="880" alt="Side Chat (beta)" src="https://github.com/user-attachments/assets/3a338c36-f5de-4000-95f3-4b1cd04f60fc" /></div>
 
 ### 🪟 Dual Workbench: Sidebar + Bottom Panel + Split Panes
 
 The right sidebar and the bottom panel can stay open together; drag a tab to a pane edge to **split**, to the middle to **merge** (works across panels); panel width/height drag from the left/top edge; on mobile everything merges into a full-width drawer.
 
-<!-- 📸 Image slot (upload pending): split panes — the widened right panel split into two panes (left: file tree; right: editor).
-     Ready-to-upload file: ~/Desktop/dsh-readme-images/split-panes.webp (original png/10-split.png)
-     <div align="center"><img width="880" alt="Split-pane workbench" src="PASTE_user-attachments_URL_here" /></div>
--->
-
-<!-- 📸 Image slot (manual shot needed): bottom panel — expand the bottom panel with a terminal (or any tab) open, showing the "right sidebar + bottom panel" dual workbench in one frame.
-     Suggested name: bottom-panel; 1600×1000 @2x, dark theme.
-     <div align="center"><img width="880" alt="Bottom panel" src="PASTE_user-attachments_URL_here" /></div>
--->
+<div align="center"><img width="880" alt="Dual workbench (right sidebar + bottom panel)" src="https://github.com/user-attachments/assets/dfdb875e-a1a8-4d4b-8340-353736b1708f" /></div>
 
 ### ⚙️ Declarative Settings
 
 The "Side card" section in DSH settings: one small card per tab / viewer with an independent toggle (highlighted enabled state + brand switch); secondary settings open from the "Feature settings" strip at the card bottom (switch / text / number / select rows); plugin-owned settings persist under `pluginSettings`.
 
-<!-- 📸 Image slot (manual shot needed): the Side card settings section — DSH Settings → Side card, showing the tab/viewer card grid, the "Feature settings" strips and the version badge.
-     Suggested name: settings-cards; 1600×1000 @2x, dark theme.
-     <div align="center"><img width="880" alt="Declarative settings: side cards" src="PASTE_user-attachments_URL_here" /></div>
--->
+<div align="center"><img width="880" alt="Declarative settings: side cards" src="https://github.com/user-attachments/assets/0800ca64-621e-48da-b7df-aecfddc3ec29" /></div>
 
 ### 📱 Mobile
 
 On narrow screens (<768px) the panels become a full-width drawer: bottom-panel tabs merge into the sidebar once, with touch-friendly dragging.
 
-<div align="center">
-<!-- 📸 Image slot (upload pending): mobile drawer — the sidebar as a full-width drawer showing the file tree at a 430px viewport.
-     Ready-to-upload file: ~/Desktop/dsh-readme-images/mobile.webp (original png/14-mobile.png)
-     <img width="360" alt="Mobile full-width drawer" src="PASTE_user-attachments_URL_here" />
--->
-</div>
+<div align="center"><img width="360" alt="Mobile full-width drawer" src="https://github.com/user-attachments/assets/a82ba78a-f4cf-4d85-80e8-050a05beb144" /></div>
 
 ## 🌐 Plugin Ecosystem
 
