@@ -43,6 +43,7 @@ import {
 import { IconPanelBottomOutline16, IconPanelRightOutline16 } from './icons.tsx'
 import { Workbench, type WorkbenchActions } from './split-pane.tsx'
 import { useNarrowViewport } from './breakpoints.ts'
+import { layoutPushSize } from './layout-push.ts'
 import { parseDesktopEnv } from './desktop-env.ts'
 import { getWcoSnapshot, subscribeWco } from './wco.ts'
 import { getShellPreset } from './shell-presets.ts'
@@ -804,12 +805,15 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       dragCommitted.current = true
       stopDragScheduling()
       const last = lastDragSize.current
-      const adoptedWidth = !narrow && state?.panelOpen === true
-        ? Math.min(last?.width ?? state?.width ?? 0, window.innerWidth)
-        : 0
-      const adoptedHeight = !narrow && state?.bottomOpen === true
-        ? Math.min(last?.height ?? state?.bottomHeight ?? 0, window.innerHeight)
-        : 0
+      const { width: adoptedWidth, height: adoptedHeight } = layoutPushSize({
+        narrow,
+        panelOpen: state?.panelOpen === true,
+        bottomOpen: state?.bottomOpen === true,
+        width: last?.width ?? state?.width ?? 0,
+        bottomHeight: last?.height ?? state?.bottomHeight ?? 0,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      })
       applyDrag(adoptedWidth, adoptedHeight)
       draggingRef.current = false
       measureCenter()
@@ -826,12 +830,15 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   // On NARROW viewports the drawer FLOATS over the app shell — no push, the
   // conversation keeps the full width behind the drawer.
   useEffect(() => {
-    const width = !narrow && snapshot.state?.panelOpen === true
-      ? Math.min(snapshot.state.width, window.innerWidth)
-      : 0
-    const height = !narrow && snapshot.state?.bottomOpen === true
-      ? Math.min(snapshot.state.bottomHeight, window.innerHeight)
-      : 0
+    const { width, height } = layoutPushSize({
+      narrow,
+      panelOpen: snapshot.state?.panelOpen === true,
+      bottomOpen: snapshot.state?.bottomOpen === true,
+      width: snapshot.state?.width ?? 0,
+      bottomHeight: snapshot.state?.bottomHeight ?? 0,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    })
     writeGeometry(width, height)
   }, [narrow, snapshot.state?.panelOpen, snapshot.state?.width, snapshot.state?.bottomOpen, snapshot.state?.bottomHeight])
   // Unmount must release the push (issue #31): when the boundary swaps the

@@ -44,6 +44,14 @@
 #root [data-dsh-frame] > [data-pane="conversation"],
 #root :has(> [data-slot="conversation"]) {
   margin-bottom: var(--dsh-sidebar-height, 0px);
+  /* Grid/flex items default to min-height:auto. A long unbreakable token
+     (OAuth URL) then grows this column past the viewport and clips the
+     composer + left-rail Settings row. min-height:0 lets the cell shrink;
+     overflow:hidden keeps paint inside the cell; overflow-wrap wraps the
+     token so it cannot force the cell's intrinsic size. */
+  min-height: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   transition: margin-bottom var(--ds-transition-duration-slow) var(--ds-ease-in-out);
 }
 
