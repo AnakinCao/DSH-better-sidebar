@@ -58,13 +58,25 @@
 
 **前置**：已装好 DSH（`dsh web` 能正常运行），Node.js ≥ 20、pnpm ≥ 10。
 
-> ✅ **当前版本支持的 DSH**：`0.1.0-rc.8` · `0.1.1-rc.1` · `0.1.1-rc.2`（peer 下限 `^0.1.0-rc.8`；CI 挂载冒烟基线 `0.1.1-rc.2`）
+**支持的 DSH 版本**：
+<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="支持的 DSH 版本：0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a>
 
 ```sh
 dsh plugin --profile web add dsh-better-sidebar@latest
+cd ~/.dsh/profiles/web && pnpm approve-builds --all && pnpm rebuild node-pty   # 终端功能依赖 node-pty 的预编译二进制：放行构建脚本并确保装好
 ```
 
 装完**硬刷新浏览器**（Cmd/Ctrl+Shift+R）即可看到侧边栏（DSH 对 client 改动热加载，无需重启；仅 host 半更新时需要重启）。
+
+**方式二：让 DSH 自己装**——把下面这段提示词发给任意一个 DSH 会话：
+
+```text
+帮我安装 dsh-better-sidebar 插件（DSH 侧边栏工作台），步骤：
+1. 执行 dsh plugin --profile web add dsh-better-sidebar@latest
+2. 在 ~/.dsh/profiles/web 下执行 pnpm approve-builds --all && pnpm rebuild node-pty（终端功能需要 node-pty 的预编译二进制）
+3. 完成后提醒我硬刷新浏览器（Cmd/Ctrl+Shift+R）
+遇到报错先查 https://github.com/omdsh-dev/DSH-better-sidebar README 的常见问题表。
+```
 
 <details>
 <summary><b>更新</b></summary>
@@ -339,11 +351,11 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
   <a href="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0"><img width="33%" alt="服务化基座截图" src="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0" /></a>
 </div>
 
-> ✅ **v0.15.0 支持的 DSH 版本**：`0.1.0-rc.8` · `0.1.1-rc.1` · `0.1.1-rc.2`。完整发布历史见 [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases)。
+**支持的 DSH 版本**：<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="支持的 DSH 版本：0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a> · 完整发布历史见 [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases)
 
 ### v0.15.0
 
-> ⚠️ **本版验证基线为 DSH 0.1.1-rc.2（@next）**：devDependencies / lockfile / CI 挂载冒烟基线升至 `0.1.1-rc.2`（lockfile 零 rc.8 残留）；**peer 下限保持 `^0.1.0-rc.8`**——0.1.1-rc.x 为常规 rc 递进、与 rc.8 双向兼容，**rc.8 用户无需升级 DSH**。`cordis` 保持 `^4.0.0-rc.8`。自 v0.14.0 以来的全部更改：
+自 v0.14.0 以来的全部更改：
 
 **✨ 新功能**
 
@@ -358,7 +370,7 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 - ⚡ **子代理页实时预览批量接口**（[#298](https://github.com/omdsh-dev/DSH-better-sidebar/pull/298)）：旧实现每个 running 子代理独立轮询 `subagents.history`，host 侧每次触发全量子代理枚举形成 O(N²) 放大、多子代理并发时页面卡顿——改为单个批量接口 `subagents.live`（一次枚举整棵子代理树）+ 客户端单轮询、单在途请求；展示逻辑与文案不变
 - 🖱️ **拖拽中断 / 快速释放不再回滚**（[#249](https://github.com/omdsh-dev/DSH-better-sidebar/pull/249)，关闭 [#247](https://github.com/omdsh-dev/DSH-better-sidebar/issues/247) [#248](https://github.com/omdsh-dev/DSH-better-sidebar/issues/248)）：中断 / 快速释放提交最后已知位置；HMR 后中心列重定位兜底（修复热更新后底栏空白）
 - 📐 **推挤变量挂载期持续有效**（[#259](https://github.com/omdsh-dev/DSH-better-sidebar/pull/259)，修复 [#258](https://github.com/omdsh-dev/DSH-better-sidebar/issues/258)）：拖拽松手后底边栏不再闪全宽
-- 🔧 **适配 DSH 0.1.1-rc.1 / rc.2（@next）**（[#297](https://github.com/omdsh-dev/DSH-better-sidebar/pull/297) [#305](https://github.com/omdsh-dev/DSH-better-sidebar/pull/305)）：devDependencies / lockfile / CI 验证基线平移；逐包比对所有既有契约（DOM 槽位、CSS 令牌、boot 协议、MarkdownText `codeLabels`、`webServer` 路由注册）零破坏，**无代码逻辑改动**；peer 下限保持 `^0.1.0-rc.8`
+- 🔧 **适配 DSH 0.1.1-rc.1 / rc.2（@next）**（[#297](https://github.com/omdsh-dev/DSH-better-sidebar/pull/297) [#305](https://github.com/omdsh-dev/DSH-better-sidebar/pull/305)）：无代码逻辑改动
 - 🔒 **上传链路安全加固**（[#239](https://github.com/omdsh-dev/DSH-better-sidebar/pull/239)）：`relativePath` 空段 / 绝对路径显式拒绝；临时文件唯一命名（并发上传互不干扰、崩溃不阻塞）；写流错误监听（磁盘失败不崩溃进程）；客户端错误码与服务端统一、413 本地化
 
 <details>
@@ -366,7 +378,7 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 
 ### v0.14.0
 
-> ⚠️ **本版适配 DSH 0.1.0-rc.8**：全部 `@deepseek-ai/*` peer / devDependencies 升至 `^0.1.0-rc.8`（含传递依赖，lockfile 零 rc.7 残留），`cordis` 同步 `^4.0.0-rc.8`，CI 挂载冒烟钉版 `@deepseek-ai/dsh@0.1.0-rc.8`。**rc.7 及更早的 DSH 环境将无法解析本版依赖，请先升级 DSH。** 自 v0.13.1 以来的全部更改：
+> ⚠️ 本版起需要 DSH ≥ 0.1.0-rc.8。自 v0.13.1 以来的全部更改：
 
 **✨ 新功能**
 
@@ -378,7 +390,6 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 
 **🐛 修复**
 
-- 🔧 **适配 DSH 0.1.0-rc.8**（[#232](https://github.com/omdsh-dev/DSH-better-sidebar/pull/232)）：13 个 `@deepseek-ai/*` peer / devDependencies 升至 `^0.1.0-rc.8`（含传递链，lockfile 零 rc.7 残留），`cordis` 同步 `^4.0.0-rc.8`；移除随 rc.8 消失的 `dsh-client-web-react` / `dsh-client-schema-form`（壳模块表不再提供、插件零引用）；CI 挂载冒烟钉版 `@deepseek-ai/dsh@0.1.0-rc.8`；pnpm 11.8 supply-chain 校验适配
 - 🧩 **rc.8 模块系统迁移**（[#232](https://github.com/omdsh-dev/DSH-better-sidebar/pull/232)）：rc.8 不再暴露 `window.__DSH_MODULES__` 页面全局（改由 `ctx.modules` 服务提供），懒加载 chunk 的外部依赖解析全面失效——client 注入 `modules` 服务 + 插件自有全局共享给 chunk 副本（终端 / 编辑器 / Mermaid 恢复正常按需加载）
 - 🧩 **chunk 重验证屏障健壮性**（[#232](https://github.com/omdsh-dev/DSH-better-sidebar/pull/232)）：HEAD 重验证加 5s 超时兜底（路由挂起时 fail-open 重取，屏障不再可能无限期阻塞懒加载）；`resetChunks` 清挂起的重验证屏障
 - 🖱️ **拖拽健壮性**（[#232](https://github.com/omdsh-dev/DSH-better-sidebar/pull/232)）：快速释放（浏览器合并 / 丢失 pointermove 突发）时提交最后已知拖动位置而非回退；`pointercancel` / 捕获丢失中断同样保留拖动结果；提交后立即重测中心列（消除底栏宽度中间帧抖动）；HMR 重激活后中心列重定位兜底（`<html>` 样式观察 + 底栏打开重测），修复热更新后底栏空白 / 输入框位移
@@ -393,7 +404,7 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 **🐛 修复**
 
 - 🔗 **聚合双挂载自动退让**（[#200](https://github.com/omdsh-dev/DSH-better-sidebar/pull/200)）：聚合包（如 dsh-web-ui-all）以独立条目 id 挂载同包时，`cordis.patch.yml` 的守卫表达式自动禁用自身 `better-sidebar` 行，不再重复注册 `/sidebar/api` 导致 `duplicate prefix route` 整个插件树启动失败（`dsh web` 崩溃）；独立安装行为不变
-- 🔧 **peer 依赖对齐 DSH 0.1.0-rc.7**（[#207](https://github.com/omdsh-dev/DSH-better-sidebar/pull/207)，修复 [#206](https://github.com/omdsh-dev/DSH-better-sidebar/issues/206)）：全部 `@deepseek-ai/*` peer / devDependencies 从 `^0.1.0-rc.6` 升至 `^0.1.0-rc.7`，CI 挂载冒烟同步钉版——消除主框架升至 rc.7 后 rc.6 / rc.7 混用依赖树导致的 `agent-presets: refusing to compose an unscoped context`（选模型 / 发消息报错）
+- 🔧 **适配 DSH 0.1.0-rc.7**（[#207](https://github.com/omdsh-dev/DSH-better-sidebar/pull/207)，修复 [#206](https://github.com/omdsh-dev/DSH-better-sidebar/issues/206)）：修复 DSH 主框架升至 rc.7 后选模型 / 发消息报 `agent-presets: refusing to compose an unscoped context` 的问题
 
 ### v0.13.0
 

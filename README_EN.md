@@ -58,13 +58,25 @@
 
 **Prerequisites**: DSH installed (`dsh web` boots), Node.js ≥ 20, pnpm ≥ 10.
 
-> ✅ **Supported DSH versions**: `0.1.0-rc.8` · `0.1.1-rc.1` · `0.1.1-rc.2` (peer floor `^0.1.0-rc.8`; CI mount-smoke baseline `0.1.1-rc.2`)
+**Supported DSH versions**:
+<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions: 0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a>
 
 ```sh
 dsh plugin --profile web add dsh-better-sidebar@latest
+cd ~/.dsh/profiles/web && pnpm approve-builds --all && pnpm rebuild node-pty   # the terminal needs node-pty's prebuilt binary: allow build scripts and make sure it is installed
 ```
 
 Then **hard-refresh the browser** (Cmd/Ctrl+Shift+R) to see the sidebar (DSH hot-reloads client changes; only host-half updates need a restart).
+
+**Or let DSH install it for you** — paste this prompt into any DSH session:
+
+```text
+Install the dsh-better-sidebar plugin (a sidebar workbench for DSH):
+1. Run: dsh plugin --profile web add dsh-better-sidebar@latest
+2. In ~/.dsh/profiles/web run: pnpm approve-builds --all && pnpm rebuild node-pty (the terminal feature needs node-pty's prebuilt binary)
+3. When done, remind me to hard-refresh the browser (Cmd/Ctrl+Shift+R)
+If anything fails, check the troubleshooting table in the README at https://github.com/omdsh-dev/DSH-better-sidebar
+```
 
 <details>
 <summary><b>Updating</b></summary>
@@ -339,11 +351,11 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
   <a href="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0"><img width="33%" alt="Service API base screenshot" src="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0" /></a>
 </div>
 
-> ✅ **v0.15.0 supports DSH**: `0.1.0-rc.8` · `0.1.1-rc.1` · `0.1.1-rc.2`. Full release history on the [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases) page.
+**Supported DSH versions**: <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions: 0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a> · full release history on the [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases) page
 
 ### v0.15.0
 
-> ⚠️ **This release is verified against DSH 0.1.1-rc.2 (@next)**: devDependencies / lockfile / CI mount-smoke baseline raised to `0.1.1-rc.2` (zero rc.8 leftovers in the lockfile); **the peer floor stays at `^0.1.0-rc.8`** — 0.1.1-rc.x is a routine rc progression, mutually compatible with rc.8, so **rc.8 users don't need to upgrade DSH**. `cordis` stays at `^4.0.0-rc.8`. All changes since v0.14.0:
+All changes since v0.14.0:
 
 **✨ New features**
 
@@ -358,7 +370,7 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 - ⚡ **Batched live preview for the subagent page** ([#298](https://github.com/omdsh-dev/DSH-better-sidebar/pull/298)): the old implementation polled `subagents.history` per running subagent, each poll triggering a full host-side enumeration — an O(N²) amplification that stalled the page with many concurrent subagents; now a single batch route `subagents.live` (one enumeration of the whole tree) plus one client poller with a single in-flight request; display logic and copy unchanged
 - 🖱️ **Interrupted / fast-release drags no longer roll back** ([#249](https://github.com/omdsh-dev/DSH-better-sidebar/pull/249), closes [#247](https://github.com/omdsh-dev/DSH-better-sidebar/issues/247) [#248](https://github.com/omdsh-dev/DSH-better-sidebar/issues/248)): interrupted or fast-released drags commit the last known position; HMR re-activation re-locates the center column (fixes the blank bottom panel after a hot reload)
 - 📐 **Push variables stay effective while mounted** ([#259](https://github.com/omdsh-dev/DSH-better-sidebar/pull/259), fixes [#258](https://github.com/omdsh-dev/DSH-better-sidebar/issues/258)): the bottom panel no longer flashes full-width after a drag is released
-- 🔧 **Adapted to DSH 0.1.1-rc.1 / rc.2 (@next)** ([#297](https://github.com/omdsh-dev/DSH-better-sidebar/pull/297) [#305](https://github.com/omdsh-dev/DSH-better-sidebar/pull/305)): devDependencies / lockfile / CI verification baseline shifted; every consumed contract (DOM slot, CSS tokens, boot protocol, MarkdownText `codeLabels`, `webServer` route registration) compared package by package with zero breakage — **no code changes needed**; peer floor stays at `^0.1.0-rc.8`
+- 🔧 **Adapted to DSH 0.1.1-rc.1 / rc.2 (@next)** ([#297](https://github.com/omdsh-dev/DSH-better-sidebar/pull/297) [#305](https://github.com/omdsh-dev/DSH-better-sidebar/pull/305)): no code changes needed
 - 🔒 **Upload-chain hardening** ([#239](https://github.com/omdsh-dev/DSH-better-sidebar/pull/239)): empty and absolute `relativePath` segments are refused outright; uniquely named temp files (concurrent uploads stay independent, crashed processes never block later uploads); write-stream error listeners (a failing disk can no longer crash the host); client error codes unified with the wire (`too-large`), 413s localized
 
 <details>
@@ -366,7 +378,7 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 
 ### v0.14.0
 
-> ⚠️ **This release adapts to DSH 0.1.0-rc.8**: all `@deepseek-ai/*` peer/devDependencies raised to `^0.1.0-rc.8` (transitives included; zero rc.7 leftovers in the lockfile), `cordis` to `^4.0.0-rc.8`, and the CI mount lane pins `@deepseek-ai/dsh@0.1.0-rc.8`. **DSH rc.7 and earlier cannot resolve this release's dependencies — upgrade DSH first.** All changes since v0.13.1:
+> ⚠️ This release requires DSH ≥ 0.1.0-rc.8. All changes since v0.13.1:
 
 **✨ New features**
 
@@ -378,7 +390,6 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 
 **🐛 Fixes**
 
-- 🔧 **Adapted to DSH 0.1.0-rc.8** ([#232](https://github.com/omdsh-dev/DSH-better-sidebar/pull/232)): all 13 `@deepseek-ai/*` peer/devDependencies raised to `^0.1.0-rc.8` (transitives included; zero rc.7 leftovers in the lockfile), `cordis` to `^4.0.0-rc.8`; `dsh-client-web-react` / `dsh-client-schema-form` removed (no rc.8 publish, no longer in the shell module table, zero plugin references); CI mount lane pins `@deepseek-ai/dsh@0.1.0-rc.8`; pnpm 11.8 supply-chain verification adapted
 - 🧩 **rc.8 module-system migration** ([#232](https://github.com/omdsh-dev/DSH-better-sidebar/pull/232)): rc.8 no longer exposes the `window.__DSH_MODULES__` page global (it moved to the `ctx.modules` service), which broke every lazy chunk's externals resolution — the client now injects the `modules` service and shares it with chunk-bundle copies through a plugin-owned global (terminal / editor / Mermaid on-demand loading restored)
 - 🧩 **Chunk revalidation barrier hardening** ([#232](https://github.com/omdsh-dev/DSH-better-sidebar/pull/232)): HEAD revalidation gains a 5s timeout (fails open on a stuck route so the barrier can never wedge lazy loads); `resetChunks` clears a pending revalidation barrier
 - 🖱️ **Drag robustness** ([#232](https://github.com/omdsh-dev/DSH-better-sidebar/pull/232)): fast releases (browsers merge/lose pointermove bursts) commit the last known dragged position instead of rolling back; `pointercancel` / lost-capture interruptions keep the drag result too; the center column is re-measured right after commit (no mid-frame bottom-panel width jump); HMR re-activation re-locates the center column via an `<html>` style observer plus a retry when the bottom panel opens (fixes the blank bottom panel / shifted input bar after a hot reload)
@@ -393,7 +404,7 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 **🐛 Fixes**
 
 - 🔗 **Aggregate double-mount auto-yield** ([#200](https://github.com/omdsh-dev/DSH-better-sidebar/pull/200)): when an aggregate package (e.g. dsh-web-ui-all) mounts the same package under its own entry id, the guard expression in `cordis.patch.yml` disables the plugin's own `better-sidebar` row so `/sidebar/api` is no longer registered twice (`duplicate prefix route` crashing the whole plugin tree / `dsh web`); standalone installs behave as before
-- 🔧 **Peer dependencies aligned to DSH 0.1.0-rc.7** ([#207](https://github.com/omdsh-dev/DSH-better-sidebar/pull/207), fixes [#206](https://github.com/omdsh-dev/DSH-better-sidebar/issues/206)): all `@deepseek-ai/*` peer/devDependencies raised from `^0.1.0-rc.6` to `^0.1.0-rc.7`, and the CI mount lane pins the same version — eliminating the mixed rc.6/rc.7 dependency tree (after the main framework moved to rc.7) that surfaced as `agent-presets: refusing to compose an unscoped context` when picking a model / sending a message
+- 🔧 **Adapted to DSH 0.1.0-rc.7** ([#207](https://github.com/omdsh-dev/DSH-better-sidebar/pull/207), fixes [#206](https://github.com/omdsh-dev/DSH-better-sidebar/issues/206)): fixes the `agent-presets: refusing to compose an unscoped context` error when picking a model / sending a message after DSH moved to rc.7
 
 ### v0.13.0
 
