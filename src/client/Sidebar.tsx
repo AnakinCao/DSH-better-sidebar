@@ -198,6 +198,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   // Guarded: browsers without visualViewport (older WebViews, jsdom) stay
   // at 0. rAF-throttled, same pattern as useNarrowViewport.
   const [keyboardInset, setKeyboardInset] = useState(0)
+  const [visualViewportHeight, setVisualViewportHeight] = useState<number | null>(null)
   useEffect(() => {
     const vv = window.visualViewport
     if (vv === null || vv === undefined) return
@@ -206,6 +207,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       frame = null
       const inset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop))
       setKeyboardInset(inset > 1 ? Math.round(inset) : 0)
+      setVisualViewportHeight(Math.max(0, Math.round(vv.height)))
     }
     const onResize = (): void => { if (frame === null) frame = requestAnimationFrame(measure) }
     vv.addEventListener('resize', onResize)
@@ -220,7 +222,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   // The bottom panel is offset above the on-screen keyboard. Cap its height
   // against that same visible area, not the taller layout viewport, so the
   // conversation keeps PANEL_MIN even on wide touch devices.
-  const layoutViewportHeight = Math.max(0, viewport.height - keyboardInset)
+  const layoutViewportHeight = visualViewportHeight ?? viewport.height
 
   // Current conversation (the sessions list feed).
   const sessionList = useSyncExternalStore(
@@ -792,10 +794,10 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
         height = pushedBottomHeight(state?.bottomOpen === true, state?.bottomHeight ?? 0)
       } else if (draggingBottom) {
         width = Math.min(state?.width ?? 0, window.innerWidth)
-        height = clampHeight(bottomDrag.current.startHeight + (bottomDrag.current.startY - event.clientY))
+        height = pushedBottomHeight(true, clampHeight(bottomDrag.current.startHeight + (bottomDrag.current.startY - event.clientY)))
       } else if (draggingCorner) {
         width = clampWidth(cornerDrag.current.startWidth + (cornerDrag.current.startX - event.clientX))
-        height = clampHeight(cornerDrag.current.startHeight + (cornerDrag.current.startY - event.clientY))
+        height = pushedBottomHeight(true, clampHeight(cornerDrag.current.startHeight + (cornerDrag.current.startY - event.clientY)))
       }
     }
     if (width !== undefined && height !== undefined) {
@@ -1187,7 +1189,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
               if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
               const { startX, startY, startWidth, startHeight } = cornerDrag.current
               const width = clampWidth(startWidth + (startX - event.clientX))
-              const height = clampHeight(startHeight + (startY - event.clientY))
+              const height = pushedBottomHeight(true, clampHeight(startHeight + (startY - event.clientY)))
               scheduleDrag(width, height)
             }}
             onPointerUp={(event) => {
@@ -1199,7 +1201,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
               // Up position wins over the rAF pending value (see the width
               // strip handler — issue #247).
               const width = clampWidth(startWidth + (startX - event.clientX))
-              const height = clampHeight(startHeight + (startY - event.clientY))
+              const height = pushedBottomHeight(true, clampHeight(startHeight + (startY - event.clientY)))
               commitDrag(width, height, s => setBottomHeight(setWidth(s, width), height))
               setDraggingCorner(false)
             }}
@@ -1266,7 +1268,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
           onPointerMove={(event) => {
             if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
             const { startY, startHeight } = bottomDrag.current
-            const height = clampHeight(startHeight + (startY - event.clientY))
+            const height = pushedBottomHeight(true, clampHeight(startHeight + (startY - event.clientY)))
             scheduleDrag(Math.min(state.width, window.innerWidth), height)
           }}
           onPointerUp={(event) => {
@@ -1277,7 +1279,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
             const { startY, startHeight } = bottomDrag.current
             // Up position wins over the rAF pending value (see the width
             // strip handler — issue #247).
-            const height = clampHeight(startHeight + (startY - event.clientY))
+            const height = pushedBottomHeight(true, clampHeight(startHeight + (startY - event.clientY)))
             commitDrag(Math.min(state.width, window.innerWidth), height, s => setBottomHeight(s, height))
             setDraggingBottom(false)
           }}
