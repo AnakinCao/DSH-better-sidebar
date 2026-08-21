@@ -13,7 +13,13 @@ describe('Sidebar layout-push integration', () => {
     expect(source).toContain('setVisualViewportHeight(Math.max(0, Math.round(vv.height)))')
     expect(source).toContain('visualViewportHeight ?? viewport.height')
     expect(source.match(/viewportHeight: layoutViewportHeight/g)).toHaveLength(4)
-    expect(source).toContain('viewport.width, layoutViewportHeight]')
+    expect(source).toContain('viewport.width, layoutViewportHeight, keyboardInset]')
+  })
+
+  it('adds the keyboard inset to the conversation push, not the panel height', () => {
+    expect(source.match(/height \+ keyboardInset/g)).toHaveLength(2)
+    expect(source).toContain('height: bottomPanelHeight')
+    expect(source).not.toContain('height: bottomPanelHeight + keyboardInset')
   })
 
   it('reapplies the visible-height cap to every vertical drag result', () => {

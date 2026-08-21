@@ -694,7 +694,8 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     // `width + detailsWidth` — derived from the measured column, keeping the
     // drag write-only (no React re-render mid-drag).
     bottomRef.current?.style.setProperty('right', `${(window.innerWidth - centerRect.right) + (width - (state?.width ?? 0))}px`)
-    writeGeometry(width, height)
+    const bottomPush = !narrow && state?.bottomOpen === true ? height + keyboardInset : 0
+    writeGeometry(width, bottomPush)
   }
 
   // Drags write at most once per frame: pointer events fire several times
@@ -855,8 +856,11 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       viewportWidth: viewport.width,
       viewportHeight: layoutViewportHeight,
     })
-    writeGeometry(width, height)
-  }, [narrow, snapshot.state?.panelOpen, snapshot.state?.width, snapshot.state?.bottomOpen, snapshot.state?.bottomHeight, viewport.width, layoutViewportHeight])
+    const bottomPush = !narrow && snapshot.state?.bottomOpen === true
+      ? height + keyboardInset
+      : 0
+    writeGeometry(width, bottomPush)
+  }, [narrow, snapshot.state?.panelOpen, snapshot.state?.width, snapshot.state?.bottomOpen, snapshot.state?.bottomHeight, viewport.width, layoutViewportHeight, keyboardInset])
   // Unmount must release the push (issue #31): when the boundary swaps the
   // whole sidebar after a render crash (or the plugin fiber is disposed /
   // HMR), the CSS variables would otherwise stay on <html> and layout.css
