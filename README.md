@@ -40,7 +40,7 @@
 
 ## ✨ 功能一览
 
-- **🗂️ 文件工作台**：资源管理器（懒加载目录树；软链接按目标类型展示——目录软链接可展开、失效链接标红）+ CodeMirror 编辑器；图片 / Markdown（含 Mermaid 图表，strict 安全渲染 + 点击放大）/ HTML / PDF / Office 内联预览
+- **🗂️ 文件工作台**：资源管理器（懒加载目录树；软链接按目标类型展示——目录软链接可展开、失效链接标红）+ CodeMirror 编辑器；图片 / Markdown（含 Mermaid 图表，strict 安全渲染 + 点击放大）/ HTML / PDF
 - **🌐 内嵌浏览器**：多开网页 tab，后退 / 前进 / 刷新；内容运行在沙箱 iframe；外链默认按协议分流——HTTP 在侧边栏打开、HTTPS 走系统浏览器（设置页可分别调整）
 - **💻 真实终端**：xterm.js + node-pty 真实 shell，断线重连回放；可选为模型注入 `terminal_*` 工具
 - **🌿 Git 面板**：真 diff + VSCode 式 diff tab、历史、右键暂存 / 提交 / 还原
@@ -153,126 +153,78 @@ dsh registry enable dsh-external/dsh-better-sidebar
 
 ### 🗂️ 文件工作台：资源管理器
 
+支持两种格式的资源管理器：内嵌在文件预览中/独立显示文件树
 懒加载目录树、软链接按目标类型展示（目录软链接可展开、失效链接标红）、全局文件名搜索、上传文件/文件夹与拖放上传、右键菜单（在新 Tab 打开 / 在侧边打开 / 复制路径）、悬浮 `@文件` 一键引用进输入框。
 
-<!-- 📸 截图位（待上传）：文件资源管理器——Files 窗口展示完整目录树（含 .git/assets/data/docs/src 与文件图标）。
-     已备好图片文件：~/Desktop/dsh-readme-images/workbench-explorer.webp（原图 png/01-explorer.png）
-     在 GitHub 网页上传后，用返回的 user-attachments URL 替换下行 src 并取消注释：
-     <div align="center"><img width="880" alt="文件资源管理器" src="PASTE_user-attachments_URL_here" /></div>
--->
+<img width="2906" height="1790" alt="image" src="https://github.com/user-attachments/assets/a410bfd2-a8ba-43e6-873e-22417756e94d" />
+<img width="1812" height="1186" alt="image" src="https://github.com/user-attachments/assets/b44b488e-568c-4ee0-b96c-e9c906598a77" />
 
-### ✍️ CodeMirror 编辑器
-
-按路径新开或原地切换（可选模式）、预览/编辑/保存一体、20+ 语言语法高亮、`Ctrl/Cmd+S` 保存。
-
-<!-- 📸 截图位（待上传）：代码编辑器——app.ts 在编辑器中打开（语法高亮 + 头部路径输入框 + tab 条多 tab）。
-     已备好图片文件：~/Desktop/dsh-readme-images/editor.webp（原图 png/02-editor.png）
-     <div align="center"><img width="880" alt="CodeMirror 代码编辑器" src="PASTE_user-attachments_URL_here" /></div>
--->
 
 ### 📝 Markdown · 图片 · PDF 内联预览
 
 Markdown 预览支持 **Mermaid 图表**（`securityLevel: 'strict'` 安全渲染 + 二次清洗；点击图表弹窗放大、滚轮缩放、拖拽平移）；图片 / PDF 走媒体路由内联展示；Office 三件套由生态插件补齐。
 
 <div align="center">
-<!-- 📸 截图位（待上传）：Markdown 预览——architecture.md 预览态，含渲染完成的 Mermaid 流程图 + Preview/Edit 切换。
-     已备好图片文件：~/Desktop/dsh-readme-images/markdown-mermaid.webp（原图 png/03-markdown.png）
-     <img width="880" alt="Markdown + Mermaid 预览" src="PASTE_user-attachments_URL_here" />
--->
+<img width="2898" height="1788" alt="image" src="https://github.com/user-attachments/assets/fe0e5182-55bb-45cc-b98b-a2877c2bdd38" />
 </div>
 
 <div align="center">
-<!-- 📸 截图位（待上传）：图片预览——logo.png 在文件窗口内联展示。
-     已备好图片文件：~/Desktop/dsh-readme-images/image-preview.webp（原图 png/04-image.png）
-     <img width="880" alt="图片内联预览" src="PASTE_user-attachments_URL_here" />
--->
+<img width="2904" height="1796" alt="image" src="https://github.com/user-attachments/assets/f9a58c30-5b7a-48b5-9e22-37d7e071f593" />
 </div>
 
 ### 💻 真实终端
 
 xterm.js + node-pty 真实 shell（不是模拟器）：断线重连 transcript 回放、shell / shellArgs 可配置（设置页或 `cordis.patch.yml`）、可选为模型注入 `terminal_*` 工具（agent 可直接开终端跑命令）。
 
-<!-- 📸 截图位（待上传）：真实终端——终端 tab 中执行 git log --graph 与 ls 的输出。
-     已备好图片文件：~/Desktop/dsh-readme-images/terminal.webp（原图 png/05-terminal.png）
-     ⚠️ 注意：此图终端提示符含本机用户名/主机名（menghuan / MenghuandeMacBook-Pro），介意的话重拍前先 export PS1='$ ' 再执行命令。
-     <div align="center"><img width="880" alt="真实终端" src="PASTE_user-attachments_URL_here" /></div>
--->
+<img width="2902" height="1798" alt="image" src="https://github.com/user-attachments/assets/0dad6ad3-ff3f-4b5a-86d2-f832ce65323e" />
+
 
 ### 🌿 Git 面板
 
-暂存 / 取消暂存 / 提交（`Ctrl+Enter`）/ 还原，历史列表；点击改动文件打开 **VSCode 式 diff tab**（红绿行级对比）。push/pull/fetch 由生态插件 [dsh-git-remotes](https://github.com/yq04/dsh-git-remotes) / [dsh-git-forge](https://github.com/thirsty5034/dsh-git-forge) 补齐。
+暂存 / 取消暂存 / 提交（`Ctrl+Enter`）/ 还原，历史列表；点击改动文件打开 **VSCode 式 diff tab**（红绿行级对比）。
 
-<!-- 📸 截图位（待上传）：Git 面板——STAGED/UNSTAGED 分组 + 提交框 + HISTORY 列表。
-     已备好图片文件：~/Desktop/dsh-readme-images/git-panel.webp（原图 png/06-git.png）
-     ⚠️ 注意：此图 HISTORY 行的提交作者是本机 git 全局身份（Menghuan1918）。
-     <div align="center"><img width="880" alt="Git 面板" src="PASTE_user-attachments_URL_here" /></div>
--->
-
-<!-- 📸 截图位（待人工补拍）：VSCode 式 diff tab——在 Git 面板点击改动文件（如 src/app.ts）打开 diff tab，展示行级红绿对比。
-     建议命名 git-diff；1600×1000 @2x 暗色。
-     <div align="center"><img width="880" alt="VSCode 式 diff tab" src="PASTE_user-attachments_URL_here" /></div>
--->
+<img width="2910" height="1794" alt="image" src="https://github.com/user-attachments/assets/e7fc1220-305f-4bca-8583-e77ab4f4fa78" />
 
 ### 🌐 内嵌浏览器
 
 多开网页 tab：后退 / 前进 / 刷新 / 地址栏；内容运行在**不透明源沙箱 iframe**（界面实时显示沙箱状态，可按页面临时解锁）；聊天里的外链点击可被接管到侧边栏打开（按协议分流，可配）。
 
-<!-- 📸 截图位（待上传）：内嵌浏览器——网页 tab 打开文档站点，注意顶部的「Sandbox mode: on」安全状态栏。
-     已备好图片文件：~/Desktop/dsh-readme-images/browser.webp（原图 png/08-browser.png）
-     <div align="center"><img width="880" alt="内嵌浏览器" src="PASTE_user-attachments_URL_here" /></div>
--->
+<img width="2900" height="1792" alt="image" src="https://github.com/user-attachments/assets/9bc6b65a-64fc-4942-a685-76e391e55606" />
+
 
 ### 🧩 任务页：子代理拓扑 + 后台任务
 
 子代理树实时拓扑（运行状态、批量实时预览）+ 后台任务清单（退出码 / 实时输出 / 强制终止）；新子代理 / 新任务可自动展开侧边栏（可关）。
 
-<!-- 📸 截图位（待上传）：任务页——子代理拓扑（Main agent 节点）。
-     已备好图片文件：~/Desktop/dsh-readme-images/tasks.webp（原图 png/tasks-src.png）
-     💡 若能在真实会话里跑出几个 running 子代理再拍，画面更有说服力；当前图为空态拓扑。
-     <div align="center"><img width="880" alt="任务页：子代理拓扑" src="PASTE_user-attachments_URL_here" /></div>
--->
+<img width="2902" height="1792" alt="image" src="https://github.com/user-attachments/assets/dcd8ed2f-59fa-405b-937b-2d250f5034dd" />
+
 
 ### 💬 侧边对话(beta)
 
 Codex 风格侧边线程：**每个对话一个独立 Tab**；线程继承主会话完整上下文（含进行中回合，以 interrupted 诚实冻结）独立运行，不污染主会话；可持续追问、重启冷恢复；一键「保存为新会话」提升为顶层会话。
 
-<!-- 📸 截图位（待人工补拍）：侧边对话(beta)——+ 菜单打开 Side Chat (beta)，展示线程页 composer 与头部线程菜单；最好带一两条对话内容。
-     建议命名 sidechat；1600×1000 @2x 暗色。
-     <div align="center"><img width="880" alt="侧边对话(beta)" src="PASTE_user-attachments_URL_here" /></div>
--->
+<img width="2898" height="1798" alt="image" src="https://github.com/user-attachments/assets/3a338c36-f5de-4000-95f3-4b1cd04f60fc" />
+
 
 ### 🪟 双工作台：右侧栏 + 底部面板 + 分栏
 
 右侧栏与底部面板可同时展开；拖 Tab 到分栏边缘**拆分**、拖到中间**合并**（可跨面板）；面板宽高左缘/上缘拖拽调节；移动端自动合并为全宽抽屉。
 
-<!-- 📸 截图位（待上传）：分栏——右侧面板加宽后拆分为左右两个 pane（左：文件树；右：编辑器）。
-     已备好图片文件：~/Desktop/dsh-readme-images/split-panes.webp（原图 png/10-split.png）
-     <div align="center"><img width="880" alt="分栏工作台" src="PASTE_user-attachments_URL_here" /></div>
--->
-
-<!-- 📸 截图位（待人工补拍）：底部面板——展开底部面板并打开一个终端（或任意 tab），展示「右侧栏 + 底部面板」双工作台同框。
-     建议命名 bottom-panel；1600×1000 @2x 暗色。
-     <div align="center"><img width="880" alt="底部面板" src="PASTE_user-attachments_URL_here" /></div>
--->
+<img alt="dsh-better-sidebar 工作台截图" src="https://github.com/user-attachments/assets/dfdb875e-a1a8-4d4b-8340-353736b1708f" />
 
 ### ⚙️ 声明式设置
 
 设置页「侧边卡片」分区：每个 tab / 预览器一张小卡片，独立开关（高亮启用态 + 品牌开关滑块）；二级设置经卡片底部「功能设置」条弹窗（开关 / 文本 / 数字 / 下拉）；插件自有设置持久化在 `pluginSettings`。
 
-<!-- 📸 截图位（待人工补拍）：设置页侧边卡片——DSH 设置 → Side card，展示 tab/viewer 卡片网格、「功能设置」条与版本徽标。
-     建议命名 settings-cards；1600×1000 @2x 暗色。
-     <div align="center"><img width="880" alt="声明式设置：侧边卡片" src="PASTE_user-attachments_URL_here" /></div>
--->
+<img width="1580" height="1516" alt="image" src="https://github.com/user-attachments/assets/0800ca64-621e-48da-b7df-aecfddc3ec29" />
+
 
 ### 📱 移动端
 
 窄屏（<768px）自动切换为全宽抽屉：底栏 tab 一次性并入右侧栏，触屏拖拽可调。
 
 <div align="center">
-<!-- 📸 截图位（待上传）：移动端抽屉——430px 宽视口下侧边栏全宽抽屉展示文件树。
-     已备好图片文件：~/Desktop/dsh-readme-images/mobile.webp（原图 png/14-mobile.png）
-     <img width="360" alt="移动端全宽抽屉" src="PASTE_user-attachments_URL_here" />
--->
+<img width="1884" height="1686" alt="image" src="https://github.com/user-attachments/assets/a82ba78a-f4cf-4d85-80e8-050a05beb144" />
 </div>
 
 ## 🌐 插件生态
