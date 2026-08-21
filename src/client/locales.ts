@@ -310,6 +310,7 @@ export const zh = {
   pluginSentinelDesc: '条件驱动的 agent 唤醒系统：文件/进程/端口/HTTP/命令/webhook 传感器，条件达成自动唤醒休眠会话；注册「哨兵」Tab 展示服务器全局监控表',
   pluginSidebarQaDesc: '基于 better-sidebar 的划选提问tab分页: 对话划选 → 右侧面板提问 → 同工作区独立追问会话（❓追问·主题）：快速无思考模型压缩主对话上下文后与引文一起注入，不打断主对话；追问可嵌套、可继续、可归档',
   pluginSshTunnelDesc: 'better-sidebar「SSH 隧道」Tab：多机主机清单 + 按项目授权 + 密钥本地保管；模型工具 SSHManager（exec/SFTP/会话策略）；中央交互终端与双栏 SFTP',
+  pluginTurnReviewDesc: '对「刚刚这一回合」的 diff 做 Approve / Request changes 的人闸门：只审上一回合，不 fork 会话；文件按主会话/子代理/未归因分组，按文件勾选打回 + 可选评语，点文件先看回合开始快照 vs 现在的 diff。不是 /rewind',
   pluginVideoPreviewDesc: '在 better-sidebar 编辑器内联预览视频文件（.mp4/.webm/.mov/.mkv/.avi 等），自带支持 HTTP Range（206）的 /video 宿主路由，可拖动进度条、不受 20MB mediaLimit 限制',
   pluginDocsPanelDesc: 'DSH 侧边栏里的「全局文档」：全局 Markdown 笔记，任何工作区随时可读——列表点选阅读、悬浮大纲跳转、Chrome / VS Code 外部打开、代码复制，目录可配置（默认 ~/.dsh/docs）',
 }
@@ -615,6 +616,7 @@ export const en: Record<keyof typeof zh, string> = {
   pluginSentinelDesc: 'Condition-driven agent wakeup: file/process/port/http/command/webhook sensors wake dormant sessions when conditions fire; registers a "Sentinel" tab with the server-wide watch table',
   pluginSidebarQaDesc: 'Select-and-ask: Select conversation text → ask in the right-side panel → a dedicated follow-up session (❓追问) in the same workspace; a fast no-thinking model compresses the main context and injects it with the quote, without interrupting the main conversation. Follow-ups nest, continue, and archive',
   pluginSshTunnelDesc: 'SSH Tunnel tab: multi-host inventory + per-project grants + local secrets; SSHManager tool (exec/SFTP/session strategies); center interactive terminal and dual-pane SFTP',
+  pluginTurnReviewDesc: 'A human gate on the just-finished turn: Approve / Request changes per path with an optional comment; paths grouped by main session / subagent / unattributed; inline snapshot-vs-now diff before you decide. No fork, no /rewind',
   pluginVideoPreviewDesc: 'Inline video preview (.mp4/.webm/.mov/.mkv/.avi etc.) for the better-sidebar editor, backed by a dedicated /video host route with HTTP Range (206) support — scrubbing works and files are not capped by the 20MB mediaLimit',
   pluginDocsPanelDesc: 'Global docs in the DSH sidebar: read your own Markdown notes from any workspace — a file list, an outline, open in Chrome / VS Code, and copy buttons; the docs directory is configurable (default ~/.dsh/docs)',
 }

@@ -76,4 +76,12 @@ export const builtinTabPlugins: readonly PluginEntry[] = [
     // Install the prerequisite first; package is GitHub-sourced until npm publish.
     install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add "dsh-ssh-tunnel@github:thirsty5034/dsh-ssh-tunnel"',
   },
+  {
+    id: 'dsh-turn-review',
+    name: 'dsh-turn-review 本轮审查',
+    url: 'https://github.com/yq04/dsh-turn-review',
+    description: () => t('pluginTurnReviewDesc'),
+    // Needs dsh-better-sidebar (optional peer) for the tab; no model tools.
+    install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add git+https://github.com/yq04/dsh-turn-review.git',
+  },
 ]
