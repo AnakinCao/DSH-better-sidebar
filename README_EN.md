@@ -109,6 +109,7 @@
 
 - 🔧 **xterm migration**: deprecated xterm dependency migrated to `@xterm/xterm` (Closes [#122](https://github.com/omdsh-dev/DSH-better-sidebar/issues/122), [#128](https://github.com/omdsh-dev/DSH-better-sidebar/pull/128))
 - 📝 **Markdown editor**: selection-to-conversation popup restored ([#24](https://github.com/omdsh-dev/DSH-better-sidebar/pull/24))
+- 🖼️ **Markdown preview renders local/relative images**: image destinations that point at local files (relative/absolute paths, reference-style `[id]: url`) are rewritten to `/sidebar/file` media URLs and displayed in the preview (previously only absolute http(s) images rendered; relative paths showed just the alt text)
 - 🐛 **node-pty load failure no longer crashes the server** ([#140](https://github.com/omdsh-dev/DSH-better-sidebar/issues/140)): the host half now lazy-loads node-pty — when it is missing the plugin still mounts, the terminal shows a repair banner (copyable command + Retry button), and agent terminal tools are skipped
 - 🧪 Test engineering: unit spec split (#141) + flaky smoke cleanup fix
 
