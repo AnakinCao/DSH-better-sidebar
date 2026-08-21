@@ -57,10 +57,11 @@
 
 **🐛 修复**
 
+- 🔧 **适配 DSH 0.1.1-rc.1（@next）**：devDependencies / lockfile / CI 验证基线升至 `0.1.1-rc.1`（14 个包，lockfile 零 rc.8 残留）；**peer 下限保持 `^0.1.0-rc.8`**（rc.8 与 0.1.1-rc.1 双向兼容，rc.8 环境无需升级 DSH）。0.1.1-rc.1 为常规 rc 递进（依赖图零增删、纯版本平移），已逐包比对确认所有既有契约——DOM 槽位（`data-slot="conversation"`）、CSS 令牌、`__DSH_BOOT__`/`__ModuleLoader__` boot 协议、MarkdownText `codeLabels`、`webServer` 路由注册——均无破坏，**无代码逻辑改动**
 - 🔒 **上传链路的代码规范整改**（[#239](https://github.com/omdsh-dev/DSH-better-sidebar/pull/239)）：`relativePath` 空段 / 绝对路径显式拒绝；临时文件唯一命名（并发上传互不干扰、崩溃不阻塞）；写流错误监听（磁盘失败不崩溃进程）；客户端错误码与服务端统一、413 本地化
 
 
-> ⚠️ **本版适配 DSH 0.1.0-rc.8**：全部 `@deepseek-ai/*` peer / devDependencies 升至 `^0.1.0-rc.8`（含传递依赖，lockfile 零 rc.7 残留），`cordis` 同步 `^4.0.0-rc.8`，CI 挂载冒烟钉版 `@deepseek-ai/dsh@0.1.0-rc.8`。**rc.7 及更早的 DSH 环境将无法解析本版依赖，请先升级 DSH**。自 v0.13.1 以来的全部更改：
+> ⚠️ **本版适配 DSH 0.1.1-rc.1（@next）**：devDependencies / lockfile / CI 验证基线升至 `0.1.1-rc.1`（lockfile 零 rc.8 残留）；**peer 下限保持 `^0.1.0-rc.8`**——0.1.1-rc.1 为常规 rc 递进，与 rc.8 双向兼容，**rc.8 用户无需升级 DSH**。`cordis` 保持 `^4.0.0-rc.8`（cordis 版本线未变）。自 v0.13.1 以来的全部更改：
 
 **✨ 新功能**
 
@@ -235,7 +236,7 @@ v0.12.1 补齐基座能力（完整类型导出、能力探测、状态订阅、
 ## 🛠️ 开发与构建
 
 ```sh
-pnpm install      # @deepseek-ai/* 已发布到 npm（^0.1.0-rc.8），直接解析、无需令牌
+pnpm install      # @deepseek-ai/* devDependencies 已发布 0.1.1-rc.1，直接解析、无需令牌
 pnpm typecheck    # tsc --noEmit
 pnpm build        # → lib/index.js + lib/invariant.js + lib/client.js + lib/client-registry.js + lib/types
 pnpm test         # vitest（含 manifest 一致性守卫，需先 build）
