@@ -56,10 +56,11 @@
 
 **🐛 Fixes**
 
+- 🔧 **Adapted to DSH 0.1.1-rc.1 (@next)**: devDependencies / lockfile / CI verification baseline raised to `0.1.1-rc.1` (14 packages — zero rc.8 leftovers in the lockfile); **peer floor stays at `^0.1.0-rc.8`** (rc.8 and 0.1.1-rc.1 are mutually compatible, rc.8 environments don't need to upgrade). 0.1.1-rc.1 is a routine rc progression (dependency graph unchanged, pure version shift); every consumed contract — DOM slot (`data-slot="conversation"`), CSS tokens, `__DSH_BOOT__`/`__ModuleLoader__` boot protocol, MarkdownText `codeLabels`, `webServer` route registration — was compared package by package and is intact, so **no code changes were needed**
 - 🔒 **Upload-chain hardening** ([#239](https://github.com/omdsh-dev/DSH-better-sidebar/pull/239)): empty and absolute `relativePath` segments are refused outright; uniquely named temp files (concurrent uploads stay independent, crashed processes never block later uploads); write-stream error listeners (a failing disk can no longer crash the host); client error codes unified with the wire (`too-large`), 413s localized
 
 
-> ⚠️ **This release adapts to DSH 0.1.0-rc.8**: every `@deepseek-ai/*` peer/devDependency is raised to `^0.1.0-rc.8` (transitives included — zero rc.7 leftovers in the lockfile), `cordis` to `^4.0.0-rc.8`, and the CI mount lane pins `@deepseek-ai/dsh@0.1.0-rc.8`. **DSH environments on rc.7 or earlier can no longer resolve this release's dependencies — upgrade DSH first.** All changes since v0.13.1:
+> ⚠️ **This release adapts to DSH 0.1.1-rc.1 (@next)**: devDependencies / lockfile / CI verification baseline is raised to `0.1.1-rc.1` (zero rc.8 leftovers in the lockfile); **the peer floor stays at `^0.1.0-rc.8`** — 0.1.1-rc.1 is a routine rc progression, mutually compatible with rc.8, so **rc.8 users don't need to upgrade DSH**. `cordis` stays at `^4.0.0-rc.8` (its own version line did not move). All changes since v0.13.1:
 
 **✨ New features**
 
@@ -266,7 +267,7 @@ The dashed cards at the end of the "Sidebar content" / "File viewers" grids in t
 ## 🛠️ Development & Build
 
 ```sh
-pnpm install      # @deepseek-ai/* resolved from npm (^0.1.0-rc.8, published) — no token needed
+pnpm install      # @deepseek-ai/* devDependencies resolve to 0.1.1-rc.1 (published) — no token needed
 pnpm typecheck    # tsc --noEmit
 pnpm build        # → lib/index.js + lib/invariant.js + lib/client.js + lib/client-registry.js + lib/types
 pnpm test         # vitest (includes manifest consistency guard; build first)
