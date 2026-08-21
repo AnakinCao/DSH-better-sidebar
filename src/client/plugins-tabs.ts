@@ -34,6 +34,15 @@ export const builtinTabPlugins: readonly PluginEntry[] = [
     install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add dsh-docs-panel',
   },
   {
+    id: 'dsh-flowglass',
+    name: 'dsh-flowglass 流镜',
+    url: 'https://github.com/Iwctwbh/dsh-flowglass',
+    description: () => t('pluginFlowglassDesc'),
+    // Flowglass keeps its standalone drawer as a fallback and registers the
+    // native tab automatically when better-sidebar is present.
+    install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add dsh-flowglass',
+  },
+  {
     id: 'dsh-git-remotes',
     name: 'dsh-git-remotes Git 远程',
     url: 'https://github.com/yq04/dsh-git-remotes',
