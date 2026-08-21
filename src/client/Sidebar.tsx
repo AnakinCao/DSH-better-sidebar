@@ -217,6 +217,10 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       if (frame !== null) cancelAnimationFrame(frame)
     }
   }, [])
+  // The bottom panel is offset above the on-screen keyboard. Cap its height
+  // against that same visible area, not the taller layout viewport, so the
+  // conversation keeps PANEL_MIN even on wide touch devices.
+  const layoutViewportHeight = Math.max(0, viewport.height - keyboardInset)
 
   // Current conversation (the sessions list feed).
   const sessionList = useSyncExternalStore(
@@ -242,7 +246,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     width: 0,
     bottomHeight,
     viewportWidth: viewport.width,
-    viewportHeight: viewport.height,
+    viewportHeight: layoutViewportHeight,
   }).height
 
   // The collapsed toggle cluster reclaims the top-right corner, so the DSH
@@ -821,8 +825,8 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
         bottomOpen: state?.bottomOpen === true,
         width: last?.width ?? state?.width ?? 0,
         bottomHeight: last?.height ?? state?.bottomHeight ?? 0,
-        viewportWidth: window.innerWidth,
-        viewportHeight: window.innerHeight,
+        viewportWidth: viewport.width,
+        viewportHeight: layoutViewportHeight,
       })
       applyDrag(adoptedWidth, adoptedHeight)
       draggingRef.current = false
@@ -847,10 +851,10 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       width: snapshot.state?.width ?? 0,
       bottomHeight: snapshot.state?.bottomHeight ?? 0,
       viewportWidth: viewport.width,
-      viewportHeight: viewport.height,
+      viewportHeight: layoutViewportHeight,
     })
     writeGeometry(width, height)
-  }, [narrow, snapshot.state?.panelOpen, snapshot.state?.width, snapshot.state?.bottomOpen, snapshot.state?.bottomHeight, viewport.width, viewport.height])
+  }, [narrow, snapshot.state?.panelOpen, snapshot.state?.width, snapshot.state?.bottomOpen, snapshot.state?.bottomHeight, viewport.width, layoutViewportHeight])
   // Unmount must release the push (issue #31): when the boundary swaps the
   // whole sidebar after a render crash (or the plugin fiber is disposed /
   // HMR), the CSS variables would otherwise stay on <html> and layout.css
@@ -974,7 +978,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     width: state.width,
     bottomHeight: state.bottomHeight,
     viewportWidth: viewport.width,
-    viewportHeight: viewport.height,
+    viewportHeight: layoutViewportHeight,
   }).height
 
   const onNewTab = (optionId: string): void => {

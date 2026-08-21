@@ -8,4 +8,10 @@ describe('Sidebar layout-push integration', () => {
     expect(source).not.toContain('Math.min(state.bottomHeight, window.innerHeight)')
     expect(source.match(/pushedBottomHeight\(/g)).toHaveLength(3)
   })
+
+  it('caps panel geometry against the viewport visible above the keyboard', () => {
+    expect(source).toContain('viewport.height - keyboardInset')
+    expect(source.match(/viewportHeight: layoutViewportHeight/g)).toHaveLength(4)
+    expect(source).toContain('viewport.width, layoutViewportHeight]')
+  })
 })
