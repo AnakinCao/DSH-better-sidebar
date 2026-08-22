@@ -36,7 +36,7 @@
 - [🔌 服务化扩展](#-服务化扩展)
 - [🛠️ 开发与构建](#-开发与构建)
 - [🔐 安全](#-安全) · [⚠️ 已知限制](#-已知限制) · [🖥️ 平台支持](#-平台支持)
-- [🤝 参与贡献](#-参与贡献) · [⭐ Star History](#-star-history) · [🔗 友情链接](#-友情链接)
+- [💬 社区](#-社区) · [🤝 参与贡献](#-参与贡献) · [⭐ Star History](#-star-history) · [🔗 友情链接](#-友情链接)
 
 ## ✨ 功能一览
 
@@ -52,7 +52,7 @@
 - **⚡ 按需加载**：启动只拉 ~325KB 核心，终端 / 编辑器 / Mermaid 图表等重依赖用到才按需拉取（[设计文档](docs/plans/2026-08-12-lazy-chunks-design.md)）
 - **🌏 多语言**：界面文案跟随 DSH 语言（zh / en）实时切换
 
-> 🔌 **核心理念**：服务优先——内置的 7 tab + 6 viewer 与第三方插件通过同一套 `ctx.betterSidebar` API 注册，能力完全对等；官方不再内置、可由生态提供的功能，交由生态插件实现（已有 **26+ 生态插件**，见下方「🌐 插件生态」）。接入文档见「🔌 服务化扩展」与 [外部插件接入指南](./docs/external-plugin-guide.md)。
+> 🔌 **核心理念**：服务优先——内置的 7 tab + 6 viewer 与第三方插件通过同一套 `ctx.betterSidebar` API 注册，能力完全对等；官方不再内置、可由生态提供的功能，交由生态插件实现（已有 **28+ 生态插件**，见下方「🌐 插件生态」）。接入文档见「🔌 服务化扩展」与 [外部插件接入指南](./docs/external-plugin-guide.md)。
 
 ## 🚀 安装
 
@@ -151,69 +151,16 @@ dsh registry enable dsh-external/dsh-better-sidebar
 
 ## 🖼️ 特性巡礼
 
-> 以下均为真实界面实拍。
+> 以下均为真实界面实拍（每行两张，点击可放大）。
 
-### 🗂️ 文件工作台：资源管理器
-
-支持两种格式的资源管理器：内嵌在文件预览中 / 独立显示文件树。懒加载目录树、软链接按目标类型展示（目录软链接可展开、失效链接标红）、全局文件名搜索、上传文件/文件夹与拖放上传、右键菜单（在新 Tab 打开 / 在侧边打开 / 复制路径）、悬浮 `@文件` 一键引用进输入框。
-
-<div align="center"><img width="880" alt="文件资源管理器" src="https://github.com/user-attachments/assets/a410bfd2-a8ba-43e6-873e-22417756e94d" /></div>
-<div align="center"><img width="880" alt="CodeMirror 代码编辑器" src="https://github.com/user-attachments/assets/b44b488e-568c-4ee0-b96c-e9c906598a77" /></div>
-
-### 📝 Markdown · 图片 · PDF 内联预览
-
-Markdown 预览支持 **Mermaid 图表**（`securityLevel: 'strict'` 安全渲染 + 二次清洗；点击图表弹窗放大、滚轮缩放、拖拽平移）；图片 / PDF 走媒体路由内联展示；Office 三件套由生态插件补齐。
-
-<div align="center"><img width="880" alt="Markdown + Mermaid 预览" src="https://github.com/user-attachments/assets/fe0e5182-55bb-45cc-b98b-a2877c2bdd38" /></div>
-<div align="center"><img width="880" alt="图片内联预览" src="https://github.com/user-attachments/assets/f9a58c30-5b7a-48b5-9e22-37d7e071f593" /></div>
-
-### 💻 真实终端
-
-xterm.js + node-pty 真实 shell（不是模拟器）：断线重连 transcript 回放、shell / shellArgs 可配置（设置页或 `cordis.patch.yml`）、可选为模型注入 `terminal_*` 工具（agent 可直接开终端跑命令）。
-
-<div align="center"><img width="880" alt="真实终端" src="https://github.com/user-attachments/assets/0dad6ad3-ff3f-4b5a-86d2-f832ce65323e" /></div>
-
-### 🌿 Git 面板
-
-暂存 / 取消暂存 / 提交（`Ctrl+Enter`）/ 还原，历史列表；点击改动文件打开 **VSCode 式 diff tab**（红绿行级对比）。
-
-<div align="center"><img width="880" alt="Git 面板" src="https://github.com/user-attachments/assets/e7fc1220-305f-4bca-8583-e77ab4f4fa78" /></div>
-
-### 🌐 内嵌浏览器
-
-多开网页 tab：后退 / 前进 / 刷新 / 地址栏；内容运行在**不透明源沙箱 iframe**（界面实时显示沙箱状态，可按页面临时解锁）；聊天里的外链点击可被接管到侧边栏打开（按协议分流，可配）。
-
-<div align="center"><img width="880" alt="内嵌浏览器" src="https://github.com/user-attachments/assets/9bc6b65a-64fc-4942-a685-76e391e55606" /></div>
-
-### 🧩 任务页：子代理拓扑 + 后台任务
-
-子代理树实时拓扑（运行状态、批量实时预览）+ 后台任务清单（退出码 / 实时输出 / 强制终止）；新子代理 / 新任务可自动展开侧边栏（可关）。
-
-<div align="center"><img width="880" alt="任务页：子代理拓扑" src="https://github.com/user-attachments/assets/dcd8ed2f-59fa-405b-937b-2d250f5034dd" /></div>
-
-### 💬 侧边对话(beta)
-
-Codex 风格侧边线程：**每个对话一个独立 Tab**；线程继承主会话完整上下文（含进行中回合，以 interrupted 诚实冻结）独立运行，不污染主会话；可持续追问、重启冷恢复；一键「保存为新会话」提升为顶层会话。
-
-<div align="center"><img width="880" alt="侧边对话(beta)" src="https://github.com/user-attachments/assets/3a338c36-f5de-4000-95f3-4b1cd04f60fc" /></div>
-
-### 🪟 双工作台：右侧栏 + 底部面板 + 分栏
-
-右侧栏与底部面板可同时展开；拖 Tab 到分栏边缘**拆分**、拖到中间**合并**（可跨面板）；面板宽高左缘/上缘拖拽调节；移动端自动合并为全宽抽屉。
-
-<div align="center"><img width="880" alt="双工作台（右侧栏 + 底部面板）" src="https://github.com/user-attachments/assets/dfdb875e-a1a8-4d4b-8340-353736b1708f" /></div>
-
-### ⚙️ 声明式设置
-
-设置页「侧边卡片」分区：每个 tab / 预览器一张小卡片，独立开关（高亮启用态 + 品牌开关滑块）；二级设置经卡片底部「功能设置」条弹窗（开关 / 文本 / 数字 / 下拉）；插件自有设置持久化在 `pluginSettings`。
-
-<div align="center"><img width="880" alt="声明式设置：侧边卡片" src="https://github.com/user-attachments/assets/0800ca64-621e-48da-b7df-aecfddc3ec29" /></div>
-
-### 📱 移动端
-
-窄屏（<768px）自动切换为全宽抽屉：底栏 tab 一次性并入右侧栏，触屏拖拽可调。
-
-<div align="center"><img width="360" alt="移动端全宽抽屉" src="https://github.com/user-attachments/assets/a82ba78a-f4cf-4d85-80e8-050a05beb144" /></div>
+| | |
+|---|---|
+| **🗂️ 文件工作台：资源管理器**<br/><sub>支持两种格式的资源管理器：内嵌在文件预览中 / 独立显示文件树。懒加载目录树、软链接按目标类型展示（目录软链接可展开、失效链接标红）、全局文件名搜索、上传文件/文件夹与拖放上传、右键菜单（在新 Tab 打开 / 在侧边打开 / 复制路径）、悬浮 `@文件` 一键引用进输入框。</sub><br/><div align="center"><img width="420" alt="文件资源管理器" src="https://github.com/user-attachments/assets/a410bfd2-a8ba-43e6-873e-22417756e94d" /></div> | **📝 Markdown · 图片 · PDF 内联预览**<br/><sub>Markdown 预览支持 **Mermaid 图表**（`securityLevel: 'strict'` 安全渲染 + 二次清洗；点击图表弹窗放大、滚轮缩放、拖拽平移）；图片 / PDF 走媒体路由内联展示；Office 三件套由生态插件补齐。</sub><br/><div align="center"><img width="420" alt="Markdown + Mermaid 预览" src="https://github.com/user-attachments/assets/fe0e5182-55bb-45cc-b98b-a2877c2bdd38" /></div> |
+| **🖥️ CodeMirror 代码编辑器**<br/><div align="center"><img width="420" alt="CodeMirror 代码编辑器" src="https://github.com/user-attachments/assets/b44b488e-568c-4ee0-b96c-e9c906598a77" /></div> | **🖼️ 图片内联预览**<br/><div align="center"><img width="420" alt="图片内联预览" src="https://github.com/user-attachments/assets/f9a58c30-5b7a-48b5-9e22-37d7e071f593" /></div> |
+| **💻 真实终端**<br/><sub>xterm.js + node-pty 真实 shell（不是模拟器）：断线重连 transcript 回放、shell / shellArgs 可配置（设置页或 `cordis.patch.yml`）、可选为模型注入 `terminal_*` 工具（agent 可直接开终端跑命令）。</sub><br/><div align="center"><img width="420" alt="真实终端" src="https://github.com/user-attachments/assets/0dad6ad3-ff3f-4b5a-86d2-f832ce65323e" /></div> | **🌿 Git 面板**<br/><sub>暂存 / 取消暂存 / 提交（`Ctrl+Enter`）/ 还原，历史列表；点击改动文件打开 **VSCode 式 diff tab**（红绿行级对比）。</sub><br/><div align="center"><img width="420" alt="Git 面板" src="https://github.com/user-attachments/assets/e7fc1220-305f-4bca-8583-e77ab4f4fa78" /></div> |
+| **🌐 内嵌浏览器**<br/><sub>多开网页 tab：后退 / 前进 / 刷新 / 地址栏；内容运行在**不透明源沙箱 iframe**（界面实时显示沙箱状态，可按页面临时解锁）；聊天里的外链点击可被接管到侧边栏打开（按协议分流，可配）。</sub><br/><div align="center"><img width="420" alt="内嵌浏览器" src="https://github.com/user-attachments/assets/9bc6b65a-64fc-4942-a685-76e391e55606" /></div> | **🧩 任务页：子代理拓扑 + 后台任务**<br/><sub>子代理树实时拓扑（运行状态、批量实时预览）+ 后台任务清单（退出码 / 实时输出 / 强制终止）；新子代理 / 新任务可自动展开侧边栏（可关）。</sub><br/><div align="center"><img width="420" alt="任务页：子代理拓扑" src="https://github.com/user-attachments/assets/dcd8ed2f-59fa-405b-937b-2d250f5034dd" /></div> |
+| **💬 侧边对话(beta)**<br/><sub>Codex 风格侧边线程：**每个对话一个独立 Tab**；线程继承主会话完整上下文（含进行中回合，以 interrupted 诚实冻结）独立运行，不污染主会话；可持续追问、重启冷恢复；一键「保存为新会话」提升为顶层会话。</sub><br/><div align="center"><img width="420" alt="侧边对话(beta)" src="https://github.com/user-attachments/assets/3a338c36-f5de-4000-95f3-4b1cd04f60fc" /></div> | **🪟 双工作台：右侧栏 + 底部面板 + 分栏**<br/><sub>右侧栏与底部面板可同时展开；拖 Tab 到分栏边缘**拆分**、拖到中间**合并**（可跨面板）；面板宽高左缘/上缘拖拽调节；移动端自动合并为全宽抽屉。</sub><br/><div align="center"><img width="420" alt="双工作台（右侧栏 + 底部面板）" src="https://github.com/user-attachments/assets/dfdb875e-a1a8-4d4b-8340-353736b1708f" /></div> |
+| **⚙️ 声明式设置**<br/><sub>设置页「侧边卡片」分区：每个 tab / 预览器一张小卡片，独立开关（高亮启用态 + 品牌开关滑块）；二级设置经卡片底部「功能设置」条弹窗（开关 / 文本 / 数字 / 下拉）；插件自有设置持久化在 `pluginSettings`。</sub><br/><div align="center"><img width="420" alt="声明式设置：侧边卡片" src="https://github.com/user-attachments/assets/0800ca64-621e-48da-b7df-aecfddc3ec29" /></div> | **📱 移动端**<br/><sub>窄屏（<768px）自动切换为全宽抽屉：底栏 tab 一次性并入右侧栏，触屏拖拽可调。</sub><br/><div align="center"><img width="360" alt="移动端全宽抽屉" src="https://github.com/user-attachments/assets/a82ba78a-f4cf-4d85-80e8-050a05beb144" /></div> |
 
 ## 🌐 插件生态
 
@@ -234,7 +181,7 @@ export function apply(ctx: Context) {
 }
 ```
 
-GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar) 下已有 **26+ 生态插件**（持续增长中）：
+GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar) 下已有 **28+ 生态插件**（持续增长中）：
 
 <div align="center">
   <a href="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e"><img width="66%" alt="设置页「添加插件」弹窗：推荐插件目录 + 一键复制安装命令" src="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e" /></a><br />
@@ -242,6 +189,9 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 </div>
 
 ### 📑 Tab 插件（注册侧边栏页面）
+
+<details>
+<summary><b>23 个插件（点击展开）</b></summary>
 
 | 插件 | ⭐ | 简介 |
 |---|---|---|
@@ -266,8 +216,15 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 | [yq04/dsh-turn-review](https://github.com/yq04/dsh-turn-review) | <img alt="stars" src="https://img.shields.io/github/stars/yq04/dsh-turn-review?style=flat&color=4d6bfe" /> | 本轮审查：逐回合审查 agent 改动 |
 | [Ghz114514/dsh-refpics](https://github.com/Ghz114514/dsh-refpics) | <img alt="stars" src="https://img.shields.io/github/stars/Ghz114514/dsh-refpics?style=flat&color=4d6bfe" /> | Pinterest 风格参考图搜索：瀑布流、侧栏画板、下载与 Eagle 收藏 |
 | [yzlin499/dsh-yzlin499-easy-plugins](https://github.com/yzlin499/dsh-yzlin499-easy-plugins) | <img alt="stars" src="https://img.shields.io/github/stars/yzlin499/dsh-yzlin499-easy-plugins?style=flat&color=4d6bfe" /> | 实用小工具集（毛坯房 DSH 友好） |
+| [dong-victor/dsh-better-sidebar-starter](https://github.com/dong-victor/dsh-better-sidebar-starter) | <img alt="stars" src="https://img.shields.io/github/stars/dong-victor/dsh-better-sidebar-starter?style=flat&color=4d6bfe" /> | 运行配置页：IDEA 式 Run/Debug 配置（npm / springboot / python / custom）——一键启动、历史保存、WebSocket 实时日志（ANSI 彩色）、多实例并行、进程树跨平台杀死 |
+| [baosfeng/my-dsh-plugins](https://github.com/baosfeng/my-dsh-plugins) | <img alt="stars" src="https://img.shields.io/github/stars/baosfeng/my-dsh-plugins?style=flat&color=4d6bfe" /> | 个人多插件合集（`dsh-file-activity`）：侧边栏文件活动页——记录文件读取 / 新增 / 修改历史与统计，按文件夹平铺，点击用原生预览打开 |
+
+</details>
 
 ### 🖼️ 预览插件（注册文件预览器）
+
+<details>
+<summary><b>3 个插件（点击展开）</b></summary>
 
 | 插件 | ⭐ | 简介 |
 |---|---|---|
@@ -275,23 +232,60 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 | [zemul/dsh-video-preview](https://github.com/zemul/dsh-video-preview) | <img alt="stars" src="https://img.shields.io/github/stars/zemul/dsh-video-preview?style=flat&color=4d6bfe" /> | 视频内联预览：.mp4 / .webm / .mov / .mkv / .avi，自带 /video 路由支持 HTTP Range 拖进度条 |
 | [dong-victor/dsh-better-sidebar-jupyter](https://github.com/dong-victor/dsh-better-sidebar-jupyter) | <img alt="stars" src="https://img.shields.io/github/stars/dong-victor/dsh-better-sidebar-jupyter?style=flat&color=4d6bfe" /> | `.ipynb` 可运行 Notebook 视图：懒启动 Python kernel、流式输出、保存回写 |
 
+</details>
+
 ### 🧰 增强与工具
+
+<details>
+<summary><b>2 个插件（点击展开）</b></summary>
 
 | 插件 | ⭐ | 简介 |
 |---|---|---|
 | [dong-victor/dsh-better-sidebar-terminal-plus](https://github.com/dong-victor/dsh-better-sidebar-terminal-plus) | <img alt="stars" src="https://img.shields.io/github/stars/dong-victor/dsh-better-sidebar-terminal-plus?style=flat&color=4d6bfe" /> | 终端增强：内嵌 Nerd Font 图标字体、修复 xterm 图标渲染、稳定终端 cwd |
 | [Max-Null/dsh-sidebar-preview-select](https://github.com/Max-Null/dsh-sidebar-preview-select) | <img alt="stars" src="https://img.shields.io/github/stars/Max-Null/dsh-sidebar-preview-select?style=flat&color=4d6bfe" /> | 预览划选增强：侧边栏预览里划选文本 → 浮动「发送到会话」 |
 
+</details>
+
 > 📣 **上架你的插件**：给仓库打上 `dsh-better-sidebar` topic 即出现在 [topic 页](https://github.com/topics/dsh-better-sidebar)；再向 [`src/client/plugins-tabs.ts`](./src/client/plugins-tabs.ts) / [`src/client/plugins-viewers.ts`](./src/client/plugins-viewers.ts) 提一条 `PluginEntry` PR，即可进入设置页内置推荐目录（数据完整性由 `tests/plugin-list.spec.ts` 守护）。
 
 ## 🆕 最近更新
 
-<div align="center">
-  <a href="https://github.com/user-attachments/assets/d2aea86b-a776-4f01-a6b8-b26b27314336"><img width="33%" alt="侧边栏" src="https://github.com/user-attachments/assets/d2aea86b-a776-4f01-a6b8-b26b27314336" /></a>
-  <a href="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0"><img width="33%" alt="服务化基座截图" src="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0" /></a>
-</div>
-
 **支持的 DSH 版本**：<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="支持的 DSH 版本：0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a> · 完整发布历史见 [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases)
+
+### v0.15.2
+
+自 v0.15.1 以来的全部更改：
+
+**✨ 新功能**
+
+- 🗂️ **文件树「在应用中打开」子菜单**（[#334](https://github.com/omdsh-dev/DSH-better-sidebar/pull/334)）：文件树右键菜单新增「在应用中打开 >」子菜单——内置打开方式（资源管理器显示/选中、VS Code、Cursor、Zed），每行右侧图钉可固定为右键菜单顶层直达项（再点取消）；配置可选 SSH host 后 VSCode 系条目改用 `vscode-remote/ssh-remote+<host>/<path>` 协议打开，本地专用条目自动隐藏；支持自定义编辑器（名称 + URL 模板 `{path}` + 是否 VSCode 系，配置入口在 Files 卡片齿轮弹窗）。打开动作经新宿主路由 `POST /sidebar/api/open.external`（argv 数组 spawn，无 shell 注入）（[设计文档](docs/plans/2026-08-22-open-with-menu-design.md)）
+- 📑 **Tab 右键菜单**（[#331](https://github.com/omdsh-dev/DSH-better-sidebar/pull/331)）：页签右键提供「关闭 / 关闭其他页签 / 关闭左侧页签 / 关闭右侧页签」，作用范围为当前 pane（标签组），无可关对象时置灰；仅打开菜单、不切换激活页签；批量关闭逐条走既有 `onClose` 路径，生命周期完整
+- 📄 **Diff 文件默认折叠**（[#270](https://github.com/omdsh-dev/DSH-better-sidebar/pull/270)）：改动文件头部改为可访问的展开/折叠控件；识别出的源文件默认展开，测试 / 文档 / 生成文件 / lockfile 与未知类型默认折叠；保留现有 500 行上限
+- 📖 **README 更新**：特性巡礼改为表格展示（每行两张图，节省空间）；社区补全微信群 / QQ 群二维码（[#325](https://github.com/omdsh-dev/DSH-better-sidebar/pull/325)，QQ 群 577011007）
+
+**🐛 修复**
+
+- 🪟 **空分栏清理**（[#268](https://github.com/omdsh-dev/DSH-better-sidebar/pull/268)）：持久化的 split pane 在临时 diff tab 被清理后遗留全尺寸空分栏——`sanitizeState` 现在同时修剪空的 split leaf，并修复修剪后的失效激活 pane 指针；整个工作台为空时保留唯一空 pane
+- 🖥️ **Windows 下隐藏 Git 子进程窗口**（[#301](https://github.com/omdsh-dev/DSH-better-sidebar/pull/301)，关闭 [#124](https://github.com/omdsh-dev/DSH-better-sidebar/issues/124)）：`runGit()` 统一加 `windowsHide: true`，仓库状态轮询与操作不再闪现控制台窗口（其他平台行为不变）
+- 📁 **未跟踪文件夹内文件差异**（[#242](https://github.com/omdsh-dev/DSH-better-sidebar/pull/242)）：`git status` 从 `--untracked-files=normal` 切换为 `--untracked-files=all`——新文件夹内每个文件独立成行、可正常加载差异（修正 `fs.read` 报 "is a directory"，与 VSCode 默认行为一致）
+- ⚡ **开关/拖拽每帧 React 重渲染消除**（关闭 [#315](https://github.com/omdsh-dev/DSH-better-sidebar/issues/315)）：centerRect 改 ref + 底栏 DOM 直写（零 React 渲染）；TabContent memo（显式比较器）；新增 frame-batcher 对 Divider/dock 拖拽按帧合并；拖拽期跳过无意义 locate。4x CPU 节流 A/B：开关 >17ms 帧 collapse 19→6 / expand 24→4~6，p95 21ms→15ms；拖拽不变（非回归）
+
+<details>
+<summary><b>历史版本（v0.12.0 – v0.15.1）</b></summary>
+### v0.15.1
+
+自 v0.15.0 以来的全部更改：
+
+**✨ 新功能**
+
+- 💬 **侧边对话 Codex 风格转录重构**（[#314](https://github.com/omdsh-dev/DSH-better-sidebar/pull/314)）：转录改为**折叠行**——工具调用 / 思考 / 上下文注入统一为安静的单行 chrome（chevron + 标签 + 单行参数摘要，展开为 hairline 缩进正文，无卡片无填充），流式标签与创建 shimmer（shimmer = 生成中）、失败工具 danger、`prefers-reduced-motion` 停帧；**首条问题不再被边界提示吞掉**——上下文注入与首问拆分交付（边界 + 快照经 `agent.inject` 排队、问题唤醒驱动），转录把注入映射为可折叠注入行、真实用户消息（**含首问**）渲染为用户气泡，旧线程的首问同样拆分为独立气泡
+- 📖 **README 重写**：功能导览（逐特性实机截图）、用户视角 DSH 兼容徽章、简化安装流程（`add` → `approve-builds` → `add`、node-pty 安全构建、粘贴到 DSH 安装提示）、插件生态 28+ 与分类折叠展示
+
+**🐛 修复**
+
+- 🖥️ **终端跨会话切换保活**（[#323](https://github.com/omdsh-dev/DSH-better-sidebar/pull/323)）：切到其他会话不再被当作瞬时掉线——客户端卸载时发送 `park` 控制帧，主机跳过 30s 重连宽限倒计时；切回会话（`open()` 取消 parked）或显式关闭恢复正常生命周期；agent 终端保持无限期存活
+- 📂 **文件树上传遮罩不再拦截 Tab 拖拽**（[#317](https://github.com/omdsh-dev/DSH-better-sidebar/pull/317)）：拖拽 Tab（重排 / 跨 pane split）经过资源管理器时不再弹上传遮罩、不吞事件——统一按 `dataTransfer.types` 含 `Files` 门控（与面板宿主 shield 一致），Tab 正常落下；OS 文件拖拽行为不变
+- 💬 **子代理自动展开去抖**（[#314](https://github.com/omdsh-dev/DSH-better-sidebar/pull/314)）：Side Chat 线程创建不再误弹任务页——0→N 触发 500ms 重臂并对实时快照按原基线重评估，标题过滤器识别线程后才放行；真实子代理依然自动展开
 
 ### v0.15.0
 
@@ -312,9 +306,6 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 - 📐 **推挤变量挂载期持续有效**（[#259](https://github.com/omdsh-dev/DSH-better-sidebar/pull/259)，修复 [#258](https://github.com/omdsh-dev/DSH-better-sidebar/issues/258)）：拖拽松手后底边栏不再闪全宽
 - 🔧 **适配 DSH 0.1.1-rc.1 / rc.2（@next）**（[#297](https://github.com/omdsh-dev/DSH-better-sidebar/pull/297) [#305](https://github.com/omdsh-dev/DSH-better-sidebar/pull/305)）：无代码逻辑改动
 - 🔒 **上传链路安全加固**（[#239](https://github.com/omdsh-dev/DSH-better-sidebar/pull/239)）：`relativePath` 空段 / 绝对路径显式拒绝；临时文件唯一命名（并发上传互不干扰、崩溃不阻塞）；写流错误监听（磁盘失败不崩溃进程）；客户端错误码与服务端统一、413 本地化
-
-<details>
-<summary><b>历史版本（v0.12.0 – v0.14.0）</b></summary>
 
 ### v0.14.0
 
@@ -374,6 +365,15 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 
 </details>
 
+## 💬 社区
+
+推荐添加QQ群(577011007)
+
+<div align="center">
+  <img width="220" alt="微信群二维码" src="https://github.com/user-attachments/assets/39caafc7-9629-4b13-bb2b-eac17eab5b6a" />
+  <img width="220" alt="QQ群二维码" src="https://github.com/user-attachments/assets/9be34629-26ef-4537-aad4-1393c147f81c" />
+</div>
+
 ## ⌨️ 快捷键
 
 | 操作 | 按键 |
@@ -381,6 +381,7 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 | 保存编辑 | `Ctrl/Cmd + S` |
 | Git 提交 | `Ctrl + Enter` |
 | 关闭 Tab | 鼠标中键 |
+| Tab 右键菜单 | 关闭 / 关闭其他页签 / 关闭左侧页签 / 关闭右侧页签（当前标签组） |
 | 拆分/合并分栏 | 拖 Tab 到分栏边缘 / 中间 |
 | 引用文件到输入框 | 悬浮行尾 `@文件` 按钮 |
 | 复制文件路径 | 右键行 → 复制相对/绝对地址 |

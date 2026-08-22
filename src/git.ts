@@ -101,6 +101,7 @@ function runGit(cwd: string, args: string[], timeoutMs = 30_000): Promise<string
   return new Promise<string>((resolvePromise, reject) => {
     const child = spawn('git', full, {
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
       env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
     })
     let stdout = ''
@@ -177,14 +178,18 @@ export async function currentBranch(cwd: string): Promise<string> {
   return out.trim()
 }
 
-/** Working-tree status (untracked included). */
+/**
+ * Working-tree status (untracked included). `--untracked-files=all` lists
+ * the contents of new directories as individual entries, while preserving
+ * repository discovery and explicit repository selection for workspace roots.
+ */
 export async function status(cwd: string, selected?: string): Promise<GitStatusResult> {
   const repositories = await repoRoots(cwd)
   if (repositories.length === 0) return { isRepo: false, entries: [], repositories: [] }
   const root = await repoRoot(cwd, selected)
   const [branch, raw] = await Promise.all([
     currentBranch(root).catch(() => 'HEAD'),
-    runGit(root, ['status', '--porcelain=v1', '-z', '--untracked-files=normal']),
+    runGit(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']),
   ])
   return { isRepo: true, branch, entries: parsePorcelainZ(raw), root, repositories }
 }
