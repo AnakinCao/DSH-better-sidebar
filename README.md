@@ -464,14 +464,12 @@ Windows / Linux / macOS 三平台适配（macOS 日常验证；其余经单元�
 
 ## 💬 社区
 
-微信 / QQ 交流群二维码将在此处展示。上传二维码图片（拖入任意 issue / comment 即可获得 `user-attachments` 链接）后，替换下方 `src` 并取消注释：
-
 <div align="center">
   <!-- 微信群二维码
-  <img width="220" alt="微信群二维码" src="https://github.com/user-attachments/assets/REPLACE_ME" />
+  <img width="220" alt="微信群二维码" src="https://github.com/user-attachments/assets/39caafc7-9629-4b13-bb2b-eac17eab5b6a" />
   -->
   <!-- QQ 群二维码
-  <img width="220" alt="QQ群二维码" src="https://github.com/user-attachments/assets/REPLACE_ME" />
+  <img width="220" alt="QQ群二维码" src="https://github.com/user-attachments/assets/9be34629-26ef-4537-aad4-1393c147f81c" />
   -->
 </div>
 
