@@ -303,11 +303,6 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 
 ## 🆕 最近更新
 
-<div align="center">
-  <a href="https://github.com/user-attachments/assets/d2aea86b-a776-4f01-a6b8-b26b27314336"><img width="33%" alt="侧边栏" src="https://github.com/user-attachments/assets/d2aea86b-a776-4f01-a6b8-b26b27314336" /></a>
-  <a href="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0"><img width="33%" alt="服务化基座截图" src="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0" /></a>
-</div>
-
 **支持的 DSH 版本**：<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="支持的 DSH 版本：0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a> · 完整发布历史见 [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases)
 
 ### v0.15.1
@@ -325,6 +320,8 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 - 📂 **文件树上传遮罩不再拦截 Tab 拖拽**（[#317](https://github.com/omdsh-dev/DSH-better-sidebar/pull/317)）：拖拽 Tab（重排 / 跨 pane split）经过资源管理器时不再弹上传遮罩、不吞事件——统一按 `dataTransfer.types` 含 `Files` 门控（与面板宿主 shield 一致），Tab 正常落下；OS 文件拖拽行为不变
 - 💬 **子代理自动展开去抖**（[#314](https://github.com/omdsh-dev/DSH-better-sidebar/pull/314)）：Side Chat 线程创建不再误弹任务页——0→N 触发 500ms 重臂并对实时快照按原基线重评估，标题过滤器识别线程后才放行；真实子代理依然自动展开
 
+<details>
+<summary><b>历史版本（v0.12.0 – v0.14.0）</b></summary>
 ### v0.15.0
 
 自 v0.14.0 以来的全部更改：
@@ -344,9 +341,6 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 - 📐 **推挤变量挂载期持续有效**（[#259](https://github.com/omdsh-dev/DSH-better-sidebar/pull/259)，修复 [#258](https://github.com/omdsh-dev/DSH-better-sidebar/issues/258)）：拖拽松手后底边栏不再闪全宽
 - 🔧 **适配 DSH 0.1.1-rc.1 / rc.2（@next）**（[#297](https://github.com/omdsh-dev/DSH-better-sidebar/pull/297) [#305](https://github.com/omdsh-dev/DSH-better-sidebar/pull/305)）：无代码逻辑改动
 - 🔒 **上传链路安全加固**（[#239](https://github.com/omdsh-dev/DSH-better-sidebar/pull/239)）：`relativePath` 空段 / 绝对路径显式拒绝；临时文件唯一命名（并发上传互不干扰、崩溃不阻塞）；写流错误监听（磁盘失败不崩溃进程）；客户端错误码与服务端统一、413 本地化
-
-<details>
-<summary><b>历史版本（v0.12.0 – v0.14.0）</b></summary>
 
 ### v0.14.0
 
@@ -406,6 +400,15 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 
 </details>
 
+## 💬 社区
+
+推荐添加QQ群(577011007)
+
+<div align="center">
+  <img width="220" alt="微信群二维码" src="https://github.com/user-attachments/assets/39caafc7-9629-4b13-bb2b-eac17eab5b6a" />
+  <img width="220" alt="QQ群二维码" src="https://github.com/user-attachments/assets/9be34629-26ef-4537-aad4-1393c147f81c" />
+</div>
+
 ## ⌨️ 快捷键
 
 | 操作 | 按键 |
@@ -462,13 +465,6 @@ pnpm watch        # tsdown --watch
 ## 🖥️ 平台支持
 
 Windows / Linux / macOS 三平台适配（macOS 日常验证；其余经单元测试覆盖）；`node-pty` 优先预编译二进制，失败需编译工具链（Windows VS Build Tools / Linux make+g+++python3 / macOS Xcode CLT）。
-
-## 💬 社区
-
-<div align="center">
-  <img width="220" alt="微信群二维码" src="https://github.com/user-attachments/assets/39caafc7-9629-4b13-bb2b-eac17eab5b6a" />
-  <img width="220" alt="QQ群二维码" src="https://github.com/user-attachments/assets/9be34629-26ef-4537-aad4-1393c147f81c" />
-</div>
 
 ## 🤝 参与贡献
 
