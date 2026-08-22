@@ -305,6 +305,12 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 
 **支持的 DSH 版本**：<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="支持的 DSH 版本：0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a> · 完整发布历史见 [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases)
 
+### v0.15.2
+
+- 🛒 **DSH 市场受管安装兼容**：移除 `peerDependencies` 里的公开版 `cordis`（市场预览硬拒依赖字段出现 `cordis`，optional 无效），使 npm 包满足 [dsh-community-market 安装规范](https://github.com/anywhere-labs/deepseek-harness-desktop/blob/master/dsh-community-market/docs/install-and-uninstall.zh.md)——目录（dshfind / 1024Store）里的本插件条目将重新获得 `repository_backlink` 验证目标，可直接从 Desktop 市场受管安装
+- 🔤 **类型基底迁移到 `@deepseek-ai/cordis`**：声明面（`src/context-types.ts`）不再依赖/重述公开版 cordis——`Context` = 真实 vendored cordis Context 与结构化服务面的**交集**，`ctx.betterSidebar` 类型合并改挂在 `@deepseek-ai/cordis` 上。**消费者迁移**：`import type { Context } from 'cordis'` 改为 `import type { Context } from '@deepseek-ai/cordis'`（`import type {} from 'dsh-better-sidebar'` 的类型合并方式不变）；对未使用该导入的插件无影响
+- 🍃 **`ctx.effect` 严格化顺手修了 4 处**：拦截注册失败时 effect 体返回 `undefined` 改为 no-op disposer（vendored cordis 的 effect 契约要求返回 disposer，返回 `undefined` 属非法形状）
+
 ### v0.15.1
 
 自 v0.15.0 以来的全部更改：

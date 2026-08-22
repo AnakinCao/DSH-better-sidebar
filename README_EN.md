@@ -310,6 +310,12 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 
 **Supported DSH versions**: <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions: 0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a> · full release history on the [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases) page
 
+### v0.15.2
+
+- 🛒 **DSH marketplace managed-install compatibility**: the public `cordis` entry was removed from `peerDependencies` (the market preview hard-rejects `cordis` in any dependency field — optional does not help), so the npm package now satisfies the [dsh-community-market install rules](https://github.com/anywhere-labs/deepseek-harness-desktop/blob/master/dsh-community-market/docs/install-and-uninstall.zh.md) — catalog sources (dshfind / 1024Store) can re-issue the `repository_backlink` verified target and the plugin becomes installable through the Desktop market
+- 🔤 **Type base migrated to `@deepseek-ai/cordis`**: the declaration surface (`src/context-types.ts`) no longer depends on or restates the public `cordis` — `Context` is now an **intersection** of the real vendored cordis Context with the structural service faces, and the `ctx.betterSidebar` type merge lives on `@deepseek-ai/cordis`. **Consumer migration**: change `import type { Context } from 'cordis'` to `import type { Context } from '@deepseek-ai/cordis'` (the `import type {} from 'dsh-better-sidebar'` merge path is unchanged); plugins that never used that import are unaffected
+- 🍃 **Strict `ctx.effect` also fixed 4 latent sites**: interception/IME-guard effect bodies returned `undefined` on failure instead of a disposer (invalid shape under the vendored cordis effect contract) — now a no-op disposer
+
 ### v0.15.1
 
 All changes since v0.15.0:
