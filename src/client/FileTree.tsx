@@ -52,6 +52,13 @@ function parentOf(path: string): string {
   return at <= 0 ? path : path.slice(0, at)
 }
 
+/** Only OS file drags belong to the upload surface; in-app drags (tab reorder,
+ *  split zones) must pass through untouched to the pane's tab-drop handling
+ *  (mirror of Sidebar.tsx's panel-host shield gate). */
+function isFileDrag(event: DragEvent): boolean {
+  return event.dataTransfer?.types.includes('Files') ?? false
+}
+
 /** How long the row's "copied" label stays after a successful write. */
 const COPIED_MS = 1200
 
@@ -160,12 +167,14 @@ export function FileTree(props: {
     })
   }
   const handleBodyDrop = (event: DragEvent): void => {
+    if (!isFileDrag(event)) return
     event.preventDefault()
     event.stopPropagation()
     resetDrop()
     if (cwd !== undefined) reportDrop(cwd, event.dataTransfer)
   }
   const handleDirDrop = (event: DragEvent, dir: string): void => {
+    if (!isFileDrag(event)) return
     event.preventDefault()
     event.stopPropagation()
     resetDrop()
@@ -176,6 +185,7 @@ export function FileTree(props: {
     handleDirDrop(event, parentOf(path))
   }
   const handleBodyDragEnter = (event: DragEvent): void => {
+    if (!isFileDrag(event)) return
     event.preventDefault()
     event.stopPropagation()
     dropDepth.current += 1
@@ -195,6 +205,7 @@ export function FileTree(props: {
     setDropRect(null)
   }
   const handleBodyDragOver = (event: DragEvent): void => {
+    if (!isFileDrag(event)) return
     event.preventDefault()
     event.stopPropagation()
     event.dataTransfer.dropEffect = busy ? 'none' : 'copy'
@@ -205,6 +216,7 @@ export function FileTree(props: {
     setDropTarget(null)
   }
   const handleRowDragOver = (event: DragEvent, dir: string): void => {
+    if (!isFileDrag(event)) return
     event.preventDefault()
     event.stopPropagation()
     event.dataTransfer.dropEffect = busy ? 'none' : 'copy'
