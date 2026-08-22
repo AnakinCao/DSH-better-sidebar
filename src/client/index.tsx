@@ -67,28 +67,44 @@ export function apply(ctx: Context): void {
   // directly) also switches to the override language. We also register
   // the ja dict with the better-locale store so external callers of
   // ctx.locale.lookup('betterSidebar', key) get the override text too.
-  // Optional peer: ctx.get returns undefined when better-locale is absent,
-  // in which case the whole block is a no-op and the zh/en chain runs.
-  const betterLocale = ctx.get('betterLocale') as
-    | {
-        readonly active: string | undefined
-        getOverride(dshActive: string, ns: string, key: string): string | undefined
-        isOverrideActive(dshActive: string): boolean
-        register(ns: string, dicts: Record<string, Record<string, string>>): () => void
-        subscribe(listener: () => void): () => void
+  //
+  // Activation-order-safe: ctx.get('betterLocale') is a non-reactive read
+  // (cordis only re-evaluates declared `inject` deps). If better-locale
+  // activates after better-sidebar, the initial read returns undefined.
+  // We subscribe to the locale revision — better-locale bumps it on
+  // activation (when a persisted override exists) and on every override
+  // switch — and re-check ctx.get on each bump, attaching + registering
+  // the ja dict once the store becomes available.
+  ctx.effect(() => {
+    let dispose: (() => void) | undefined
+    const sync = (): void => {
+      dispose?.()
+      dispose = undefined
+      const store = ctx.get('betterLocale') as
+        | {
+            readonly active: string | undefined
+            getOverride(dshActive: string, ns: string, key: string): string | undefined
+            isOverrideActive(dshActive: string): boolean
+            register(ns: string, dicts: Record<string, Record<string, string>>): () => void
+            subscribe(listener: () => void): () => void
+          }
+        | undefined
+      attachBetterLocale(store)
+      if (store !== undefined) {
+        dispose = store.register(LOCALE_NS, { ja })
       }
-    | undefined
-  attachBetterLocale(betterLocale)
-  if (betterLocale !== undefined) {
-    ctx.effect(() => {
-      // Register the ja dict for the betterSidebar namespace. Better-locale's
-      // patched lookup consults this when the user has selected the ja
-      // override; the dict stays owned by better-sidebar (the namespace
-      // owner), so a single source of truth covers both ctx.locale callers
-      // and the internal t().
-      return betterLocale.register(LOCALE_NS, { ja })
-    }, 'dsh-better-sidebar: better-locale ja dict')
-  }
+    }
+    // Initial check (picks up the store if better-locale activated first).
+    sync()
+    // Re-check on every locale revision bump (better-locale bumps when it
+    // activates with a persisted override, and when the user switches).
+    const unsubscribe = ctx.locale.subscribe(sync)
+    return () => {
+      unsubscribe()
+      dispose?.()
+      attachBetterLocale(undefined)
+    }
+  }, 'dsh-better-sidebar: better-locale lazy integration')
   // One store instance per activation: production code creates it only here,
   // then hands it to the mounted panel and closes over it in the slot
   // registrations (the official createXXXStore() factory rule — no
