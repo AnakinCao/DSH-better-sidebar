@@ -703,10 +703,17 @@ let localeService: { getSnapshot(): { active: string } } | undefined
  * (absent → no override; the zh/en chain runs). The store's `active`
  * field holds the user's chosen override id (e.g. `'ja'`); `undefined`
  * means "no override, use DSH native zh/en".
+ *
+ * The override only takes effect when DSH's active locale is `'en'`
+ * (it borrows DSH's English slot to render a third language). While
+ * DSH is on `'zh'` the override is inert — `getOverride` returns
+ * `undefined` and `isOverrideActive` returns `false` — so `t()` and
+ * `isZh()` fall through to the native zh/en chain unchanged.
  */
 let betterLocaleStore: {
   readonly active: string | undefined
   getOverride(dshActive: string, ns: string, key: string): string | undefined
+  isOverrideActive(dshActive: string): boolean
 } | undefined
 
 /**
@@ -752,10 +759,11 @@ export type CopyKey = keyof typeof zh
 
 /** Translate a copy key; `{name}` placeholders interpolate from `params`. */
 export function t(key: CopyKey, params?: Record<string, string | number>): string {
-  // 1. better-locale override (e.g. ja) wins when an override is active
-  //    and the store has a translation for this (ns, key). The DSH active
-  //    locale is forwarded for forward compatibility (a future mode could
-  //    gate overrides on DSH being 'en'); the current store ignores it.
+  // 1. better-locale override (e.g. ja) wins when an override is active,
+  //    DSH's active locale is 'en' (the override borrows the en slot),
+  //    and the store has a translation for this (ns, key). The store's
+  //    getOverride returns undefined otherwise (no override, DSH on zh,
+  //    or missing key) and the zh/en chain runs.
   const dshActive = localeService?.getSnapshot().active ?? ''
   const override = betterLocaleStore?.getOverride(dshActive, LOCALE_NS, key)
   let text: string | undefined = override
@@ -780,9 +788,14 @@ export function t(key: CopyKey, params?: Record<string, string | number>): strin
 
 /** Whether the active locale is Chinese (used for selectors). */
 export function isZh(): boolean {
-  // An active override is not Chinese — short-circuit so selectors pick
+  // An override is only "effectively active" when DSH is on 'en' (the
+  // override borrows the en slot). While DSH is on 'zh' the override is
+  // inert — the user sees native zh, so isZh() returns true. When an
+  // override is effectively active, the rendered text is neither zh nor
+  // en (it's ja/ko/...), so isZh() returns false to route selectors to
   // the non-zh branch (e.g. date format, pluralization).
-  if (betterLocaleStore?.active !== undefined) return false
+  const dshActive = localeService?.getSnapshot().active ?? ''
+  if (betterLocaleStore?.isOverrideActive(dshActive) === true) return false
   return activeLocale().toLowerCase().startsWith('zh')
 }
 

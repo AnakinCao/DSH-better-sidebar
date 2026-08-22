@@ -73,6 +73,7 @@ export function apply(ctx: Context): void {
     | {
         readonly active: string | undefined
         getOverride(dshActive: string, ns: string, key: string): string | undefined
+        isOverrideActive(dshActive: string): boolean
         register(ns: string, dicts: Record<string, Record<string, string>>): () => void
         subscribe(listener: () => void): () => void
       }

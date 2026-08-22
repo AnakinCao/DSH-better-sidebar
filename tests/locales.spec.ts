@@ -113,16 +113,20 @@ describe('locales (DSH i18n following)', () => {
   })
 })
 
-/** Minimal fake of the better-locale override store (the subset t() reads). */
+/** Minimal fake of the better-locale override store (the subset t()/isZh() read). */
 class FakeBetterLocale {
   active: string | undefined = undefined
   private readonly dict: Record<string, Record<string, Record<string, string>>>
   constructor(dict: Record<string, Record<string, Record<string, string>>>) {
     this.dict = dict
   }
-  getOverride(_dshActive: string, ns: string, key: string): string | undefined {
+  getOverride(dshActive: string, ns: string, key: string): string | undefined {
     if (this.active === undefined) return undefined
+    if (dshActive !== 'en') return undefined
     return this.dict[ns]?.[this.active]?.[key]
+  }
+  isOverrideActive(dshActive: string): boolean {
+    return this.active !== undefined && dshActive === 'en'
   }
   subscribe(_listener: () => void): () => void {
     return () => {}
@@ -171,6 +175,23 @@ describe('locales (better-locale override)', () => {
     // active is undefined — no override.
     attachBetterLocale(betterLocale)
 
+    expect(t('explorer')).toBe('资源管理器')
+    expect(isZh()).toBe(true)
+  })
+
+  it('override is inert while DSH is on zh (override borrows the en slot)', () => {
+    const locale = new FakeLocale()
+    locale.switchTo('zh')
+    attachLocale(locale)
+
+    const betterLocale = new FakeBetterLocale({
+      [LOCALE_NS]: { ja: { explorer: 'エクスプローラー' } },
+    })
+    betterLocale.active = 'ja'
+    attachBetterLocale(betterLocale)
+
+    // Override is set to 'ja' but DSH is on zh — override is inert,
+    // native zh text wins. The user must switch DSH to en to see ja.
     expect(t('explorer')).toBe('资源管理器')
     expect(isZh()).toBe(true)
   })
