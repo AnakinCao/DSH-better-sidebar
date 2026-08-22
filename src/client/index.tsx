@@ -24,7 +24,7 @@ import { registerSettingsNavIcon } from './settings-nav-icon.ts'
 import { loadExternalDisable, loadPrefs } from './prefs.ts'
 import { SideCardSection } from './SideCardSection.tsx'
 import { api } from './api.ts'
-import { LOCALE_NS, attachLocale, t, zh, en } from './locales.ts'
+import { LOCALE_NS, attachLocale, attachBetterLocale, t, zh, en, ja } from './locales.ts'
 import css from './sidebar.module.css'
 import './layout.css'
 
@@ -57,6 +57,37 @@ export function apply(ctx: Context): void {
     const offEn = ctx.locale.register(LOCALE_NS, 'en', en)
     return () => { offZh(); offEn() }
   }, 'dsh-better-sidebar: dictionaries')
+
+  // Opt-in third-language support through @huanlin/dsh-plugin-better-locale.
+  // When that plugin is installed, it publishes `ctx.betterLocale` (the
+  // override store) and patches LocaleRuntime.prototype.lookup to consult
+  // it. We mirror the same override awareness into the sidebar's own `t()`:
+  // attachBetterLocale() makes t() consult the store's getOverride first,
+  // so the sidebar's chrome (which bypasses ctx.locale and calls t()
+  // directly) also switches to the override language. We also register
+  // the ja dict with the better-locale store so external callers of
+  // ctx.locale.lookup('betterSidebar', key) get the override text too.
+  // Optional peer: ctx.get returns undefined when better-locale is absent,
+  // in which case the whole block is a no-op and the zh/en chain runs.
+  const betterLocale = ctx.get('betterLocale') as
+    | {
+        readonly active: string | undefined
+        getOverride(dshActive: string, ns: string, key: string): string | undefined
+        register(ns: string, dicts: Record<string, Record<string, string>>): () => void
+        subscribe(listener: () => void): () => void
+      }
+    | undefined
+  attachBetterLocale(betterLocale)
+  if (betterLocale !== undefined) {
+    ctx.effect(() => {
+      // Register the ja dict for the betterSidebar namespace. Better-locale's
+      // patched lookup consults this when the user has selected the ja
+      // override; the dict stays owned by better-sidebar (the namespace
+      // owner), so a single source of truth covers both ctx.locale callers
+      // and the internal t().
+      return betterLocale.register(LOCALE_NS, { ja })
+    }, 'dsh-better-sidebar: better-locale ja dict')
+  }
   // One store instance per activation: production code creates it only here,
   // then hands it to the mounted panel and closes over it in the slot
   // registrations (the official createXXXStore() factory rule — no
