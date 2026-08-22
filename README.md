@@ -62,8 +62,31 @@
 <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="支持的 DSH 版本：0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a>
 
 ```sh
+# pnpm 11 默认拦截构建脚本（node-pty / protobufjs），会让首次 add 失败；
+# 先把构建许可预写进 profile 的 pnpm-workspace.yaml（幂等，可反复执行）
+node -e '
+const f = require("fs"), p = process.argv[1];
+let t = f.readFileSync(p, "utf8");
+t = t.replace(/^(\s*)(node-pty|protobufjs):.*$/gm, "$1$2: true");
+if (!/^\s*allowBuilds:\s*$/m.test(t)) {
+  t += "\nallowBuilds:\n  node-pty: true\n  protobufjs: true\n";
+} else {
+  for (const k of ["node-pty", "protobufjs"]) {
+    if (!new RegExp("^\\s*" + k + ":\\s*true\\s*$", "m").test(t)) {
+      t = t.replace(/^(\s*allowBuilds:\s*)$/m, "$1\n  " + k + ": true");
+    }
+  }
+}
+if (!/^\s*-\s+dsh-better-sidebar\s*$/m.test(t)) {
+  if (/^\s*minimumReleaseAgeExclude:\s*$/m.test(t)) {
+    t = t.replace(/^(\s*minimumReleaseAgeExclude:\s*)$/m, "$1\n  - dsh-better-sidebar");
+  } else {
+    t += "\nminimumReleaseAgeExclude:\n  - dsh-better-sidebar\n";
+  }
+}
+f.writeFileSync(p, t);
+' ~/.dsh/profiles/web/pnpm-workspace.yaml
 dsh plugin --profile web add dsh-better-sidebar@latest
-cd ~/.dsh/profiles/web && pnpm approve-builds --all && pnpm rebuild node-pty   # 终端功能依赖 node-pty 的预编译二进制：放行构建脚本并确保装好
 ```
 
 装完**硬刷新浏览器**（Cmd/Ctrl+Shift+R）即可看到侧边栏（DSH 对 client 改动热加载，无需重启；仅 host 半更新时需要重启）。
@@ -72,8 +95,8 @@ cd ~/.dsh/profiles/web && pnpm approve-builds --all && pnpm rebuild node-pty   #
 
 ```text
 帮我安装 dsh-better-sidebar 插件（DSH 侧边栏工作台），步骤：
-1. 执行 dsh plugin --profile web add dsh-better-sidebar@latest
-2. 在 ~/.dsh/profiles/web 下执行 pnpm approve-builds --all && pnpm rebuild node-pty（终端功能需要 node-pty 的预编译二进制）
+1. 先用 node 把 node-pty / protobufjs 的构建许可预写进 ~/.dsh/profiles/web/pnpm-workspace.yaml（allowBuilds），保证首次安装不被 pnpm 11 拦截（可参考仓库 scripts/install.sh 的 ensure_workspace_settings）
+2. 再执行 dsh plugin --profile web add dsh-better-sidebar@latest
 3. 完成后提醒我硬刷新浏览器（Cmd/Ctrl+Shift+R）
 遇到报错先查 https://github.com/omdsh-dev/DSH-better-sidebar README 的常见问题表。
 ```

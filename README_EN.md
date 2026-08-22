@@ -62,8 +62,32 @@
 <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions: 0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a>
 
 ```sh
+# pnpm 11 blocks build scripts (node-pty / protobufjs) by default, which makes
+# the first `dsh plugin add` fail; pre-write the build approvals into the
+# profile's pnpm-workspace.yaml (idempotent, safe to re-run)
+node -e '
+const f = require("fs"), p = process.argv[1];
+let t = f.readFileSync(p, "utf8");
+t = t.replace(/^(\s*)(node-pty|protobufjs):.*$/gm, "$1$2: true");
+if (!/^\s*allowBuilds:\s*$/m.test(t)) {
+  t += "\nallowBuilds:\n  node-pty: true\n  protobufjs: true\n";
+} else {
+  for (const k of ["node-pty", "protobufjs"]) {
+    if (!new RegExp("^\\s*" + k + ":\\s*true\\s*$", "m").test(t)) {
+      t = t.replace(/^(\s*allowBuilds:\s*)$/m, "$1\n  " + k + ": true");
+    }
+  }
+}
+if (!/^\s*-\s+dsh-better-sidebar\s*$/m.test(t)) {
+  if (/^\s*minimumReleaseAgeExclude:\s*$/m.test(t)) {
+    t = t.replace(/^(\s*minimumReleaseAgeExclude:\s*)$/m, "$1\n  - dsh-better-sidebar");
+  } else {
+    t += "\nminimumReleaseAgeExclude:\n  - dsh-better-sidebar\n";
+  }
+}
+f.writeFileSync(p, t);
+' ~/.dsh/profiles/web/pnpm-workspace.yaml
 dsh plugin --profile web add dsh-better-sidebar@latest
-cd ~/.dsh/profiles/web && pnpm approve-builds --all && pnpm rebuild node-pty   # the terminal needs node-pty's prebuilt binary: allow build scripts and make sure it is installed
 ```
 
 Then **hard-refresh the browser** (Cmd/Ctrl+Shift+R) to see the sidebar (DSH hot-reloads client changes; only host-half updates need a restart).
@@ -72,8 +96,8 @@ Then **hard-refresh the browser** (Cmd/Ctrl+Shift+R) to see the sidebar (DSH hot
 
 ```text
 Install the dsh-better-sidebar plugin (a sidebar workbench for DSH):
-1. Run: dsh plugin --profile web add dsh-better-sidebar@latest
-2. In ~/.dsh/profiles/web run: pnpm approve-builds --all && pnpm rebuild node-pty (the terminal feature needs node-pty's prebuilt binary)
+1. First pre-write build approvals for node-pty / protobufjs into ~/.dsh/profiles/web/pnpm-workspace.yaml (allowBuilds) so the first install is not blocked by pnpm 11 (see ensure_workspace_settings in the repo's scripts/install.sh)
+2. Then run: dsh plugin --profile web add dsh-better-sidebar@latest
 3. When done, remind me to hard-refresh the browser (Cmd/Ctrl+Shift+R)
 If anything fails, check the troubleshooting table in the README at https://github.com/omdsh-dev/DSH-better-sidebar
 ```
