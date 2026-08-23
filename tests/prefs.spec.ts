@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadExternalDisable, loadPrefs, type SidebarSettingsClient } from '../src/client/prefs.ts'
-import { allLeaves, createSidebarStore, defaultWidthFor, makeDefaultState } from '../src/client/state.ts'
+import { allLeaves, createSidebarStore, defaultWidthFor, makeDefaultState, setWidth } from '../src/client/state.ts'
 import { SIDEBAR_PREFS_DEFAULTS } from '../src/prefs-shared.ts'
 
 /** A fake settings wire face whose settingsGet resolves to one raw value. */
@@ -342,6 +342,41 @@ describe('side card preferences', () => {
     // The 'none' seed starts with an empty pane (no default tab).
     expect(makeDefaultState(400, true, 'none').splits.kind).toBe('leaf')
     expect((makeDefaultState(400, true, 'none').splits as { tabs: unknown[] }).tabs).toHaveLength(0)
+  })
+
+  it('shares the panel width across sessions (last drag wins)', () => {
+    // A real localStorage stub so the cross-session width actually persists
+    // (the default no-op mock would silently drop the write).
+    const storage = new Map<string, string>()
+    const savedWindow = (globalThis as Record<string, unknown>).window
+    const savedStorage = (globalThis as Record<string, unknown>).localStorage
+    ;(globalThis as Record<string, unknown>).window = {
+      innerWidth: 1280,
+      clearTimeout: () => {},
+      setTimeout: () => 0,
+    }
+    ;(globalThis as Record<string, unknown>).localStorage = {
+      getItem: (k: string) => storage.get(k) ?? null,
+      setItem: (k: string, v: string) => { storage.set(k, String(v)) },
+      removeItem: (k: string) => { storage.delete(k) },
+      key: () => null,
+      get length() { return storage.size },
+    }
+    try {
+      const store = createSidebarStore()
+      store.setSession('A')
+      store.reduce(s => setWidth(s, 500))
+      // A fresh session adopts the width dragged in A, not its own default.
+      store.setSession('B')
+      expect(store.getSnapshot().state?.width).toBe(500)
+      // A later drag in B carries back to the cached session A.
+      store.reduce(s => setWidth(s, 600))
+      store.setSession('A')
+      expect(store.getSnapshot().state?.width).toBe(600)
+    } finally {
+      ;(globalThis as Record<string, unknown>).window = savedWindow
+      ;(globalThis as Record<string, unknown>).localStorage = savedStorage
+    }
   })
 })
 
