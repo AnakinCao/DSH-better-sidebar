@@ -28,16 +28,16 @@
  * drawer floats). Widening does not migrate back: the tabs keep living in
  * the right tree.
  */
-import { createElement, memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { createElement, memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from 'react'
 import { useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import { IconCloseFill14, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context, SidebarSessionList } from '../context-types.ts'
 import { appendToDraft } from './conversation-draft.ts'
 import {
-  BOTTOM_MIN, PANEL_MIN, agentUuidOf, firstLeaf, isAgentTabId, leafWithTab, migrateBottomTabs, moveTab, moveTabToEdge, openDiffTab,
-  reconcileAgentTerminals,
-  resizeSplitIn, setBottomHeight, setWidth, toggleBottomPanel, toggleExpanded, togglePanel,
+  BOTTOM_MIN, PANEL_MIN, agentUuidOf, dockFloat, firstLeaf, floatTab, isAgentTabId, leafWithTab, migrateBottomTabs,
+  moveFloat, moveTab, moveTabToEdge, openDiffTab, raiseFloat, reconcileAgentTerminals,
+  resizeFloat, resizeSplitIn, setBottomHeight, setWidth, toggleBottomPanel, toggleExpanded, togglePanel,
   type DropZone, type SidebarState, type SidebarStore, type SidebarTab, type SplitNode,
 } from './state.ts'
 import { IconPanelBottomOutline16, IconPanelRightOutline16 } from './icons.tsx'
@@ -49,7 +49,8 @@ import { getWcoSnapshot, subscribeWco } from './wco.ts'
 import { getShellPreset } from './shell-presets.ts'
 import { computeTitleBarStrip } from './titlebar-strip.ts'
 import type { NewTabOption } from './TabBar.tsx'
-import type { TabDragPayload } from './TabBar.tsx'
+import { TAB_DRAG_TYPE, parseDrag, type TabDragPayload } from './TabBar.tsx'
+import { FreeWindow } from './FreeWindow.tsx'
 import { relativeTo } from './paths.ts'
 import { OrphanedTab } from './OrphanedTab.tsx'
 import { RenderBoundary } from './RenderBoundary.tsx'
@@ -87,7 +88,7 @@ const AUTO_OPEN_DEBOUNCE_MS = 500
  * gated on the 'Files' type so in-app drags (tab reorder, split zones)
  * propagate exactly as before.
  */
-const swallowOsFileDrag = (event: DragEvent): void => {
+const swallowOsFileDrag = (event: ReactDragEvent): void => {
   if (!(event.dataTransfer?.types.includes('Files') ?? false)) return
   event.preventDefault()
   event.stopPropagation()
@@ -700,6 +701,85 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   }, [measureCenter, state?.bottomOpen])
 
   /**
+   * Free windows — drag-out detection. The tab strips already drive HTML5
+   * DnD (payload application/x-dsh-tab) with drops owned by the panes
+   * (split/merge); this shell watches the DOCUMENT (capture) for the same
+   * drag hovering OUTSIDE the panel host: while the pointer is over the
+   * conversation column it arms the drop (preventDefault) and shows a hint
+   * overlay there, and the drop floats the tab at the release point. Targets
+   * inside the host are ignored here, so pane drops keep their behavior
+   * untouched. Only OUR tab drags count (the body flag is the tab strip's;
+   * OS file drags and any DSH drags pass through). Narrow viewports skip
+   * the gesture — the merged drawer covers the conversation, leaving
+   * nothing to drop onto (the tab context menu entry still floats tabs).
+   */
+  const [floatHint, setFloatHint] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
+  const floatHintRef = useRef(false)
+  useEffect(() => {
+    if (narrow || sessionId === undefined) return
+    const inPanelHost = (target: EventTarget | null): boolean =>
+      target instanceof Element && target.closest('[data-dsh-panel-host]') !== null
+    /** The conversation column's rect when the pointer is over it (and not
+     *  over our own surfaces); null otherwise. */
+    const overConversation = (event: DragEvent): DOMRect | null => {
+      if (inPanelHost(event.target)) return null
+      const col = centerColRef.current
+      if (col === null || !col.isConnected) return null
+      const rect = col.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) return null
+      const { clientX: x, clientY: y } = event
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null
+      return rect
+    }
+    const onDragOver = (event: DragEvent): void => {
+      if (!document.body.hasAttribute('data-dsh-tab-dragging')) return
+      const rect = overConversation(event)
+      if (rect !== null) {
+        // preventDefault on dragover is what makes the browser deliver the
+        // drop (and drop the "no" cursor) over the conversation area.
+        event.preventDefault()
+        setFloatHint((prev) => {
+          const next = { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+          if (prev !== null && prev.left === next.left && prev.top === next.top
+            && prev.width === next.width && prev.height === next.height) return prev
+          return next
+        })
+        floatHintRef.current = true
+      } else if (floatHintRef.current) {
+        floatHintRef.current = false
+        setFloatHint(null)
+      }
+    }
+    const onDrop = (event: DragEvent): void => {
+      if (!floatHintRef.current) return
+      floatHintRef.current = false
+      setFloatHint(null)
+      const rect = overConversation(event)
+      if (rect === null) return
+      event.preventDefault()
+      event.stopPropagation()
+      const payload = parseDrag(event.dataTransfer?.getData(TAB_DRAG_TYPE) ?? '')
+      if (payload === null) return
+      store.reduce(s => floatTab(s, payload.tabId, event.clientX, event.clientY))
+    }
+    const clear = (): void => {
+      if (!floatHintRef.current) return
+      floatHintRef.current = false
+      setFloatHint(null)
+    }
+    document.addEventListener('dragover', onDragOver, true)
+    document.addEventListener('drop', onDrop, true)
+    window.addEventListener('dragend', clear, true)
+    window.addEventListener('blur', clear)
+    return () => {
+      document.removeEventListener('dragover', onDragOver, true)
+      document.removeEventListener('drop', onDrop, true)
+      window.removeEventListener('dragend', clear, true)
+      window.removeEventListener('blur', clear)
+    }
+  }, [narrow, sessionId, store])
+
+  /**
    * Bottom-panel first-expansion auto terminal: the FIRST time the user
    * expands the bottom panel in a session, try to open a fresh terminal tab
    * there. "Try" is literal — the terminal's own quota and enable switch
@@ -1040,6 +1120,17 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     resizeSplit: (splitId, index, deltaFrac) => {
       store.reduce(s => resizeSplitIn(s, splitId, index, deltaFrac))
     },
+    // The tab context menu's "move to free window": no drop point exists, so
+    // the window is born over the conversation column's center (the user's
+    // focus area; clamped into the viewport by the reducer) — the same
+    // landing the drag-out gesture produces.
+    floatTab: (tabId) => {
+      const col = centerColRef.current
+      const rect = col !== null && col.isConnected ? col.getBoundingClientRect() : null
+      const x = rect !== null ? (rect.left + rect.right) / 2 : window.innerWidth / 2
+      const y = rect !== null ? (rect.top + rect.bottom) / 2 : window.innerHeight / 2
+      store.reduce(s => floatTab(s, tabId, x, y))
+    },
   }), [store, sessionId, cwd])
 
   /**
@@ -1141,7 +1232,13 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
    * polling while the page is not actually visible). The pane id travels
    * with the tab so diff tabs can split below their source pane.
    */
-  const renderTab = (tab: SidebarTab, active: boolean, paneId: string, bottom = false) => (
+  // `placement` decides the visibility contract handed to the tab component:
+  // pane tabs are visible while their panel is open and they are active, but
+  // a free window is its own surface — its tab stays visible no matter what
+  // the panels do (the AGENTS §7.5 contract; plugin components honor
+  // `visible` to pause work, so tying floats to panelOpen would blank them
+  // the moment the sidebar collapses).
+  const renderTab = (tab: SidebarTab, active: boolean, paneId: string, placement: 'top' | 'bottom' | 'float' = 'top') => (
     <TabContent
       tab={tab}
       paneId={paneId}
@@ -1152,7 +1249,13 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       onReferenceFile={referenceInChat}
       ctx={ctx}
       store={store}
-      visible={bottom ? state.bottomOpen && active : state.panelOpen && active}
+      visible={
+        placement === 'float'
+          ? true
+          : placement === 'bottom'
+            ? state.bottomOpen && active
+            : state.panelOpen && active
+      }
       onSubagentJump={(childSessionId) => { subagentJumpRef.current = childSessionId }}
       onOpenDiff={(diffTab) => { store.reduce(s => openDiffTab(s, paneId, diffTab)) }}
       localeRevision={localeRevision}
@@ -1419,12 +1522,46 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
             newTabOptions={buildNewTabOptions(state, ctx, { sessionId, cwd })}
             actions={actions}
             onNewTab={onNewTab}
-            renderTab={(tab, active, paneId) => renderTab(tab, active, paneId, true)}
+            renderTab={(tab, active, paneId) => renderTab(tab, active, paneId, 'bottom')}
             getTabIcon={tabIconOf}
             getTabBadge={tabBadgeOf}
           />
         </div>
       </div>
+      )}
+      {/*
+        Free windows: tabs dragged out onto the conversation area (or floated
+        from the tab context menu). They live in the panel host like the
+        panels (viewport coordinates, immune to desktop-shell transforms) but
+        are independent of panel state — a window stays up while panels
+        collapse. The floats array's order is the stacking order; the content
+        reuses the regular tab renderer, so every tab type floats unchanged.
+      */}
+      {state.floats.map(float => (
+        <FreeWindow
+          key={float.id}
+          float={float}
+          renderTab={(tab, active, paneId) => renderTab(tab, active, paneId, 'float')}
+          getTabIcon={tabIconOf}
+          onRaise={() => { store.reduce(s => raiseFloat(s, float.id)) }}
+          onMove={(x, y) => { store.reduce(s => moveFloat(s, float.id, x, y)) }}
+          onResize={(w, h) => { store.reduce(s => resizeFloat(s, float.id, w, h)) }}
+          onDock={(paneId) => { store.reduce(s => dockFloat(s, float.id, paneId ?? undefined)) }}
+          onClose={() => { ctx.betterSidebar?.closeTab(float.tab.id, sessionId === undefined ? undefined : { sessionId, cwd }) }}
+        />
+      ))}
+      {/*
+        The drag-out hint: while a tab drag hovers the conversation column,
+        a dashed overlay marks the drop zone there (pointer-transparent — it
+        must not disturb the drag it describes).
+      */}
+      {floatHint !== null && (
+        <div
+          className={css.floatDropHint}
+          style={{ left: floatHint.left, top: floatHint.top, width: floatHint.width, height: floatHint.height }}
+        >
+          <span className={css.floatDropHintLabel}>{t('floatDropHint')}</span>
+        </div>
       )}
     </div>
   )
