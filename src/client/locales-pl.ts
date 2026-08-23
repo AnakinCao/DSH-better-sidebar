@@ -108,6 +108,7 @@ export const pl: Record<string, string> = {
   commit: 'Commit',
   commitError: 'Commit nie powiódł się',
   branch: 'Gałąź',
+  worktree: 'Drzewo robocze',
   checkoutError: 'Przełączenie gałęzi nie powiodło się',
   history: 'Historia',
   changes: 'Zmiany',

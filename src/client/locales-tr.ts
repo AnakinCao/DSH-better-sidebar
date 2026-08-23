@@ -106,6 +106,7 @@ export const tr: Record<string, string> = {
   commit: 'İşle',
   commitError: 'İşleme başarısız',
   branch: 'Dal',
+  worktree: 'Çalışma ağacı',
   checkoutError: 'Dal değiştirme başarısız',
   history: 'Geçmiş',
   changes: 'Değişiklikler',

@@ -89,6 +89,7 @@ export const sv: Record<string, string> = {
   commit: 'Commit',
   commitError: 'Commit misslyckades',
   branch: 'Gren',
+  worktree: 'Arbetsträd',
   checkoutError: 'Grenbyte misslyckades',
   history: 'Historik',
   changes: 'Ändringar',

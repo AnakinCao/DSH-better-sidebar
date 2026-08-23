@@ -98,6 +98,7 @@ export const ko: Record<string, string> = {
   commit: '커밋',
   commitError: '커밋 실패',
   branch: '브랜치',
+  worktree: '워크트리',
   checkoutError: '브랜치 전환 실패',
   history: '기록',
   changes: '변경 사항',

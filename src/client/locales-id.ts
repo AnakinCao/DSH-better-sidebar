@@ -104,6 +104,7 @@ export const id: Record<string, string> = {
   commit: 'Commit',
   commitError: 'Commit gagal',
   branch: 'Branch',
+  worktree: 'Worktree',
   checkoutError: 'Beralih branch gagal',
   history: 'Riwayat',
   changes: 'Perubahan',

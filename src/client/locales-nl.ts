@@ -104,6 +104,7 @@ export const nl: Record<string, string> = {
   commit: 'Commit',
   commitError: 'Commit mislukt',
   branch: 'Branch',
+  worktree: 'Worktree',
   checkoutError: 'Wisselen van branch mislukt',
   history: 'Geschiedenis',
   changes: 'Wijzigingen',

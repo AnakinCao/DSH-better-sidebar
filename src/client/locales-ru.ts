@@ -102,6 +102,7 @@ export const ru: Record<string, string> = {
   commit: 'Закоммитить',
   commitError: 'Сбой коммита',
   branch: 'Ветка',
+  worktree: 'Рабочее дерево',
   checkoutError: 'Сбой переключения ветки',
   history: 'История',
   changes: 'Изменения',

@@ -97,6 +97,7 @@ export const it: Record<string, string> = {
   commit: 'Commit',
   commitError: 'Commit non riuscito',
   branch: 'Ramo',
+  worktree: 'Albero di lavoro',
   checkoutError: 'Cambio di ramo non riuscito',
   history: 'Cronologia',
   changes: 'Modifiche',

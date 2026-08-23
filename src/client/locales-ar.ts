@@ -107,6 +107,7 @@ export const ar: Record<string, string> = {
   commit: 'تثبيت',
   commitError: 'فشل التثبيت',
   branch: 'الفرع',
+  worktree: 'شجرة العمل',
   checkoutError: 'فشل تبديل الفرع',
   history: 'السجل',
   changes: 'التغييرات',
