@@ -919,8 +919,9 @@ describe('free windows (v0.16.0)', () => {
     expect(leaf.active).toBe('term:1')
     expect(floated.floats).toHaveLength(1)
     expect(floated.floats[0]!.tab).toEqual(git)
-    // Default size centered on the drop point (no viewport → floors only).
-    expect(floated.floats[0]).toMatchObject({ x: 300 - 240, y: 200 - 180, w: 480, h: 360 })
+    // Phone-ratio default (390x780) centered on the drop point (no viewport
+    // → size cap never bites; only the negative y clamps to 0).
+    expect(floated.floats[0]).toMatchObject({ x: 300 - 195, y: 0, w: 390, h: 780 })
     expect(floated.activePane).toBe(leaf.id)
   })
 
@@ -961,8 +962,9 @@ describe('free windows (v0.16.0)', () => {
       expect(moved.floats[0]).toMatchObject({ x: 0, y: 0 })
       // Beyond the right/bottom edge clamps the top-left so the window fits.
       moved = moveFloat(moved, id, 5000, 5000)
-      expect(moved.floats[0]!.x).toBe(1024 - 480)
-      expect(moved.floats[0]!.y).toBe(768 - 360)
+      // The float was CREATED capped to the viewport: w 390, h 768-24=744.
+      expect(moved.floats[0]!.x).toBe(1024 - 390)
+      expect(moved.floats[0]!.y).toBe(768 - 744)
       // No-op move returns the same reference (no persist churn).
       expect(moveFloat(moved, id, moved.floats[0]!.x, moved.floats[0]!.y)).toBe(moved)
       // Resize: floors, viewport ceiling, and the SE-corner anchor (x/y keep).

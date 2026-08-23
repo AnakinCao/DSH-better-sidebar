@@ -174,7 +174,7 @@ test('float a tab, move the window, reload restores it, dock it back', async ({ 
   const leftBefore = await floatWindow.evaluate((node) => Number.parseFloat((node as HTMLElement).style.left))
   expect(Number.isFinite(leftBefore), `style.left must be numeric, got ${leftBefore}`).toBe(true)
   expect(leftBefore).toBeGreaterThan(0)
-  expect(leftBefore).toBeLessThan(1440 - 480)
+  expect(leftBefore).toBeLessThan(1440 - 390)
   await assertNoCrash(page)
 
   // 2. The header drag moves the window (pointer capture + commit).

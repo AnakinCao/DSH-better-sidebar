@@ -213,9 +213,10 @@ describe('free windows: the window', () => {
       const state = store.getSnapshot().state!
       expect(state.floats).toHaveLength(1)
       expect(state.floats[0]!.tab.id).toBe('notes')
-      // Born at the conversation column's center, minus half the default
-      // size (480x360), clamped into the 1024x768 viewport.
-      expect(state.floats[0]).toMatchObject({ x: 400 - 240, y: 325 - 180, w: 480, h: 360 })
+      // Born at the conversation column's center with the phone-ratio
+      // default (390x780), created capped to the jsdom viewport (h 744) and
+      // clamped in (the centered y would be negative).
+      expect(state.floats[0]).toMatchObject({ x: 400 - 195, y: 0, w: 390, h: 744 })
       expect(container.querySelector('[data-dsh-float-window]')).not.toBeNull()
     } finally {
       unmount()
@@ -230,20 +231,22 @@ describe('free windows: the window', () => {
       act(() => { store.reduce(s => floatTabReducer(s, 'notes', 512, 384)) })
       const win = container.querySelector<HTMLElement>('[data-dsh-float-window]')!
       const header = win.querySelector<HTMLElement>('[class*="floatHeader"]')!
-      expect(win.style.left).toBe('272px')
+      expect(win.style.left).toBe('317px')
       // Grab at (300, 220) — the drag records the window's own origin, so
-      // moving the pointer to (200, 250) lands the window at (172, 234).
+      // moving the pointer to (200, 250) lands the window at (217, 42) —
+      // clamped back up to y 24 (the 744-tall window must stay in the
+      // 768-tall viewport: 768 - 744 = 24).
       act(() => {
         header.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 300, clientY: 220, button: 0 }))
         header.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 200, clientY: 250 }))
       })
       await flushFrame()
-      expect(win.style.left).toBe('172px')
-      expect(win.style.top).toBe('234px')
+      expect(win.style.left).toBe('217px')
+      expect(win.style.top).toBe('24px')
       // The store is untouched mid-drag (DOM is the only record).
-      expect(store.getSnapshot().state!.floats[0]!.x).toBe(272)
+      expect(store.getSnapshot().state!.floats[0]!.x).toBe(317)
       act(() => { header.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 200, clientY: 250, button: 0 })) })
-      expect(store.getSnapshot().state!.floats[0]).toMatchObject({ x: 172, y: 234 })
+      expect(store.getSnapshot().state!.floats[0]).toMatchObject({ x: 217, y: 24 })
     } finally {
       unmount()
     }
@@ -258,14 +261,16 @@ describe('free windows: the window', () => {
       const win = container.querySelector<HTMLElement>('[data-dsh-float-window]')!
       const handle = win.querySelector<HTMLElement>('[class*="floatResize"]')!
       act(() => {
-        handle.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 752, clientY: 564, button: 0 }))
-        handle.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 852, clientY: 614 }))
+        handle.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 700, clientY: 750, button: 0 }))
+        handle.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 800, clientY: 800 }))
       })
       await flushFrame()
-      expect(win.style.width).toBe('580px')
-      expect(win.style.height).toBe('410px')
-      act(() => { handle.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 852, clientY: 614, button: 0 })) })
-      expect(store.getSnapshot().state!.floats[0]).toMatchObject({ w: 580, h: 410 })
+      // +100/+50 from the created 390x744: height clamps to the viewport
+      // ceiling (768 - y 12 = 756).
+      expect(win.style.width).toBe('490px')
+      expect(win.style.height).toBe('756px')
+      act(() => { handle.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 800, clientY: 800, button: 0 })) })
+      expect(store.getSnapshot().state!.floats[0]).toMatchObject({ w: 490, h: 756 })
     } finally {
       unmount()
     }
@@ -279,7 +284,7 @@ describe('free windows: the window', () => {
       act(() => { store.reduce(s => floatTabReducer(s, 'notes', 512, 384)) })
       const win = container.querySelector<HTMLElement>('[data-dsh-float-window]')!
       const header = win.querySelector<HTMLElement>('[class*="floatHeader"]')!
-      expect(win.style.left).toBe('272px')
+      expect(win.style.left).toBe('317px')
       act(() => { header.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 300, clientY: 220 })) })
       // The menu list is PORTALED to document.body, yet its events still
       // bubble through the React tree into the header's onPointerDown —
@@ -293,7 +298,7 @@ describe('free windows: the window', () => {
         header.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 200, clientY: 250 }))
       })
       await flushFrame()
-      expect(win.style.left).toBe('272px')
+      expect(win.style.left).toBe('317px')
       act(() => { dockRow.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
       expect(store.getSnapshot().state!.floats).toHaveLength(0)
       expect(paneTabs(store)).toContain('notes')

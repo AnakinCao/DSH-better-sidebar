@@ -120,9 +120,12 @@ export const BOTTOM_DEFAULT = 220
  *  header plus some content), the ceiling is the viewport. */
 export const FLOAT_MIN_W = 320
 export const FLOAT_MIN_H = 200
-/** Geometry a fresh free window starts with (clamped to the viewport). */
-export const FLOAT_DEFAULT_W = 480
-export const FLOAT_DEFAULT_H = 360
+/** Geometry a fresh free window starts with: a phone-like portrait ratio
+ *  (390×780 ≈ 1:2). The creation path additionally caps the size to the
+ *  viewport (minus a 24px margin), so a short viewport gets a shorter —
+ *  not overflowing — window instead of an exact ratio. */
+export const FLOAT_DEFAULT_W = 390
+export const FLOAT_DEFAULT_H = 780
 
 let nextIdCounter = 0
 /** Unique pane/tab id within one state instance. */
@@ -777,11 +780,17 @@ export function floatTab(state: SidebarState, tabId: string, x: number, y: numbe
     if (leaf.tabs.length === 0) emptied = true
   })
   if (emptied) node = removeLeafAt(node, source.id)
+  // Phone-ratio default, capped to the viewport before centering so the
+  // clamped position never leaves the window's bottom past the fold.
+  const vw = viewportW()
+  const vh = viewportH()
+  const width = Math.min(FLOAT_DEFAULT_W, Math.max(FLOAT_MIN_W, vw - 24))
+  const height = Math.min(FLOAT_DEFAULT_H, Math.max(FLOAT_MIN_H, vh - 24))
   const window = clampFloatGeometry(
-    x - FLOAT_DEFAULT_W / 2,
-    y - FLOAT_DEFAULT_H / 2,
-    FLOAT_DEFAULT_W,
-    FLOAT_DEFAULT_H,
+    x - width / 2,
+    y - height / 2,
+    width,
+    height,
   )
   const next: SidebarState = {
     ...state,
