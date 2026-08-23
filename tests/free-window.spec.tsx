@@ -23,7 +23,7 @@ import { act } from 'react-dom/test-utils'
 ;(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true
 
 import { Sidebar } from '../src/client/Sidebar.tsx'
-import { createSidebarStore, type SidebarStore, floatTab as floatTabReducer } from '../src/client/state.ts'
+import { createSidebarStore, togglePanel, type SidebarStore, floatTab as floatTabReducer } from '../src/client/state.ts'
 import { createBetterSidebarService, type BetterSidebarService } from '../src/client/service.ts'
 import { serializeDrag } from '../src/client/TabBar.tsx'
 
@@ -73,7 +73,15 @@ function mountSidebar(): Mounted {
   document.body.append(container)
   const store = createSidebarStore()
   const service = createBetterSidebarService(store)
-  service.registerTab({ id: 'notes', title: 'Notes', single: true, component: () => createElement('div', null, 'notes body') })
+  service.registerTab({
+    id: 'notes',
+    title: 'Notes',
+    single: true,
+    // Pins the visibility contract into the DOM: plugin components honor
+    // `visible` to pause work, so the float tests can assert what a
+    // registering plugin would actually receive.
+    component: ({ visible }) => createElement('div', { 'data-visible': String(visible) }, 'notes body'),
+  })
   store.setPrefs({ ...store.getPrefs(), openByDefault: true })
   store.setSession('s1')
   const localeSnapshot = { active: 'en' }
@@ -289,6 +297,26 @@ describe('free windows: the window', () => {
       act(() => { dockRow.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
       expect(store.getSnapshot().state!.floats).toHaveLength(0)
       expect(paneTabs(store)).toContain('notes')
+    } finally {
+      unmount()
+    }
+  })
+
+  it('a floated plugin tab stays visible while the panel collapses (placement contract)', () => {
+    fakeConversationColumn()
+    const { container, store, service, unmount } = mountSidebar()
+    try {
+      act(() => { service.openTab({ type: 'notes', title: 'Notes' }) })
+      act(() => { store.reduce(s => floatTabReducer(s, 'notes', 512, 384)) })
+      const win = container.querySelector<HTMLElement>('[data-dsh-float-window]')!
+      expect(win.querySelector<HTMLElement>('[data-visible]')!.dataset.visible).toBe('true')
+      // Collapse the sidebar: the pane's seeded home tab goes invisible
+      // (panel closed), but the float is its own surface — a registering
+      // plugin's component must keep receiving visible=true (AGENTS §7.5).
+      act(() => { store.reduce(togglePanel) })
+      expect(win.querySelector<HTMLElement>('[data-visible]')!.dataset.visible).toBe('true')
+      // (No pane-side control: the pane's remaining tab is the builtin editor
+      // home tab, which does not surface `visible` into the DOM.)
     } finally {
       unmount()
     }

@@ -1191,7 +1191,13 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
    * polling while the page is not actually visible). The pane id travels
    * with the tab so diff tabs can split below their source pane.
    */
-  const renderTab = (tab: SidebarTab, active: boolean, paneId: string, bottom = false) => (
+  // `placement` decides the visibility contract handed to the tab component:
+  // pane tabs are visible while their panel is open and they are active, but
+  // a free window is its own surface — its tab stays visible no matter what
+  // the panels do (the AGENTS §7.5 contract; plugin components honor
+  // `visible` to pause work, so tying floats to panelOpen would blank them
+  // the moment the sidebar collapses).
+  const renderTab = (tab: SidebarTab, active: boolean, paneId: string, placement: 'top' | 'bottom' | 'float' = 'top') => (
     <TabContent
       tab={tab}
       paneId={paneId}
@@ -1202,7 +1208,13 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       onReferenceFile={referenceInChat}
       ctx={ctx}
       store={store}
-      visible={bottom ? state.bottomOpen && active : state.panelOpen && active}
+      visible={
+        placement === 'float'
+          ? true
+          : placement === 'bottom'
+            ? state.bottomOpen && active
+            : state.panelOpen && active
+      }
       onSubagentJump={(childSessionId) => { subagentJumpRef.current = childSessionId }}
       onOpenDiff={(diffTab) => { store.reduce(s => openDiffTab(s, paneId, diffTab)) }}
       localeRevision={localeRevision}
@@ -1469,7 +1481,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
             newTabOptions={buildNewTabOptions(state, ctx, { sessionId, cwd })}
             actions={actions}
             onNewTab={onNewTab}
-            renderTab={(tab, active, paneId) => renderTab(tab, active, paneId, true)}
+            renderTab={(tab, active, paneId) => renderTab(tab, active, paneId, 'bottom')}
             getTabIcon={tabIconOf}
             getTabBadge={tabBadgeOf}
           />
@@ -1488,7 +1500,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
         <FreeWindow
           key={float.id}
           float={float}
-          renderTab={renderTab}
+          renderTab={(tab, active, paneId) => renderTab(tab, active, paneId, 'float')}
           getTabIcon={tabIconOf}
           onRaise={() => { store.reduce(s => raiseFloat(s, float.id)) }}
           onMove={(x, y) => { store.reduce(s => moveFloat(s, float.id, x, y)) }}
