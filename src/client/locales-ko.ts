@@ -177,6 +177,8 @@ export const ko: Record<string, string> = {
   settingsWidthSuffix: '%',
   settingsOpenPathTitle: '채팅 영역 파일을 사이드바에서 열기',
   settingsOpenPathDesc: '채팅에서 파일 링크(도구 행, 산출물 목록, 파일 언급)를 클릭하면 사이드바 편집기에서 열고, 시스템 기본 앱은 호출하지 않습니다',
+  settingsOpenToolsTitle: '모델에 사이드바 열기 도구 주입',
+  settingsOpenToolsDesc: '켜면 모델이 sidebar_open 도구로 사이드바에서 파일·폴더·HTTP(S) 페이지를 열 수 있습니다(기본 꺼짐)',
   settingsTitleBarTitle: '위치 호환 모드',
   settingsTitleBarDesc: '상단 바 호환 방식을 선택하세요: 자동 감지(기본, 보수적) / DSH 공식 Web / 알려진 데스크톱 셸 / 사용자 지정 방식(하강 거리 + 사용자 지정 CSS)',
   settingsTitleBarStripTitle: '하강 거리',

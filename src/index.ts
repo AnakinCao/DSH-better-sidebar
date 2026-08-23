@@ -23,6 +23,7 @@ import {
   Config,
   PrefsSchema,
   resolveSidebarConfig,
+  SIDEBAR_PREFS_DEFAULTS,
   SIDEBAR_PREFS_NS,
   type ResolvedSidebarConfig,
   type SidebarConfig,
@@ -48,6 +49,7 @@ import {
   PTY_DEPS_MISSING,
 } from './pty-deps.ts'
 import { registerTools } from './tools.ts'
+import { AgentOpenRegistry, registerOpenTool, type AgentOpenRequest } from './agent-opens.ts'
 import { buildJobsApi, type SidebarJobsRoutes } from './jobs-routes.ts'
 import { buildSubagentLiveApi, type SidebarSubagentLiveRoutes } from './subagent-live-route.ts'
 import { buildSidechatApi } from './sidechat-routes.ts'
@@ -588,6 +590,11 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   const agentPtyRegistry = nodePty !== null
     ? new AgentPtyRegistry(terminalShell, resolved.shellArgs, nodePty)
     : null
+  // The model-facing open-request registry: queues `sidebar_open` requests
+  // per session and pushes them to connected sidebar views over the
+  // `/sidebar/ws/agent-opens` socket. Unlike the pty registry it has no
+  // native dependencies — the tool works even in node-pty degraded mode.
+  const agentOpenRegistry = new AgentOpenRegistry()
 
   // ── User-facing "Side card" preferences ──────────────────────────────────
   // Register the namespace with the settings provider so the Settings page
@@ -603,6 +610,10 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   // turns the feature on, and turning it off mid-session unregisters the
   // tools and releases the agent terminals they created.
   let toolsDisposers: (() => void) | null = null
+  // The model-facing `sidebar_open` tool is gated the same way (see
+  // syncOpenToolsGate below); separate disposer (no native deps, and turning
+  // the feature off must not release user terminals).
+  let openToolsDisposers: (() => void) | null = null
   const syncToolsGate = (scope: { get(): SidebarPrefs }): void => {
     if (scope.get().agentTerminalTools) {
       if (toolsDisposers === null) {
@@ -657,7 +668,38 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     // Register (or unregister) the terminal tools from the current setting,
     // and keep them in sync with every settings commit.
     syncToolsGate(scope)
-    scope.watch(() => { syncToolsGate(scope) })
+    // The model-facing open tool is gated the same way on `agentOpenTools`
+    // (default off): nothing is injected until the user turns the feature
+    // on, and turning it off mid-session unregisters the tool and drops the
+    // queued (undelivered) open requests. Already-delivered opens keep their
+    // tabs — the tools' only lever is the queue, not the rendered state.
+    const syncOpenToolsGate = (): void => {
+      if (scope.get().agentOpenTools) {
+        if (openToolsDisposers === null) {
+          openToolsDisposers = registerOpenTool(
+            ctx,
+            agentOpenRegistry,
+            (sessionId) => sessionCwdOf(ctx, sessionId),
+            () => {
+              const view = settingsFace?.get()
+              const value = view?.value
+              return value !== null && typeof value === 'object'
+                ? value as SidebarPrefs
+                : SIDEBAR_PREFS_DEFAULTS
+            },
+          )
+        }
+      } else if (openToolsDisposers !== null) {
+        openToolsDisposers()
+        openToolsDisposers = null
+        agentOpenRegistry.drainAll()
+      }
+    }
+    syncOpenToolsGate()
+    // ONE watch subscription drives both gates: settings commits re-evaluate
+    // the terminal tools AND the open tool together (each gate is idempotent
+    // and owns its own disposer).
+    scope.watch(() => { syncToolsGate(scope); syncOpenToolsGate() })
   })
 
   // ── JSON API ────────────────────────────────────────────────────────────
@@ -890,13 +932,65 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     },
   }), 'dsh-better-sidebar: agent-terminals push WebSocket')
 
+  // ── Agent opens push WebSocket ─────────────────────────────────────────
+  // Pushes `sidebar_open` requests for one session to the sidebar view: the
+  // host queues each request in the registry (consume-on-send), so a
+  // connected view applies it immediately and a disconnected one gets the
+  // replay when it attaches. The client mirrors each request into an
+  // editor / folder-window / browser tab open.
+  const agentOpenWss = new WebSocketServer({ noServer: true })
+  ctx.effect(() => ctx.webServer.registerUpgrade({
+    path: '/sidebar/ws/agent-opens',
+    handler: (req, socket, head) => {
+      if (!fence(req)) {
+        socket.destroy()
+        return
+      }
+      agentOpenWss.handleUpgrade(req as unknown as IncomingMessage, socket as unknown as Duplex, head as Buffer, (ws) => {
+        void attachAgentOpen(agentOpenRegistry, ws, req)
+      })
+    },
+  }), 'dsh-better-sidebar: agent-opens push WebSocket')
+
   ctx.effect(() => () => {
     toolsDisposers?.()
+    openToolsDisposers?.()
     ptyManager?.disposeAll()
     agentPtyRegistry?.disposeAll()
+    agentOpenRegistry.dispose()
     wss.close()
     agentListWss.close()
+    agentOpenWss.close()
   }, 'dsh-better-sidebar: teardown')
+}
+
+/** Push queued `sidebar_open` requests for one session to a connected view. */
+async function attachAgentOpen(
+  registry: AgentOpenRegistry,
+  ws: WebSocket,
+  req: SidebarHttpRequest,
+): Promise<void> {
+  try {
+    const url = new URL(req.url ?? '/', 'http://dsh.internal')
+    const sessionId = url.searchParams.get('sessionId')
+    if (sessionId === null) {
+      ws.close(1008, 'sessionId is required')
+      return
+    }
+    const send = (request: AgentOpenRequest): void => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(request))
+      }
+    }
+    // Attach replays the queued (undelivered) requests for this session; the
+    // disposer detaches the view on socket close/error so later opens queue
+    // instead of accumulating on a dead socket.
+    const unsubscribe = registry.attach(sessionId, send)
+    ws.on('close', () => { unsubscribe() })
+    ws.on('error', () => { unsubscribe() })
+  } catch (error) {
+    ws.close(1011, error instanceof Error ? error.message : String(error))
+  }
 }
 
 /** Push the live agent-terminal list for one session to a connected sidebar view. */

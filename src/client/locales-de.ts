@@ -171,6 +171,8 @@ export const de: Record<string, string> = {
   settingsWidthSuffix: '%',
   settingsOpenPathTitle: 'Chat-Dateien in der Seitenleiste öffnen',
   settingsOpenPathDesc: 'Dateilinks im Chat (Werkzeugzeilen, erstellte Dateien, Erwähnungen) werden im Seitenleisten-Editor geöffnet statt in der System-Standardanwendung',
+  settingsOpenToolsTitle: 'Seitenleisten-Öffnungswerkzeug für das Modell bereitstellen',
+  settingsOpenToolsDesc: 'Wenn aktiviert, kann das Modell über das sidebar_open-Werkzeug Dateien, Ordner und HTTP(S)-Seiten in der Seitenleiste öffnen (standardmäßig deaktiviert)',
   settingsTitleBarTitle: 'Kompatibilitätsmodus der Position',
   settingsTitleBarDesc: 'Kompatibilitätsschema der Titelleiste wählen: automatische Erkennung (Standard, konservativ) / offizielles DSH-Web / bekannte Desktop-Shells / benutzerdefiniert (Verschiebung + benutzerdefiniertes CSS)',
   settingsTitleBarStripTitle: 'Verschiebungsabstand',
