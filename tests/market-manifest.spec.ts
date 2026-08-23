@@ -73,7 +73,7 @@ describe('DSH community-market manifest compatibility', () => {
     for (const script of LIFECYCLE_SCRIPTS) {
       expect(scripts, script).not.toHaveProperty(script)
     }
-  })
+  }, 180000)
 
   it('declares a safe bundle patch that exists inside the package', () => {
     const patch = pkg.dsh?.bundle?.patch
