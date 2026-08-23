@@ -89,6 +89,7 @@ export const pt: Record<string, string> = {
   commit: 'Commit',
   commitError: 'Falha no commit',
   branch: 'Branch',
+  worktree: 'Worktree',
   checkoutError: 'Falha ao alternar de branch',
   history: 'Histórico',
   changes: 'Alterações',

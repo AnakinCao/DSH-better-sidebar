@@ -121,6 +121,7 @@ export const zhHK: Record<string, string> = {
   commit: '提交',
   commitError: '提交失敗',
   branch: '分支',
+  worktree: '工作樹',
   checkoutError: '切換分支失敗',
   history: '歷史',
   changes: '變更',

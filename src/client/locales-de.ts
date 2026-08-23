@@ -92,6 +92,7 @@ export const de: Record<string, string> = {
   commit: 'Committen',
   commitError: 'Commit fehlgeschlagen',
   branch: 'Branch',
+  worktree: 'Worktree',
   checkoutError: 'Branchenwechsel fehlgeschlagen',
   history: 'Verlauf',
   changes: 'Änderungen',

@@ -106,6 +106,7 @@ export const hi: Record<string, string> = {
   commit: 'कमिट',
   commitError: 'कमिट विफल',
   branch: 'ब्रांच',
+  worktree: 'वर्कट्री',
   checkoutError: 'ब्रांच स्विच विफल',
   history: 'इतिहास',
   changes: 'बदलाव',

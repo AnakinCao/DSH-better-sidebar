@@ -28,8 +28,9 @@ import {
   type SidebarConfig,
   type SidebarPrefs,
 } from './config.ts'
-import { isWithin, parentOf, requireAbsolute, listDirectory, rootLabel } from './fs-tree.ts'
+import { parentOf, requireAbsolute, listDirectory, rootLabel } from './fs-tree.ts'
 import { writeWorkspaceUpload } from './fs-operations.ts'
+import { ensureWorkspacePath, ensureWorkspaceWritePath } from './path-security.ts'
 import { searchFiles } from './fs-search.ts'
 import { decodeHtmlUrl } from './html-route.ts'
 import { extractFrameAncestors } from './browser-probe.ts'
@@ -54,8 +55,10 @@ import { readJsonBody, requireString, SidebarError, writeError, writeJson, write
 
 export { Config }
 export type { SidebarConfig, ResolvedSidebarConfig }
-// Re-export the Context augmentation (declare module 'cordis') so consumers
-// `import type {} from 'dsh-better-sidebar'` and gain `ctx.betterSidebar`.
+// Re-export the Context augmentation (`declare module '@deepseek-ai/cordis'`)
+// so consumers `import type {} from 'dsh-better-sidebar'` and gain
+// `ctx.betterSidebar`; the Context re-export below is the vendored cordis
+// Context intersected with the structural service faces.
 // Also re-export the service descriptor types so consumers can type their
 // registerTab / registerFileViewer arguments without reaching into /client.
 export type { Context } from './context-types.ts'
@@ -119,6 +122,13 @@ function sessionCwdOf(ctx: Context, sessionId: string, clientCwd?: string): stri
   return process.cwd()
 }
 
+/** Optional repository selected by the Git panel when cwd is a container. */
+function selectedRepoOf(payload: unknown): string | undefined {
+  const record = payload as { repoRoot?: unknown }
+  if (record.repoRoot === undefined) return undefined
+  return requireAbsolute(requireString(payload, 'repoRoot'))
+}
+
 /**
  * Resolve a path that a git command reported — `git status`/`git diff`
  * print paths RELATIVE TO THE REPO TOP LEVEL, which may sit above the
@@ -126,9 +136,15 @@ function sessionCwdOf(ctx: Context, sessionId: string, clientCwd?: string): stri
  * paths pass through; relative ones join the repo root (falling back to the
  * cwd when the root cannot be resolved, e.g. a bare directory).
  */
-async function resolveGitPath(cwd: string, raw: string): Promise<string> {
+async function resolveGitPath(cwd: string, raw: string, selected?: string): Promise<string> {
   if (isAbsolute(raw)) return requireAbsolute(raw)
-  const root = await git.repoRoot(cwd).catch(() => cwd)
+  // Prefer the session-relative interpretation when it names an existing
+  // path. Git status reports repository-root-relative names, but the sidebar
+  // security boundary is the session workspace; this preference keeps files
+  // inside a nested session readable without reopening the repository root.
+  const sessionPath = requireAbsolute(join(cwd, raw))
+  if (await stat(sessionPath).then(() => true).catch(() => false)) return sessionPath
+  const root = await git.repoRoot(cwd, selected).catch(() => cwd)
   return requireAbsolute(join(root, raw))
 }
 
@@ -230,6 +246,14 @@ function buildApi(
     const clientCwd = typeof record?.cwd === 'string' && record.cwd !== '' ? record.cwd : undefined
     return { sessionId, cwd: sessionCwdOf(ctx, sessionId, clientCwd) }
   }
+  /** Resolve the optional Git-panel checkout selector against the authoritative
+   * session repository. Unlike `cwd`, `worktree` is never trusted directly. */
+  const gitCwdOf = async (payload: unknown): Promise<{ sessionId: string; cwd: string }> => {
+    const base = cwdOf(payload)
+    const record = payload as { worktree?: unknown } | null
+    const requested = typeof record?.worktree === 'string' && record.worktree !== '' ? record.worktree : undefined
+    return { sessionId: base.sessionId, cwd: await git.resolveWorktree(base.cwd, requested) }
+  }
   // Background jobs: the LIST rides the harness's `session/jobs` push
   // mirror, so these routes only replay output the model has read (from the
   // session's own event log — no DSH source is touched, the model's
@@ -248,7 +272,7 @@ function buildApi(
     'fs.tree': async (payload) => {
       const { cwd } = cwdOf(payload)
       const record = payload as { path?: unknown }
-      const target = record.path === undefined ? cwd : requireAbsolute(requireString(payload, 'path'))
+      const target = record.path === undefined ? cwd : await ensureWorkspacePath(cwd, requireString(payload, 'path'))
       return listDirectory(target, resolved.listLimit)
     },
     'fs.search': async (payload) => {
@@ -262,15 +286,18 @@ function buildApi(
     'fs.read': async (payload) => {
       const { cwd } = cwdOf(payload)
       // Relative paths are git-derived (status/diff report repo-root-relative
-      // names; the untracked diff view reads the file through this route).
-      const path = await resolveGitPath(cwd, requireString(payload, 'path'))
+      // names; the untracked diff view reads the file through this route). A
+      // child-repo path is relative to the selected repoRoot, not the session
+      // cwd; thread it so the path resolves inside the authorized workspace.
+      const selected = selectedRepoOf(payload)
+      const path = await ensureWorkspacePath(cwd, await resolveGitPath(cwd, requireString(payload, 'path'), selected))
       const { content, truncated, binary, size, head } = await readText(path, resolved.readLimit)
       if (binary) return { kind: 'binary', size, truncated, head }
       return { kind: 'text', content, truncated }
     },
     'fs.write': async (payload) => {
       const { cwd } = cwdOf(payload)
-      const path = requireAbsolute(requireString(payload, 'path'))
+      const path = await ensureWorkspaceWritePath(cwd, requireString(payload, 'path'))
       const content = requireString(payload, 'content')
       const tmp = `${path}.dsh-sidebar-tmp-${process.pid}`
       try {
@@ -283,47 +310,57 @@ function buildApi(
       }
       return { ok: true }
     },
+    'git.worktrees': async (payload) => {
+      const { cwd } = await gitCwdOf(payload)
+      const selected = selectedRepoOf(payload)
+      // A workspace container (no repo at cwd) has child repos; the worktree
+      // list belongs to the SELECTED child, not the container. Thread the
+      // validated repoRoot so linked checkouts of a chosen child appear.
+      const base = selected !== undefined ? await git.repoRoot(cwd, selected).catch(() => cwd) : cwd
+      return git.worktrees(base)
+    },
     'git.status': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      return git.status(cwd)
+      const { cwd } = await gitCwdOf(payload)
+      return git.status(cwd, selectedRepoOf(payload))
     },
     'git.diff': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { cwd } = await gitCwdOf(payload)
       const record = payload as { path?: unknown; staged?: unknown }
-      const path = record.path === undefined ? undefined : await resolveGitPath(cwd, requireString(payload, 'path'))
-      return { diff: await git.diff(cwd, path, record.staged === true) }
+      const repoRoot = selectedRepoOf(payload)
+      const path = record.path === undefined ? undefined : await resolveGitPath(cwd, requireString(payload, 'path'), repoRoot)
+      return { diff: await git.diff(cwd, path, record.staged === true, repoRoot) }
     },
     'git.stage': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { cwd } = await gitCwdOf(payload)
       const record = payload as { path?: unknown }
       const path = record.path === undefined ? undefined : requireString(payload, 'path')
-      await git.stage(cwd, path)
+      await git.stage(cwd, path, selectedRepoOf(payload))
       return { ok: true }
     },
     'git.unstage': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { cwd } = await gitCwdOf(payload)
       const record = payload as { path?: unknown }
       const path = record.path === undefined ? undefined : requireString(payload, 'path')
-      await git.unstage(cwd, path)
+      await git.unstage(cwd, path, selectedRepoOf(payload))
       return { ok: true }
     },
     'git.commit': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { cwd } = await gitCwdOf(payload)
       const message = requireString(payload, 'message')
-      await git.commit(cwd, message)
+      await git.commit(cwd, message, selectedRepoOf(payload))
       return { ok: true }
     },
     'git.branch': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      return git.branches(cwd)
+      const { cwd } = await gitCwdOf(payload)
+      return git.branches(cwd, selectedRepoOf(payload))
     },
     'git.checkout': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.checkout(cwd, requireString(payload, 'branch'))
+      const { cwd } = await gitCwdOf(payload)
+      await git.checkout(cwd, requireString(payload, 'branch'), selectedRepoOf(payload))
       return { ok: true }
     },
     'git.log': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { cwd } = await gitCwdOf(payload)
       const record = payload as { count?: unknown; skip?: unknown }
       const count = typeof record.count === 'number' && Number.isInteger(record.count) && record.count > 0
         ? record.count
@@ -331,32 +368,34 @@ function buildApi(
       const skip = typeof record.skip === 'number' && Number.isInteger(record.skip) && record.skip >= 0
         ? record.skip
         : undefined
-      return git.log(cwd, count, skip)
+      return git.log(cwd, count, skip, selectedRepoOf(payload))
     },
     'git.commit-diff': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      return { diff: await git.commitDiff(cwd, requireString(payload, 'hash')) }
+      const { cwd } = await gitCwdOf(payload)
+      return { diff: await git.commitDiff(cwd, requireString(payload, 'hash'), selectedRepoOf(payload)) }
     },
     'git.discard': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.discard(cwd, await resolveGitPath(cwd, requireString(payload, 'path')))
+      const { cwd } = await gitCwdOf(payload)
+      const repoRoot = selectedRepoOf(payload)
+      await git.discard(cwd, await resolveGitPath(cwd, requireString(payload, 'path'), repoRoot), repoRoot)
       return { ok: true }
     },
     'git.revert': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.revert(cwd, requireString(payload, 'hash'))
+      const { cwd } = await gitCwdOf(payload)
+      await git.revert(cwd, requireString(payload, 'hash'), selectedRepoOf(payload))
       return { ok: true }
     },
     'git.cherry-pick': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.cherryPick(cwd, requireString(payload, 'hash'))
+      const { cwd } = await gitCwdOf(payload)
+      await git.cherryPick(cwd, requireString(payload, 'hash'), selectedRepoOf(payload))
       return { ok: true }
     },
     'git.show': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      const path = await resolveGitPath(cwd, requireString(payload, 'path'))
+      const { cwd } = await gitCwdOf(payload)
+      const repoRoot = selectedRepoOf(payload)
+      const path = await resolveGitPath(cwd, requireString(payload, 'path'), repoRoot)
       const rev = requireString(payload, 'rev')
-      return { content: await git.show(cwd, rev, path) }
+      return { content: await git.show(cwd, rev, path, repoRoot) }
     },
     // Release a terminal immediately. The WebSocket close frame already does
     // this while the socket is open; this route covers the tab-close that
@@ -722,14 +761,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
         const raw = url.searchParams.get('path')
         if (sessionId === null || raw === null) throw new SidebarError('bad-request', 'sessionId and path are required')
         const cwd = sessionCwdOf(ctx, sessionId, url.searchParams.get('cwd') ?? undefined)
-        const path = requireAbsolute(raw)
-        if (!isWithin(cwd, path)) {
-          // Only files under the session cwd are served as media (the editor
-          // opens images from the explorer; produced files go through read).
-          // isWithin (not a raw startsWith) so case-mismatched Windows paths
-          // and mixed separators cannot be misclassified.
-          throw new SidebarError('fs-error', 'media path outside the session working directory', 403)
-        }
+        const path = await ensureWorkspacePath(cwd, raw)
         const info = await stat(path)
         if (!info.isFile() || info.size > resolved.mediaLimit) {
           throw new SidebarError('fs-error', 'not a file or too large', 400)
@@ -784,13 +816,11 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
         const { sessionId, path } = decoded.ref
         // The session's authoritative cwd (client cwd cannot ride in the URL
         // — the path encoding has no query; a detached first request falls
-        // back to the process cwd and is normally refused by isWithin, same
-        // semantics as the media route's fallback).
+        // back to the process cwd and is normally refused by the workspace
+        // real-path guard, with the same semantics as the media route's
+        // fallback.
         const cwd = sessionCwdOf(ctx, sessionId)
-        const absolute = requireAbsolute(path)
-        if (!isWithin(cwd, absolute)) {
-          throw new SidebarError('fs-error', 'html path outside the session working directory', 403)
-        }
+        const absolute = await ensureWorkspacePath(cwd, path)
         const info = await stat(absolute)
         if (!info.isFile() || info.size > resolved.mediaLimit) {
           throw new SidebarError('fs-error', 'not a file or too large', 400)

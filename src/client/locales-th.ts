@@ -106,6 +106,7 @@ export const th: Record<string, string> = {
   commit: 'Commit',
   commitError: 'Commit ล้มเหลว',
   branch: 'Branch',
+  worktree: 'เวิร์กทรี',
   checkoutError: 'สลับ branch ล้มเหลว',
   history: 'ประวัติ',
   changes: 'การเปลี่ยนแปลง',

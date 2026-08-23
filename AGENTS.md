@@ -11,6 +11,7 @@ better-sidebar 从 v0.4.0 起暴露 `ctx.betterSidebar` 服务（Cordis context 
 - **禁止修改 DeepSeek Harness (DSH) 源码**：对官方源码 checkout（`~/.dsh/source/current`）零写入——不得改 harness 包、不得把 harness 改动提交到它的分支。
 - **代码改动必须走 PR**：功能 / 修复 / 测试等非文档改动一律在分支上开发（`feat/*` / `fix/*`），用 `gh pr create` 发起 PR，review 合并后才进 main；**仅纯文档类改动**（README / AGENTS.md / docs/ 等）允许直接推送到 main。
 - **挂载只走 `cordis.patch.yml` + profile 机制**（`~/.dsh/profiles/<profile>/`），插件永远作为独立包被 profile 引用，不反向侵入 DSH。
+- **DSH 市场受管安装兼容约束**：发布清单的 `dependencies` / `peerDependencies` / `optionalDependencies` 三字段**一律不得出现 `cordis`**（市场预览按名硬拒，optional 无效），且 `scripts` 不得含 `preinstall` / `install` / `postinstall` / `prepare`。回归由 `tests/market-manifest.spec.ts` 守护——违反即市场目录拿不到 `repository_backlink` 验证目标。
 - 需要 harness 没有的能力时，用 DSH **现成的只读/公开 API** 或插件自有路由实现（参考 §7 的 `jobs.output` 事件回放：读会话事件日志而非动注册表）；如果确实做不到，先向用户说明取舍，而不是直接改 DSH。
 
 ### CI 挂载冒烟（`plugin-mount` job / `pnpm test:mount`）
@@ -39,7 +40,7 @@ better-sidebar 从 v0.4.0 起暴露 `ctx.betterSidebar` 服务（Cordis context 
 - **服务名**：`betterSidebar`（即 `ctx.betterSidebar`）
 - **发布侧**：better-sidebar 的 client half（`src/client/index.tsx`，通过 `ctx.provide('betterSidebar', service)` 发布）
 - **消费侧**：你的插件的 client half（`inject = ['betterSidebar', ...]`，然后 `ctx.betterSidebar.registerTab(...)`）
-- **类型合并**：`declare module 'cordis' { interface Context { betterSidebar: BetterSidebarService } }` 由 `dsh-better-sidebar` 包导出；消费插件 `import type {} from 'dsh-better-sidebar'` 即触发类型合并
+- **类型合并**：`declare module '@deepseek-ai/cordis' { interface Context { betterSidebar: BetterSidebarService } }` 由 `dsh-better-sidebar` 包导出；消费插件 `import type {} from 'dsh-better-sidebar'` 即触发类型合并
 
 > ⚠️ **host 半不发布此服务**：`ctx.betterSidebar` 只在 client 侧存在。如果你的插件 host 半需要读 better-sidebar 状态，走 better-sidebar 自己的 HTTP/WS 路由（`/sidebar/api/*`），不走服务。
 
@@ -53,7 +54,7 @@ better-sidebar 从 v0.4.0 起暴露 `ctx.betterSidebar` 服务（Cordis context 
 {
   "name": "my-plugin",
   "peerDependencies": {
-    "cordis": "^4.0.0-rc.8",
+    "@deepseek-ai/cordis": "^4.0.1",
     "dsh-better-sidebar": "workspace:*"
   },
   "peerDependenciesMeta": {
@@ -115,7 +116,7 @@ import type {
 } from 'dsh-better-sidebar/client/service'
 ```
 
-> 💡 **类型合并触发路径**：`import type {} from 'dsh-better-sidebar/client/service'` 同样会加载 `Context` 的 augmentation（`declare module 'cordis'` 在 context-types.d.ts 中，service 声明会拉入它）——纯浏览器侧插件建议走 `client/service` 路径，避免拉进宿主半的 Node 类型图（主入口 `dsh-better-sidebar` 的声明面含宿主代码，宿主消费者本就处于 Node 环境）。client 可达声明图（`client/*` + context-types + html-route + prefs-shared）自 v0.12.0 起**零 Node 依赖**（`scripts/check-consumer-types.sh` 守护），无 `@types/node`、`skipLibCheck: false` 也能编译。
+> 💡 **类型合并触发路径**：`import type {} from 'dsh-better-sidebar/client/service'` 同样会加载 `Context` 的 augmentation（`declare module '@deepseek-ai/cordis'` 在 context-types.d.ts 中，service 声明会拉入它）——纯浏览器侧插件建议走 `client/service` 路径，避免拉进宿主半的 Node 类型图（主入口 `dsh-better-sidebar` 的声明面含宿主代码，宿主消费者本就处于 Node 环境）。client 可达声明图（`client/*` + context-types + html-route + prefs-shared）自 v0.12.0 起**零 Node 依赖**（`scripts/check-consumer-types.sh` 守护），无 `@types/node`、`skipLibCheck: false` 也能编译。
 
 ---
 
@@ -588,7 +589,7 @@ interface OpenTabSeed {
 | 陷阱 | 说明 |
 |---|---|
 | **构建纯度门** | client bundle 禁止 value-import `@dsh-external/*` 或非白名单的 `@deepseek-ai/*`；类型 `import type {}` 会被擦除，不触发门禁 |
-| **双 cordis 实例** | 外部插件解析不到 DSH monorepo 的 cordis augmentation；better-sidebar 自己重述了 `interface Context { betterSidebar: ... }`，你 `import type {}` 即拿到类型 |
+| **统一 cordis 分支（v0.15.2+）** | 类型基底与 augmentation 全部落在 DSH 运行时正主 `@deepseek-ai/cordis`（`src/context-types.ts`：真实 cordis `Context` 与结构化服务面做**交集**，不再重述 `declare module 'cordis'`——DSH host/client 包对同一成员声明不同类型（如 `sessions`），合并会 TS2717 冲突）。消费者 `import type {} from 'dsh-better-sidebar'` 即拿到 `ctx.betterSidebar` augmentation，或直接 `import type { Context } from 'dsh-better-sidebar'`。**公开版 `cordis` 不再被依赖**（市场规则拒绝依赖字段出现 `cordis`，见 §0 硬约束） |
 | **ModuleLoader 不跨插件** | 运行时 `require()` 虽支持跨 bundle，但被构建门挡；所有交互走 `ctx.betterSidebar` 方法调用 |
 | **host 半无此服务** | `ctx.betterSidebar` 只在 client 侧存在；host 半需要 better-sidebar 数据走 `/sidebar/api/*` HTTP 路由 |
 | **portal 限制** | 整面板 slot 由 ui-layout 独占，外部 tab 只能进入 better-sidebar 的 portal 内部，无法全屏替换 |
@@ -608,7 +609,7 @@ interface OpenTabSeed {
 
 - **面板表面**：右/底面板背景 = `var(--dsw-alias-bg-layer-1)`（通用卡片表面）。**绝不消费 `--dsw-specific-sidebar-fill`**——那是宿主左侧导航列专属令牌，皮肤系统按左导航语义覆盖它（dsh-web-ui 皮肤把它做成半透明玻璃或主题色，Aqua 设成 `transparent`），面板消费它会失去填充或与标签令牌冲突。皮肤要整体换面板表面：覆写 `--dsw-alias-bg-layer-1` 即可（dsh-web-ui 10 款皮肤都已覆盖，无需任何额外工作）。
 - **终端/编辑器表面**：经 `effectiveTokenValue` 读取 `--dsw-alias-bg-base`——`transparent` 与 alpha < 0.9 的半透明玻璃值（dsh-web-ui 皮肤用 rgba 0.16–0.7）一律回退不透明底色，文字永不叠在皮肤背景画上滚动（issue #90）；≥ 0.9 的近不透明值（如皮肤作用域内 0.96 的瓷器玻璃）放行，皮肤仍能控制终端表面。
-- **根锚点**：宿主 div 带 `data-dsh-better-sidebar` 属性（append 到 `document.body`）。其内是**统一面板宿主层** `[data-dsh-panel-host]`（`position:fixed; inset:0; z-index:40; pointer-events:none`，v0.13.1+）：面板/开关簇在其内 **absolute** 定位（层 inset:0 即视口坐标），免疫桌面套壳中间层 transform 对 fixed 含块的劫持；页面级 transform（罕见）触发 `data-dsh-panel-host-degraded` 降级同步。皮肤若要做作用域覆盖（deep-whale 的做法），限定在 `[data-dsh-better-sidebar]` 内即可，避免全局改写影响宿主。
+- **根锚点**：宿主 div 带 `data-dsh-better-sidebar` 属性（append 到 `document.body`）。其内是**统一面板宿主层** `[data-dsh-panel-host]`（`position:fixed; inset:0; z-index:25; pointer-events:none`，v0.13.1+）：面板/开关簇在其内 **absolute** 定位（层 inset:0 即视口坐标），免疫桌面套壳中间层 transform 对 fixed 含块的劫持；页面级 transform（罕见）触发 `data-dsh-panel-host-degraded` 降级同步。皮肤若要做作用域覆盖（deep-whale 的做法），限定在 `[data-dsh-better-sidebar]` 内即可，避免全局改写影响宿主。
 - **布局变量**（写在 `<html>` 上，面板打开时有效）：`--dsh-sidebar-width` / `--dsh-sidebar-height`（面板几何；拖拽期间逐帧更新）。宿主推挤 = `#root` 的 `margin-right/width: calc(100% - var)`（v0.13.1+ 防桌面壳加性溢出）与 centerCol 的 `margin-bottom`；推挤锚点是**复合选择器**（同一元素双保险，禁止退回 `nth-child` 位置锚定）：`#root [data-dsh-frame] > [data-pane="conversation"]` **与** `#root :has(> [data-slot="conversation"])`（0.1.x 命名 / rc.8 时代命名，live 页面实测同元素；`drag-layout.e2e.ts` 断言两者同元素）。
 - **桌面信号与标题栏兼容**（v0.14.1+ 四选项模型，取代旧"win32 advanced 自动 32px"硬编码）：
   - 壳信号（只读报告，不自动触发任何修改）：URL `dsh-desktop-mode` / `dsh-desktop-platform`（DSH Desktop 壳注入；preload 另暴露 `__DSH_DESKTOP_FILE_PATH__`）；可选契约参数 `dsh-desktop-titlebar-inset`（壳声明自己预留的顶栏像素，0–120，clamp；`parseDesktopEnv().titlebarInset`）。
@@ -618,7 +619,7 @@ interface OpenTabSeed {
   - **用户空间 CSS**：预设 css（`<style data-dsh-preset-css>`）与自定义 css（`<style data-dsh-custom-css>`）经 `Sidebar.tsx` effect 注入到 `document.head` 末尾（后写胜出；覆盖 JS 内联变量需 `!important`），fiber 卸载/变更即移除。稳定寻址面（皮肤/预设/自定义 CSS 共用）：`[data-dsh-toggle-cluster]`、`[data-dsh-panel]`（右面板）、`[data-dsh-bottom-panel]`（底面板）。
   - **拖拽区退出**：插件交互 chrome（`.toggleCluster` / `.toggleButton` / `.tabBar`）统一 `-webkit-app-region: no-drag`——无边框壳的顶部拖拽带会吞点击（#103/#111），该属性在普通浏览器与无拖拽区壳中惰性无害。
   - `compatibility` 模式与无信号环境不避让。
-- **z-index**：面板宿主层 40、折叠按钮簇 45（角手柄在面板内层叠，z-index 2 仅面板内有效）——全部低于 DSH 浮层栈（100/1000+），任何浮层天然盖住侧边栏。
+- **z-index**：面板宿主层 25、折叠按钮簇 45（host 内部层叠；角手柄在面板内层叠，z-index 2 仅面板内有效）——全部低于 DSH 的 ui-cordis 动态插件面板（fixed，30，其清单/审批面不得被工作台遮挡）与 DSH 浮层栈（100/1000+），任何浮层天然盖住侧边栏。
 
 ### 8.2 注意事项
 
@@ -642,7 +643,7 @@ interface OpenTabSeed {
     "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" }
   },
   "peerDependencies": {
-    "cordis": "^4.0.0-rc.8",
+    "@deepseek-ai/cordis": "^4.0.1",
     "dsh-better-sidebar": "workspace:*",
     "@deepseek-ai/dsh-client-runtime": "^0.0.1",
     "react": "^18.2.0"
@@ -657,7 +658,7 @@ interface OpenTabSeed {
 ```tsx
 import { createElement } from 'react'
 import type {} from 'dsh-better-sidebar'  // 触发 ctx.betterSidebar 类型合并
-import type { Context } from 'cordis'
+import type { Context } from '@deepseek-ai/cordis'
 
 export const inject = ['betterSidebar']
 
@@ -713,7 +714,7 @@ better-sidebar 自己的内置 tab 和 viewer 就是参考实现（"吃狗粮"�
 - **`tests/service.spec.ts`**：注册表生命周期 / 匹配算法 / dedupe / createTab / 启用态 gating 测试
 - **`tests/builtins.spec.ts`**：内置注册清单断言（7 tab + 6 viewer + 声明式元数据）
 - **`src/client/plugins-tabs.ts`** / **`src/client/plugins-viewers.ts`**：推荐插件目录（名字/url/简介/安装脚本，分别对应 Tab 注册与文件预览注册），在设置页两个「添加插件」弹窗展示（共享类型在 `plugins-shared.ts`）；插件作者可按扩展点加一条数据（弹窗内「跳转」直达仓库、「复制」把安装命令写入剪贴板，粘贴到 DSH 所在环境的终端执行）——数据完整性由 `tests/plugin-list.spec.ts` 守护
-- **`src/client/FileTree.tsx`** / **`src/client/TreePanel.tsx`** / **`src/fs-search.ts`**：受控文件树组件（纯树体，文件行右键菜单含「在新 Tab 中打开」「在侧边打开」，仅宿主编排提供回调时渲染）/ 树面板（搜索框 + 刷新 + FileTree，文件窗口的内嵌 dock 使用）与 host 侧递归文件名搜索（`fs.search` 路由，预算兜底 + 跳过 `.git`/symlink 目录；测试 `tests/fs-search.spec.ts`、组件测试 `tests/editor-host.spec.tsx`）
+- **`src/client/FileTree.tsx`** / **`src/client/TreePanel.tsx`** / **`src/fs-search.ts`**：受控文件树组件（纯树体，文件行右键菜单含「在新 Tab 中打开」「在侧边打开」，仅宿主编排提供回调时渲染）/ 树面板（搜索框 + 刷新 + FileTree，文件窗口的内嵌 dock 使用）与 host 侧递归文件名搜索（`fs.search` 路由，预算兜底 + 跳过 `.git` / `node_modules` / 构建缓存 / symlink 目录；测试 `tests/fs-search.spec.ts`、组件测试 `tests/editor-host.spec.tsx`）
 - **`docs/plans/2026-08-11-service-registry-design.md`** / **`docs/plans/2026-08-11-declarative-sidebar-settings-design.md`** / **`docs/plans/2026-08-14-add-plugins-modal-design.md`**：设计文档（含实施偏差记录）
 
 调试时直接读这些文件即可看到所有 API 的真实用法。

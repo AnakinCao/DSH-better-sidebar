@@ -99,6 +99,7 @@ export const fr: Record<string, string> = {
   commit: 'Valider',
   commitError: 'Échec du commit',
   branch: 'Branche',
+  worktree: 'Arborescence de travail',
   checkoutError: 'Échec du changement de branche',
   history: 'Historique',
   changes: 'Modifications',

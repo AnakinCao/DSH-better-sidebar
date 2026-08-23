@@ -106,6 +106,7 @@ export const vi: Record<string, string> = {
   commit: 'Commit',
   commitError: 'Commit thất bại',
   branch: 'Branch',
+  worktree: 'Worktree',
   checkoutError: 'Chuyển branch thất bại',
   history: 'Lịch sử',
   changes: 'Thay đổi',
