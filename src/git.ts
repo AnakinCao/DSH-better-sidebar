@@ -212,7 +212,7 @@ export async function repoRoots(cwd: string): Promise<string[]> {
       .sort((left, right) => left.name.localeCompare(right.name))) {
       try {
         const root = await directRepoRoot(join(cwd, entry.name))
-        if (!roots.includes(root)) roots.push(root)
+        if (!roots.some(existing => pathIdentity(existing) === pathIdentity(root))) roots.push(root)
       } catch {
         // Ordinary child directory; keep discovering sibling repositories.
       }
@@ -225,7 +225,13 @@ export async function repoRoots(cwd: string): Promise<string[]> {
 export async function repoRoot(cwd: string, selected?: string): Promise<string> {
   const roots = await repoRoots(cwd)
   if (roots.length === 0) throw new GitCommandError('not a git repository', 'not-repo', 'rev-parse')
-  if (selected !== undefined && roots.includes(selected)) return selected
+  // Git for Windows may return forward-slash roots while callers pass
+  // backslashes (or vice-versa); compare via the platform-aware identity.
+  if (selected !== undefined) {
+    const identity = pathIdentity(selected)
+    const match = roots.find(root => pathIdentity(root) === identity)
+    if (match !== undefined) return match
+  }
   return roots[0]!
 }
 

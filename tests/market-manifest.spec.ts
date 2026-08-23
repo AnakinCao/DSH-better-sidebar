@@ -50,7 +50,10 @@ const STABLE_SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u
 function packedManifest(): Record<string, unknown> {
   const dir = mkdtempSync(join(tmpdir(), 'market-pack-'))
   try {
-    execFileSync('pnpm', ['pack', '--pack-destination', dir], { cwd: ROOT, stdio: 'pipe' })
+    // On Windows `pnpm` ships as a `.cmd` shim that `execFileSync` cannot
+    // spawn directly (ENOENT). Run it through the shell so the same call
+    // works on every platform; `tar` is available on all supported OSes.
+    execFileSync('pnpm', ['pack', '--pack-destination', dir], { cwd: ROOT, stdio: 'pipe', shell: process.platform === 'win32' })
     execFileSync('tar', ['-xzf', join(dir, `${pkg.name}-${pkg.version}.tgz`), '-C', dir, 'package/package.json'], { stdio: 'pipe' })
     return JSON.parse(readFileSync(join(dir, 'package/package.json'), 'utf8')) as Record<string, unknown>
   } finally {

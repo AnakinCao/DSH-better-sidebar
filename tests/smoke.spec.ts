@@ -12,6 +12,7 @@ import { SettingsConflictError, settingsNamespace } from '@deepseek-ai/dsh-setti
 import { apply, mediaTypeForPath } from '../src/index.ts'
 import * as git from '../src/git.ts'
 import { listDirectory } from '../src/fs-tree.ts'
+import { encodeHtmlUrl } from '../src/html-route.ts'
 import { defaultShell, PtyManager, type SidebarPty } from '../src/pty-manager.ts'
 import type { SidebarWebRoute, SidebarWebUpgradeRoute } from '../src/context-types.ts'
 
@@ -636,8 +637,10 @@ describe('session cwd resolution over the API route', () => {
       const media = routes.find(route => route.path === '/sidebar/file')!
       const html = routes.find(route => route.path === '/sidebar/html')!
       const mediaResult = await invokeGet(media, `/sidebar/file?sessionId=security&path=${encodeURIComponent(join(workspace, 'link', 'secret.png'))}`)
-      const htmlPathname = join(workspace, 'link', 'secret.html').replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/')
-      const htmlResult = await invokeGet(html, `/sidebar/html/security${htmlPathname}`)
+      // Use the production encoder so the URL is well-formed on every
+      // platform (a Windows drive path needs the leading slash separator
+      // that a naive join-without-separator drops).
+      const htmlResult = await invokeGet(html, encodeHtmlUrl('security', join(workspace, 'link', 'secret.html')))
       expect(mediaResult).toMatchObject({ status: 403 })
       expect(JSON.parse(mediaResult.body)).toMatchObject({ ok: false, error: { code: 'forbidden' } })
       expect(htmlResult).toMatchObject({ status: 403 })

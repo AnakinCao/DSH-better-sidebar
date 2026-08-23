@@ -70,4 +70,31 @@ describe('rewriteLocalImageUrls', () => {
     expect(url).toContain('/sidebar/file?')
     expect(decodeURIComponent(url)).toContain('C:\\repo\\img.png')
   })
+
+  it('does not rewrite image-looking text inside fenced code blocks', () => {
+    const md = '```\n![alt](./img.png)\n```\n![real](./real.png)'
+    const out = rewriteLocalImageUrls(md, scope, '/repo/readme.md', ORIGIN)
+    // The fenced example must be preserved verbatim; only the real image is rewritten.
+    expect(out).toContain('```\n![alt](./img.png)\n```')
+    expect(out).toContain('/sidebar/file?')
+  })
+
+  it('does not rewrite image-looking text inside inline code spans', () => {
+    const md = 'Use `![alt](./img.png)` syntax.\n![real](./real.png)'
+    const out = rewriteLocalImageUrls(md, scope, '/repo/readme.md', ORIGIN)
+    expect(out).toContain('`![alt](./img.png)`')
+    expect(out).toContain('/sidebar/file?')
+  })
+
+  it('does not rewrite a reference definition used only by a plain link', () => {
+    // The `[manual][docs]` link references `[docs]: ./docs.md`, but that
+    // definition must NOT be redirected to /sidebar/file because it is not
+    // referenced by any image. Only image-referenced definitions are rewritten.
+    const md = '[manual][docs]\n\n![pic][pic-def]\n\n[docs]: ./docs.md\n[pic-def]: ./pic.png'
+    const out = rewriteLocalImageUrls(md, scope, '/repo/readme.md', ORIGIN)
+    expect(out).toContain('[docs]: ./docs.md')
+    expect(out).not.toMatch(/\[docs\]:.*\/sidebar\/file/)
+    // The image-referenced definition IS rewritten.
+    expect(out).toMatch(/\[pic-def\]:.*\/sidebar\/file/)
+  })
 })

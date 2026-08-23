@@ -61,7 +61,10 @@ export function DiffTab(props: { sessionId: string; cwd: string | undefined; dif
         // Empty diff: an untracked file (git diff never lists it) falls back
         // to a full-file addition; anything else is a genuine no-text-change.
         if (diff.untracked === true && !diff.staged) {
-          const text = await api.fsRead(scope, resolveSidebarPath(diff.worktree ?? cwd, diff.path))
+          // A child-repo path is relative to diff.repoRoot, not the session
+          // cwd or the linked-worktree root; resolve against whichever the
+          // diff ref carries so the untracked fallback reads the right file.
+          const text = await api.fsRead(scope, resolveSidebarPath(diff.repoRoot ?? diff.worktree ?? cwd, diff.path))
           if (!cancelled) {
             setData(text.kind === 'text' ? { diff: '', untracked: text.content } : { diff: '' })
           }

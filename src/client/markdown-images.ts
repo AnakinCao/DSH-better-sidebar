@@ -50,6 +50,14 @@ function normalizeLocalPath(path: string): string {
  * local paths pass through. Remote (http/https/data/mailto) and `#`-anchor
  * destinations are left untouched for `MarkdownText`. Reference-style images
  * (`![x][id]` + `[id]: url`) are covered by rewriting their definition lines.
+ *
+ * Code spans (`` `...` ``) and fenced code blocks (``` ```...``` ```) are
+ * masked before rewriting so documentation that demonstrates `![alt](./img.png)`
+ * is not mutated into a `/sidebar/file` URL. Reference definitions are only
+ * rewritten when their label is actually referenced by an image (collapsed
+ * `[![][id]]`, full `![alt][id]`, or shortcut `![]` referencing the next
+ * definition) — a plain link `[text][id]` must not have its destination
+ * redirected to the media route.
  * @param text - The raw markdown source (inline + reference images).
  * @param scope - The session scope (sessionId + cwd) for the media route.
  * @param filePath - The absolute path of the opened `.md` file.
@@ -79,11 +87,38 @@ export function rewriteLocalImageUrls(
     const candidate = isAbsolutePath(trimmed) ? trimmed : directory + trimmed
     return mediaUrl(normalizeLocalPath(candidate))
   }
-  const inline = text.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_match, alt, dest) => {
+
+  // Mask fenced code blocks and inline code spans so image-looking text
+  // inside documentation examples is never rewritten. The sentinel uses a
+  // character unlikely to appear in prose; the original spans are restored
+  // after the image rewrite.
+  const masks: string[] = []
+  const masked = text
+    .replace(/```[\s\S]*?```/g, (block) => { masks.push(block); return `\u0000${masks.length - 1}\u0000` })
+    .replace(/`[^`\n]*`/g, (span) => { masks.push(span); return `\u0000${masks.length - 1}\u0000` })
+
+  const inline = masked.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_match, alt, dest) => {
     return `![${alt}](${resolve(dest)})`
   })
-  // Reference-style images: rewrite their `[id]: <url>` definitions.
-  return inline.replace(/^(\s*\[[^\]]+\]:\s*)(<[^>]+>|[^\s]+)/gm, (_match, head, dest) => {
+
+  // Collect labels referenced by image syntax (full `![alt][id]` and
+  // collapsed `![][id]`) so only those reference definitions are rewritten.
+  // A shortcut reference (`![alt]` with no `[id]`) resolves to the label
+  // text `alt` itself; include it too. Plain links `[text][id]` never match
+  // the leading `!` and are left untouched.
+  const imageLabels = new Set<string>()
+  const labelRe = /!\[([^\]]*)\](?:\[((?:[^\][]|\[[^\]]*\])*)\])?/g
+  let labelMatch: RegExpExecArray | null
+  while ((labelMatch = labelRe.exec(inline)) !== null) {
+    const alt = labelMatch[1] ?? ''
+    const ref = labelMatch[2]
+    imageLabels.add(ref !== undefined && ref !== '' ? ref.toLowerCase() : alt.toLowerCase())
+  }
+
+  const refsRewritten = inline.replace(/^(\s*\[([^\]]+)\]:\s*)(<[^>]+>|[^\s]+)/gm, (match, head: string, label: string, dest: string) => {
+    if (!imageLabels.has(label.toLowerCase())) return match
     return `${head}${resolve(dest.replace(/^<|>$/g, ''))}`
   })
+
+  return refsRewritten.replace(/\u0000(\d+)\u0000/g, (_m, index: string) => masks[Number(index)] ?? '')
 }

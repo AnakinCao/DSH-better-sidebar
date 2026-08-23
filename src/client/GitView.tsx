@@ -16,7 +16,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { GitLogEntry, GitStatusEntry, GitStatusResult, GitWorktree, SessionScope } from './api.ts'
 import { api } from './api.ts'
-import { relativeTo } from './paths.ts'
+import { isWithinWorkspace, relativeTo } from './paths.ts'
 import { resolveSidebarPath } from './produced-files.ts'
 import { relativeTime, t } from './locales.ts'
 import type { SidebarTab } from './state.ts'
@@ -231,6 +231,23 @@ export function GitView(props: {
     const generation = refreshGeneration.current += 1
     void refreshTarget(target, { loading: true, generation })
   }
+  /** Switching the selected child repository must invalidate every
+   *  target-derived surface (status/history/log) before the asynchronous
+   *  refresh resolves; otherwise stale rows remain actionable while their
+   *  handlers already address the new repository. Mirrors chooseWorktree. */
+  const chooseRepo = (target: string): void => {
+    setRepoRoot(target)
+    setStatus(null)
+    setBranchNames([])
+    setLogEntries([])
+    setLogEnded(false)
+    setLogLoadingMore(false)
+    // Re-list worktrees for the selected child (a workspace container's
+    // own worktree list is empty); keep the current linked-checkout choice
+    // unless it does not belong to the new repository.
+    const generation = refreshGeneration.current += 1
+    void refreshTarget(selectedRef.current ?? '', { loading: true, generation })
+  }
   useEffect(() => {
     if (!visible) return
     const timer = window.setInterval(() => { void refresh(true) }, 2_000)
@@ -420,7 +437,7 @@ export function GitView(props: {
             className={css.gitBranchSelect}
             value={repoRoot ?? ''}
             title={repoRoot}
-            onChange={(event) => { setRepoRoot(event.target.value) }}
+            onChange={(event) => { chooseRepo(event.target.value) }}
             disabled={busy}
           >
             {status!.repositories!.map(root => <option key={root} value={root}>{baseName(root)}</option>)}
@@ -551,7 +568,13 @@ export function GitView(props: {
             open={fileMenu !== null}
             onClose={() => { setFileMenu(null) }}
             items={[
-              { id: 'open', label: t('openEditor'), icon: <IconCodeOutline16 size={14} /> },
+              // A linked worktree outside the session workspace cannot be
+              // opened in the editor: the host's workspace fence rejects
+              // every path under it. Hide the action for that checkout so
+              // the menu does not offer a no-op that confuses the user.
+              ...(fileMenu !== null && isWithinWorkspace(scope.cwd ?? '', resolveSidebarPath(repoRoot ?? selectedWorktree ?? scope.cwd, fileMenu.entry.path))
+                ? [{ id: 'open', label: t('openEditor'), icon: <IconCodeOutline16 size={14} /> }]
+                : []),
               fileMenu?.staged === true
                 ? { id: 'stage', label: t('unstage'), icon: <IconTrashOutline16 size={14} /> }
                 : { id: 'stage', label: t('stage'), icon: <IconBranchOutline16 size={14} /> },
@@ -567,7 +590,13 @@ export function GitView(props: {
               if (target === null) return
               setFileMenu(null)
               if (id === 'open') {
-                onOpenFile(resolveSidebarPath(repoRoot ?? selectedWorktree ?? scope.cwd, target.entry.path))
+                const resolved = resolveSidebarPath(repoRoot ?? selectedWorktree ?? scope.cwd, target.entry.path)
+                // Defense-in-depth: the menu hides this action when the
+                // resolved path escapes the session workspace, but a
+                // racing repo switch could still reach here with a path
+                // the host would reject. No-op in that case.
+                if (!isWithinWorkspace(scope.cwd ?? '', resolved)) return
+                onOpenFile(resolved)
                 return
               }
               if (id === 'stage') {

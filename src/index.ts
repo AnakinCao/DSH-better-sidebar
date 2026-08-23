@@ -286,8 +286,11 @@ function buildApi(
     'fs.read': async (payload) => {
       const { cwd } = cwdOf(payload)
       // Relative paths are git-derived (status/diff report repo-root-relative
-      // names; the untracked diff view reads the file through this route).
-      const path = await ensureWorkspacePath(cwd, await resolveGitPath(cwd, requireString(payload, 'path')))
+      // names; the untracked diff view reads the file through this route). A
+      // child-repo path is relative to the selected repoRoot, not the session
+      // cwd; thread it so the path resolves inside the authorized workspace.
+      const selected = selectedRepoOf(payload)
+      const path = await ensureWorkspacePath(cwd, await resolveGitPath(cwd, requireString(payload, 'path'), selected))
       const { content, truncated, binary, size, head } = await readText(path, resolved.readLimit)
       if (binary) return { kind: 'binary', size, truncated, head }
       return { kind: 'text', content, truncated }
@@ -308,8 +311,13 @@ function buildApi(
       return { ok: true }
     },
     'git.worktrees': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      return git.worktrees(cwd)
+      const { cwd } = await gitCwdOf(payload)
+      const selected = selectedRepoOf(payload)
+      // A workspace container (no repo at cwd) has child repos; the worktree
+      // list belongs to the SELECTED child, not the container. Thread the
+      // validated repoRoot so linked checkouts of a chosen child appear.
+      const base = selected !== undefined ? await git.repoRoot(cwd, selected).catch(() => cwd) : cwd
+      return git.worktrees(base)
     },
     'git.status': async (payload) => {
       const { cwd } = await gitCwdOf(payload)
