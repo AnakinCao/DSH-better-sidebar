@@ -487,6 +487,8 @@ const { value } = await res.json()   // 错误时 { ok: false, error: { code, me
 | `pty.close` / `agent-pty.close` | 释放终端（外部 tab 一般用不到） |
 | `settings.get` / `settings.update` | 侧边栏偏好读写（revision 守卫） |
 
+> **文件路径安全边界**：`fs.tree`、`fs.read`、`fs.write`、`/sidebar/file`、`/sidebar/html` 和 `/sidebar/upload` 都以请求对应 session 的权威 `cwd` 作为 workspace 根目录。路径会按真实文件系统路径检查，越界绝对路径、`..` 解析结果和指向 workspace 外部的符号链接都会被拒绝；消费插件不应把 `cwd` 当作可由用户扩大权限范围的参数。
+
 媒体/下载字节走 `/sidebar/file` 路由（`?sessionId=&path=&cwd=&download=1`）：
 
 ```ts
