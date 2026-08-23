@@ -58,6 +58,23 @@ export interface SidebarSplit {
 
 export type SplitNode = SidebarLeaf | SidebarSplit
 
+/**
+ * One free window: a tab dragged out of the workbench onto the conversation
+ * area floats in the panel host at viewport coordinates. The tab is OWNED by
+ * the window exactly like a pane owns its tabs (moved, not copied); geometry
+ * persists with the session so a reload restores the window in place.
+ * Stacking order is the array order (last = topmost).
+ */
+export interface FloatWindow {
+  id: string
+  tab: SidebarTab
+  /** Viewport coordinates of the window's top-left corner. */
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 /** The full per-session state. */
 export interface SidebarState {
   panelOpen: boolean
@@ -87,6 +104,8 @@ export interface SidebarState {
   /** The bottom panel's own split tree (panes/tabs live only in ONE tree;
    *  tabs never cross panels — the two panels only share panel-size drags). */
   bottomSplits: SplitNode
+  /** Free windows (tabs dragged out onto the conversation area). */
+  floats: FloatWindow[]
 }
 
 export const PANEL_MIN = 280
@@ -94,9 +113,16 @@ export const PANEL_MAX = 640
 export const PANEL_DEFAULT = 400
 export const TAB_MAX_WIDTH = 160
 /** Bottom panel geometry contract (mirrors the width contract; the upper
- * bound is the viewport, enforced by {@link setBottomHeight}). */
+ *  bound is the viewport, enforced by {@link setBottomHeight}). */
 export const BOTTOM_MIN = 120
 export const BOTTOM_DEFAULT = 220
+/** Free-window geometry contract: the floor keeps the window usable (a
+ *  header plus some content), the ceiling is the viewport. */
+export const FLOAT_MIN_W = 320
+export const FLOAT_MIN_H = 200
+/** Geometry a fresh free window starts with (clamped to the viewport). */
+export const FLOAT_DEFAULT_W = 480
+export const FLOAT_DEFAULT_H = 360
 
 let nextIdCounter = 0
 /** Unique pane/tab id within one state instance. */
@@ -143,6 +169,14 @@ function maxCounterId(parsed: unknown): number {
   }
   walk((parsed as Record<string, unknown> | null)?.splits)
   walk((parsed as Record<string, unknown> | null)?.bottomSplits)
+  // Free windows mint through the same shared counter; their ids must seed it
+  // too (a persisted float:N with a lower pane max would collide otherwise).
+  const floats = (parsed as Record<string, unknown> | null)?.floats
+  if (Array.isArray(floats)) {
+    for (const float of floats) {
+      if (float !== null && typeof float === 'object') consider((float as Record<string, unknown>).id)
+    }
+  }
   return max
 }
 
@@ -181,6 +215,7 @@ export function makeDefaultState(width = PANEL_DEFAULT, panelOpen = true, seed: 
     bottomHeight: BOTTOM_DEFAULT,
     bottomOpenedOnce: false,
     bottomSplits: bottomLeaf,
+    floats: [],
   }
 }
 
@@ -280,10 +315,22 @@ export function allLeaves(node: SplitNode): SidebarLeaf[] {
   return node.children.flatMap(allLeaves)
 }
 
-/** Whether a tab exists anywhere in a state (either tree, any pane). */
+/** Whether a tab exists anywhere in a state (either tree, any pane, or any
+ *  free window — a floating tab is as open as a docked one). */
 export function tabOpenIn(state: SidebarState, tabId: string): boolean {
   return allLeaves(state.splits).some(leaf => leaf.tabs.some(tab => tab.id === tabId))
     || allLeaves(state.bottomSplits).some(leaf => leaf.tabs.some(tab => tab.id === tabId))
+    || state.floats.some(float => float.tab.id === tabId)
+}
+
+/** The free window holding a tab id, if any. */
+export function floatWithTab(state: SidebarState, tabId: string): FloatWindow | undefined {
+  return state.floats.find(float => float.tab.id === tabId)
+}
+
+/** The free window with the given window id, if any. */
+export function floatById(state: SidebarState, floatId: string): FloatWindow | undefined {
+  return state.floats.find(float => float.id === floatId)
 }
 
 /** Replace a leaf with a split of it plus a fresh empty leaf. */
@@ -453,25 +500,26 @@ export function activateTab(state: SidebarState, paneId: string, tabId: string):
 /** Update the display fields of one open tab (title / path / meta) without
  *  re-opening it. The browser tab persists its current URL and hostname
  *  title through this reducer so a reload restores the visited page. A
- *  missing tab id is a no-op. The tab may live in either tree. */
+ *  missing tab id is a no-op. The tab may live in either tree or a free
+ *  window. */
 export function patchTab(
   state: SidebarState,
   tabId: string,
   patch: { title?: string; path?: string; meta?: unknown },
 ): SidebarState {
   let changed = false
+  const apply = (tab: SidebarTab): SidebarTab => {
+    changed = true
+    return {
+      ...tab,
+      ...(patch.title !== undefined ? { title: patch.title } : {}),
+      ...(patch.path !== undefined ? { path: patch.path } : {}),
+      ...(patch.meta !== undefined ? { meta: patch.meta } : {}),
+    }
+  }
   const walk = (node: SplitNode): SplitNode => {
     if (node.kind === 'leaf') {
-      const tabs = node.tabs.map(tab => {
-        if (tab.id !== tabId) return tab
-        changed = true
-        return {
-          ...tab,
-          ...(patch.title !== undefined ? { title: patch.title } : {}),
-          ...(patch.path !== undefined ? { path: patch.path } : {}),
-          ...(patch.meta !== undefined ? { meta: patch.meta } : {}),
-        }
-      })
+      const tabs = node.tabs.map(tab => (tab.id === tabId ? apply(tab) : tab))
       return tabs === node.tabs ? node : { ...node, tabs }
     }
     const children = node.children.map(walk)
@@ -479,7 +527,8 @@ export function patchTab(
   }
   const splits = walk(state.splits)
   const bottomSplits = walk(state.bottomSplits)
-  return changed ? { ...state, splits, bottomSplits } : state
+  const floats = state.floats.map(float => (float.tab.id === tabId ? { ...float, tab: apply(float.tab) } : float))
+  return changed ? { ...state, splits, bottomSplits, floats } : state
 }
 
 /**
@@ -504,11 +553,14 @@ export function openTabInActivePane(state: SidebarState, tab: SidebarTab): Sideb
     targetId = firstLeaf(state.splits).id
   }
   const targetKey = treeOf(state, targetId)
-  // Id-based safety net: if a tab with the same id exists, focus it.
+  // Id-based safety net: if a tab with the same id exists, focus it — in a
+  // pane (activate) or in a free window (raise, no panel switch).
   for (const leaf of allLeaves(state.splits).concat(allLeaves(state.bottomSplits))) {
     const existing = leaf.tabs.find(candidate => candidate.id === tab.id)
     if (existing !== undefined) return activateTab(state, leaf.id, existing.id)
   }
+  const floated = floatWithTab(state, tab.id)
+  if (floated !== undefined) return raiseFloat(state, floated.id)
   return {
     ...state,
     activePane: targetId,
@@ -674,6 +726,137 @@ export function resizeSplitIn(state: SidebarState, splitId: string, index: numbe
   return { ...state, [key]: resizeSplit(state[key], splitId, index, delta) }
 }
 
+// ── Free windows ────────────────────────────────────────────────────────────
+
+/** The viewport size, or Infinity where there is no (usable) window — unit
+ *  tests stub partial window objects, and a NaN bound would poison geometry. */
+function viewportW(): number {
+  return typeof window !== 'undefined' && Number.isFinite(window.innerWidth) ? window.innerWidth : Infinity
+}
+
+function viewportH(): number {
+  return typeof window !== 'undefined' && Number.isFinite(window.innerHeight) ? window.innerHeight : Infinity
+}
+
+/** Clamp free-window geometry: sizes respect the floor and the viewport, and
+ *  the position keeps the whole window inside the viewport. Without a window
+ *  (unit tests) only the floor applies — the caller's values pass through. */
+export function clampFloatGeometry(x: number, y: number, w: number, h: number): Pick<FloatWindow, 'x' | 'y' | 'w' | 'h'> {
+  const vw = viewportW()
+  const vh = viewportH()
+  const width = Math.round(Math.min(Math.max(w, FLOAT_MIN_W), Math.max(FLOAT_MIN_W, vw)))
+  const height = Math.round(Math.min(Math.max(h, FLOAT_MIN_H), Math.max(FLOAT_MIN_H, vh)))
+  return {
+    x: Math.round(Math.min(Math.max(x, 0), Math.max(0, vw - width))),
+    y: Math.round(Math.min(Math.max(y, 0), Math.max(0, vh - height))),
+    w: width,
+    h: height,
+  }
+}
+
+/**
+ * Float a docked tab: remove it from its pane (either tree; an emptied pane
+ * collapses like any move) and append a free window centered on the drop
+ * point, with the default size clamped to the viewport. The stacking order
+ * is the array order, so a fresh window is born topmost. An unknown tab id
+ * (or one already floating) is a strict no-op.
+ */
+export function floatTab(state: SidebarState, tabId: string, x: number, y: number): SidebarState {
+  let source: SidebarLeaf | undefined
+  let key: 'splits' | 'bottomSplits' | undefined
+  for (const treeKey of ['splits', 'bottomSplits'] as const) {
+    source = leafWithTab(state[treeKey], tabId)
+    if (source !== undefined) { key = treeKey; break }
+  }
+  if (key === undefined || source === undefined) return state
+  const tab = source.tabs.find(candidate => candidate.id === tabId)!
+  let emptied = false
+  let node = mapLeaf(state[key], source.id, (leaf) => {
+    leaf.tabs = leaf.tabs.filter(candidate => candidate.id !== tabId)
+    if (leaf.active === tabId) leaf.active = leaf.tabs[leaf.tabs.length - 1]?.id ?? null
+    if (leaf.tabs.length === 0) emptied = true
+  })
+  if (emptied) node = removeLeafAt(node, source.id)
+  const window = clampFloatGeometry(
+    x - FLOAT_DEFAULT_W / 2,
+    y - FLOAT_DEFAULT_H / 2,
+    FLOAT_DEFAULT_W,
+    FLOAT_DEFAULT_H,
+  )
+  const next: SidebarState = {
+    ...state,
+    [key]: node,
+    floats: [...state.floats, { id: uid('float'), tab, ...window }],
+  }
+  // The pane the user was working in may have just collapsed with the tab.
+  if (emptied && state.activePane === source.id) next.activePane = firstLeaf(next.splits).id
+  return next
+}
+
+/** Move a free window (clamped to the viewport); unknown ids are a no-op. */
+export function moveFloat(state: SidebarState, floatId: string, x: number, y: number): SidebarState {
+  const float = floatById(state, floatId)
+  if (float === undefined) return state
+  const geo = clampFloatGeometry(x, y, float.w, float.h)
+  if (geo.x === float.x && geo.y === float.y) return state
+  return { ...state, floats: state.floats.map(f => (f.id === floatId ? { ...f, ...geo } : f)) }
+}
+
+/** Resize a free window from its SE corner: the top-left corner stays
+ *  anchored, sizes clamp to the floor and to the viewport's remaining room. */
+export function resizeFloat(state: SidebarState, floatId: string, w: number, h: number): SidebarState {
+  const float = floatById(state, floatId)
+  if (float === undefined) return state
+  const vw = viewportW()
+  const vh = viewportH()
+  const width = Math.round(Math.min(Math.max(w, FLOAT_MIN_W), Math.max(FLOAT_MIN_W, vw - float.x)))
+  const height = Math.round(Math.min(Math.max(h, FLOAT_MIN_H), Math.max(FLOAT_MIN_H, vh - float.y)))
+  if (width === float.w && height === float.h) return state
+  return { ...state, floats: state.floats.map(f => (f.id === floatId ? { ...f, w: width, h: height } : f)) }
+}
+
+/** Bring a free window to the top (the array's end). Already topmost (or the
+ *  only window) returns the same reference — no persist churn on every click. */
+export function raiseFloat(state: SidebarState, floatId: string): SidebarState {
+  if (state.floats.length < 2) return state
+  const index = state.floats.findIndex(f => f.id === floatId)
+  if (index < 0 || index === state.floats.length - 1) return state
+  const floats = [...state.floats]
+  const [raised] = floats.splice(index, 1)
+  floats.push(raised!)
+  return { ...state, floats }
+}
+
+/** Dock a free window back into a pane (center merge): the tab joins the
+ *  target pane and activates. `toPane` defaults to the active pane with the
+ *  right tree's first leaf as the stale-id fallback (mirrors
+ *  {@link openTabInActivePane}). Unknown window ids are a no-op. */
+export function dockFloat(state: SidebarState, floatId: string, toPane?: string): SidebarState {
+  const float = floatById(state, floatId)
+  if (float === undefined) return state
+  let targetId = toPane ?? state.activePane ?? firstLeaf(state.splits).id
+  if (!allLeaves(state[treeOf(state, targetId)]).some(leaf => leaf.id === targetId)) {
+    targetId = firstLeaf(state.splits).id
+  }
+  const targetKey = treeOf(state, targetId)
+  return {
+    ...state,
+    floats: state.floats.filter(f => f.id !== floatId),
+    activePane: targetId,
+    [targetKey]: mapLeaf(state[targetKey], targetId, (leaf) => {
+      leaf.tabs = [...leaf.tabs, float.tab]
+      leaf.active = float.tab.id
+    }),
+  }
+}
+
+/** Close the free window holding a tab (the tab closes WITH the window —
+ *  the caller fires the descriptor's onClose lifecycle). */
+export function closeFloatByTab(state: SidebarState, tabId: string): SidebarState {
+  if (!state.floats.some(f => f.tab.id === tabId)) return state
+  return { ...state, floats: state.floats.filter(f => f.tab.id !== tabId) }
+}
+
 /** Prefix marking a tab id as an agent-owned terminal (suffix is the uuid). */
 export const AGENT_TAB_PREFIX = 'agent:'
 
@@ -709,6 +892,7 @@ export function reconcileAgentTerminals(
   agentTerminals: ReadonlyArray<{ uuid: string; title: string }>,
 ): SidebarState {
   const existingTabs = allLeaves(state.splits).concat(allLeaves(state.bottomSplits)).flatMap(leaf => leaf.tabs)
+    .concat(state.floats.map(float => float.tab))
   const existingAgentTabs = existingTabs.filter(tab => isAgentTabId(tab.id))
   const existingUuids = new Set(existingAgentTabs.map(tab => agentUuidOf(tab.id)))
   const serverUuids = new Set(agentTerminals.map(t => t.uuid))
@@ -716,17 +900,22 @@ export function reconcileAgentTerminals(
   const toRemove = existingAgentTabs.filter(tab => !serverUuids.has(agentUuidOf(tab.id)))
   if (toAdd.length === 0 && toRemove.length === 0) return state
   // Remove tabs whose uuids vanished from the server list (the agent closed
-  // them, or the pty exited and was reaped). Reuse closeTab's leaf cleanup.
+  // them, or the pty exited and was reaped). Reuse closeTab's leaf cleanup;
+  // a FLOATED agent terminal leaves with its window.
   let splits = state.splits
+  let floats = state.floats
   for (const tab of toRemove) {
     const leaf = leafWithTab(splits, tab.id)
     if (leaf !== undefined) {
       splits = closeTab({ ...state, splits }, leaf.id, tab.id).splits
     }
+    if (floats.some(float => float.tab.id === tab.id)) {
+      floats = floats.filter(float => float.tab.id !== tab.id)
+    }
   }
   // Add tabs for new uuids (the agent created a terminal). They land in the
   // active pane via openTabInActivePane; the next reconcile is a no-op for them.
-  let next: SidebarState = { ...state, splits }
+  let next: SidebarState = { ...state, splits, floats }
   for (const terminal of toAdd) {
     const tab: SidebarTab = {
       id: agentTabId(terminal.uuid),
@@ -843,6 +1032,31 @@ export function sanitizeState(parsed: unknown): SidebarState | undefined {
   const bottomHeight = Math.min(bottomCap, Math.max(BOTTOM_MIN, Math.round(rawHeight)))
   const bottomSplits = pruneEmptyPanes(sanitizeNode(record.bottomSplits, seen, reid)
     ?? { kind: 'leaf' as const, id: uid('pane'), tabs: [], active: null })
+  // Free windows arrived with the float feature: a missing field on an older
+  // persisted state defaults to none (like the bottom-panel fields above).
+  // Malformed ENTRIES drop individually — unlike the split trees, where
+  // corruption resets the whole state, a bad window must not cost the user
+  // their whole layout. Geometry clamps into the CURRENT viewport so a stale
+  // off-screen window stays reachable; the window ids join the same
+  // uniqueness set as the pane/split ids (the uid counter mints for both).
+  const floats: FloatWindow[] = []
+  if (Array.isArray(record.floats)) {
+    for (const entry of record.floats) {
+      if (entry === null || typeof entry !== 'object') continue
+      const candidate = entry as Record<string, unknown>
+      if (typeof candidate.id !== 'string' || seen.has(candidate.id)) continue
+      const tab = sanitizePersistedTab(candidate.tab)
+      if (tab === undefined || tab === 'diff') continue
+      if (
+        typeof candidate.x !== 'number' || !Number.isFinite(candidate.x)
+        || typeof candidate.y !== 'number' || !Number.isFinite(candidate.y)
+        || typeof candidate.w !== 'number' || !Number.isFinite(candidate.w)
+        || typeof candidate.h !== 'number' || !Number.isFinite(candidate.h)
+      ) continue
+      seen.add(candidate.id)
+      floats.push({ id: candidate.id, tab, ...clampFloatGeometry(candidate.x, candidate.y, candidate.w, candidate.h) })
+    }
+  }
   const requestedActivePane = typeof record.activePane === 'string'
     ? (reid.get(record.activePane) ?? record.activePane)
     : null
@@ -869,6 +1083,7 @@ export function sanitizeState(parsed: unknown): SidebarState | undefined {
     // auto-terminal exactly once after the upgrade.
     bottomOpenedOnce: record.bottomOpenedOnce === true,
     bottomSplits,
+    floats,
   }
 }
 
@@ -902,6 +1117,42 @@ function uniqueNodeId(id: string, seen: Set<string>, reid: Map<string, string>):
   return fresh
 }
 
+/**
+ * Validate one persisted tab record. @returns the clean tab, `'diff'` for an
+ * ephemeral diff tab (dropped everywhere — diff tabs never survive a reload),
+ * or undefined when the record is malformed (structural corruption when it
+ * comes from a split-tree leaf; a malformed FLOAT tab only drops the window).
+ */
+function sanitizePersistedTab(tab: unknown): SidebarTab | 'diff' | undefined {
+  if (tab === null || typeof tab !== 'object') return undefined
+  const candidate = tab as Record<string, unknown>
+  if (typeof candidate.id !== 'string' || typeof candidate.title !== 'string') return undefined
+  if (candidate.type === 'diff') return 'diff'
+  // Tab types are an open set (external plugins register their own); accept
+  // any string type here — an unregistered type renders an <OrphanedTab/> at
+  // view time and recovers if its plugin loads later.
+  if (typeof candidate.type !== 'string') return undefined
+  // The standalone explorer tab type merged INTO the editor (the single
+  // files window): a persisted explorer tab reopens as an editor home tab —
+  // no path, tree panel open (an existing meta object survives).
+  if (candidate.type === 'explorer') {
+    const meta = candidate.meta !== null && typeof candidate.meta === 'object' && !Array.isArray(candidate.meta)
+      ? candidate.meta as Record<string, unknown>
+      : undefined
+    return { id: candidate.id, type: 'editor', title: 'Files', meta: { treeOpen: true, ...meta } }
+  }
+  // `meta` is plugin-owned JSON-serializable state (v0.12.0+): the persisted
+  // value already went through JSON.parse, so it is inherently serializable —
+  // carry it through verbatim (absent on older states).
+  return {
+    id: candidate.id,
+    type: candidate.type,
+    title: candidate.title,
+    ...(typeof candidate.path === 'string' ? { path: candidate.path } : {}),
+    ...(candidate.meta !== undefined ? { meta: candidate.meta } : {}),
+  }
+}
+
 /** Validate one split-tree node (leaf or split) and rebuild it cleanly. */
 function sanitizeNode(node: unknown, seen: Set<string>, reid: Map<string, string>): SplitNode | undefined {
   if (node === null || typeof node !== 'object') return undefined
@@ -911,46 +1162,13 @@ function sanitizeNode(node: unknown, seen: Set<string>, reid: Map<string, string
     const tabs: SidebarTab[] = []
     let droppedDiff = false
     for (const tab of record.tabs) {
-      if (tab === null || typeof tab !== 'object') return undefined
-      const candidate = tab as Record<string, unknown>
-      if (typeof candidate.id !== 'string' || typeof candidate.title !== 'string') return undefined
-      // Diff tabs are ephemeral by nature (like VSCode's diff editors):
-      // they never survive a reload, so a stale ref (e.g. a wrong staged
-      // side persisted by an older build) cannot resurface as a dead tab
-      // showing "no text changes" after every refresh.
-      if (candidate.type === 'diff') {
+      const clean = sanitizePersistedTab(tab)
+      if (clean === undefined) return undefined
+      if (clean === 'diff') {
         droppedDiff = true
         continue
       }
-      // Tab types are an open set (external plugins register their own);
-      // accept any string type here — an unregistered type renders an
-      // <OrphanedTab/> at view time and recovers if its plugin loads later.
-      if (typeof candidate.type !== 'string') return undefined
-      // The standalone explorer tab type merged INTO the editor (the single
-      // files window): a persisted explorer tab reopens as an editor home
-      // tab — no path, tree panel open (an existing meta object survives).
-      if (candidate.type === 'explorer') {
-        const meta = candidate.meta !== null && typeof candidate.meta === 'object' && !Array.isArray(candidate.meta)
-          ? candidate.meta as Record<string, unknown>
-          : undefined
-        tabs.push({
-          id: candidate.id,
-          type: 'editor',
-          title: 'Files',
-          meta: { treeOpen: true, ...meta },
-        })
-        continue
-      }
-      // `meta` is plugin-owned JSON-serializable state (v0.12.0+): the
-      // persisted value already went through JSON.parse, so it is inherently
-      // serializable — carry it through verbatim (absent on older states).
-      tabs.push({
-        id: candidate.id,
-        type: candidate.type,
-        title: candidate.title,
-        ...(typeof candidate.path === 'string' ? { path: candidate.path } : {}),
-        ...(candidate.meta !== undefined ? { meta: candidate.meta } : {}),
-      })
+      tabs.push(clean)
     }
     const active = typeof record.active === 'string' ? record.active : null
     // An active pointer into a dropped diff tab is expected after the drop;

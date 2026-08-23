@@ -536,7 +536,7 @@ interface BetterSidebarService {
   readonly version: string
   /** 单调能力清单（只增不删）：'badge' | 'tabLifecycle' | 'updateTab' |
    *  'openFile' | 'targetedOpen' | 'stateSubscription' | 'tabMeta' |
-   *  'pluginSettings' | 'urlTarget' | 'settingSelect'——消费插件用 `features.includes('xxx')` 按能力 gate。 */
+   *  'pluginSettings' | 'urlTarget' | 'settingSelect' | 'floatWindows'——消费插件用 `features.includes('xxx')` 按能力 gate。 */
   readonly features: readonly string[]
   /** 当前快照：激活 sessionId + 其状态（面板几何/打开的 tabs/展开集）+ prefs。
    *  session 未激活时 state/sessionId 为 undefined。 */
@@ -597,6 +597,20 @@ interface OpenTabSeed {
 | **i18n 跟随** | 侧边栏界面文案跟随 DSH 的 `ctx.locale`（`@deepseek-ai/dsh-client-locale`）：词典注册在 `betterSidebar` 命名空间，语言偏好（Host-backed `locale.preference`）与浏览器语言不一致时以 DSH 为准并实时切换；locale 服务缺失时回退浏览器语言。插件自身的 `t()`（`src/client/locales.ts`）由 `apply()` 挂接服务；消费插件**不要**依赖此内部函数——标题等字段传字符串或 `() => string` 即可（i18n 友好）。⚠️ 渲染 DSH 的 `MarkdownText` 时必须传 `codeLabels={{ copyLabel: t('copy'), copiedLabel: t('copied') }}`——该组件 cordis-free，漏传则代码块复制按钮回退硬编码中文 |
 | **第三语言覆盖（ja 等）** | 可选 peer `@huanlin/dsh-plugin-better-locale`（`peerDependenciesMeta.optional: true`）提供 ja/ko/... 等第三语言覆盖。覆盖**借用 DSH 的英文槽位**：`store.getOverride(dshActive, ns, key)` 只在 `dshActive === 'en'` 时返回覆盖文本，DSH 在 zh 下覆盖完全惰性（保持原生 zh）。安装后 `apply()` 调 `ctx.get('betterLocale')` 取得 override store 并经 `attachBetterLocale()` 注入 `t()`：`t()` 先查 `store.getOverride(active, 'betterSidebar', key)`，命中则返回覆盖文本（如 ja），否则走原 zh/en 链；`isZh()` 改用 `store.isOverrideActive(active)` 判断（仅在 DSH=en 且有 override 时返回 false）。Sidebar root 另订阅 store 的 `subscribe()`（uSES on `store.active`），覆盖切换时全树重渲染（DSH locale 的 `active` 字段不变，所以既有 `localeRevision` uSES 不会触发）。本插件同时把 ja 词典 `register('betterSidebar', { ja })` 进 better-locale 的 store，让外部 `ctx.locale.lookup('betterSidebar', key)` 调用者也能拿到 ja 文本。better-locale 的 LanguageSwitcher 在用户选了非 native 且 DSH 非 en 时显示「请将 DSH 切换到英文以查看 [语言名]」提示。未安装 better-locale 时 `ctx.get` 返回 undefined，整段为 no-op，zh/en 行为不变。新增 zh key 时**必须**同步加 ja 翻译（`src/client/locales-ja.ts`），否则该 key 在 ja 覆盖下回退到 en |
 | **懒加载 chunk** | 内置重依赖（xterm/CodeMirror）在独立 bundle（`lib/client-<name>.js`）中，经 `/sidebar/bundle` 路由按需下发；每个脚本把 factory 赋到插件自有全局注册表 `globalThis.__dshChunks__[<name>]`，由 `src/client/chunk-loader.ts` 用自定义 require（externals 经 `__DSH_MODULES__` seed 分支解析）物化——**不经过** `__ModuleLoader__` 注册；**核心 bundle 禁止静态 import `src/client/chunks/*`**（会把库拖回启动路径）；对消费插件透明——懒加载只作用于内置 descriptor，`component` 契约（`(props) => ReactNode` 纯渲染函数）不变 |
+
+---
+
+## 7.5 自由窗口（v0.16.0）
+
+任意 tab（内置或插件注册的）可拖出侧边栏，成为悬浮在主会话区域上的**自由窗口**（free window）：
+
+- **拖出**：把标签栏的 tab 拖到**主会话区域**（conversation 列）上——虚线提示浮层标记落区，松开即浮动（`floatTab` reducer：tab 从 pane **移动**进 `SidebarState.floats`，窗口以默认尺寸 480×360 居中于松点、钳入视口；清空的 pane 折叠）。检测在 `src/client/Sidebar.tsx`：document 捕获 `dragover`/`drop`，以 `body[data-dsh-tab-dragging]`（TabBar 维护）门控，目标矩形取 `#root [data-slot="conversation"]` 的父列；窄视口（合并抽屉）禁用手势。tab 右键菜单的**「移动到自由窗口」**（两面板共用 TabBar，一处生效）始终可用，窗口落在会话列中心。
+- **窗口操作**（`src/client/FreeWindow.tsx`，渲染在 `[data-dsh-panel-host]` 内、z-index 42）：头部 pointer 拖动移动（rAF 直写 DOM + 松手提交 store 的面板拖拽模式）；拖动中指针落在 pane（`[data-dsh-pane]`）上时该 pane 高亮（`data-dsh-float-dock-over`），松开即**停靠**（center 合并进该 pane，`dockFloat`）；右下角缩放（`FLOAT_MIN_W/H` = 320/200，SE 角锚定）；点击任意处置顶（层叠顺序 = `floats` 数组序，`raiseFloat`）；头部右键菜单「回到侧边栏 / 关闭」；X = `closeTab`（关闭 tab 与窗口，正常触发 `onClose` 生命周期、释放终端）。
+- **持久化**：`floats` 随会话进 localStorage（`dsh-sidebar:v1:<sessionId>`），刷新原样恢复；`sanitizeState` 对每条 float **宽容校验**（非法条目单独丢弃不动整体布局，几何钳入当前视口，diff/ephemeral tab 不持久化，旧文档缺字段 = `[]`）；`maxCounterId` 的 uid 播种覆盖 `float:N` 前缀。
+- **服务语义**（消费插件可见，`features` 含 `'floatWindows'`）：`openTab` 的 dedupeKey/id 聚焦命中**浮动中的 tab = 置顶其窗口**（不重复开、不展开面板）；`closeTab`/`activateTab` 对浮动 tab 分别关窗/置顶并照常触发 `onClose`/`onActivate`；agent 终端 reconcile 会随宿主列表移除已消失的浮动终端窗口。tab 内容复用常规 `renderTab`（`TabContent`），浮窗对 `visible` 恒为 true，所有 tab 类型无差别浮动。
+- **稳定寻址面**（皮肤/CSS 可用）：`[data-dsh-float-window]`（窗口本体）、`[data-dsh-float-id]`（窗口 id）、`[data-dsh-pane]`（每个 pane）、`[data-dsh-float-dock-over]`（停靠高亮）、`[class*='floatDropHint']`（拖出提示）。视觉全令牌驱动（`--dsw-alias-bg-layer-1` 表面、`--dsw-shadow-lv3` 阴影、无硬编码色），头部带 `-webkit-app-region: no-drag`（§8 拖拽区退出规则）。
+- **i18n**：`moveToFreeWindow` / `floatDropHint` / `dockToSidebar`（19 语言词典已全量同步）。
+- **⚠️ portal 事件劫持陷阱**：浮窗头部/缩放把手是 pointer 拖拽表面，但其 React 子树含 portal 覆盖层（头部 `Menu` portal 到 `document.body`）——portal 后代的合成事件**沿 React 树冒泡**回拖拽表面的 `onPointerDown`，会被误判为拖拽开始（preventDefault 吞点击 + setPointerCapture 抢走 pointer，菜单项/X 按钮在真实浏览器中失灵；jsdom 合成事件不走此路径，只有 e2e 能抓）。因此 `FreeWindow.tsx` 的拖拽起点必须带**同源守卫**：`event.currentTarget.contains(event.target)` 为假或目标在 `button` 内时直接返回。任何「拖拽表面内嵌 portal 覆盖层」的新组件都要同样设防（回归测试：`tests/free-window.spec.tsx` 的 portaled-menu 用例）。
 
 ---
 

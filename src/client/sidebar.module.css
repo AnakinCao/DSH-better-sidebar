@@ -282,6 +282,141 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   padding-right: 40px;
 }
 
+/* ── Free windows ──────────────────────────────────────────────────────── */
+
+/* One floating tab: the same card surface as the panels, at viewport
+   coordinates inside the panel host (immune to shell transforms). z-index
+   42: above the panels (40) so a window drags across them, below the
+   toggle cluster (45) and the app's overlay stack (100+, issue #52).
+   Stacking among windows is the floats array order (siblings share the
+   z-index; DOM order wins). Deliberately NO box transition — the header/
+   resize drags write left/top/width/height per frame. Elevated surface,
+   so unlike the flat panels it earns a shadow token. */
+.floatWindow {
+  position: absolute;
+  z-index: 42;
+  display: flex;
+  flex-direction: column;
+  /* Re-enable interaction inside the click-transparent panel host. */
+  pointer-events: auto;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  box-shadow: var(--dsw-shadow-lv3);
+  overflow: hidden;
+  contain: layout style;
+}
+
+.floatWindowDragging {
+  will-change: left, top, width, height;
+}
+
+/* The header: the move/dock-back drag handle, mirroring the tab strip's
+   chrome (34px, hairline bottom, secondary label). */
+.floatHeader {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 4px 0 10px;
+  font: var(--dsw-font-xxs-12);
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-bg-layer-1);
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  cursor: grab;
+  user-select: none;
+}
+
+.floatWindowDragging .floatHeader {
+  cursor: grabbing;
+}
+
+.floatTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mirrors .tabClose. */
+.floatClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  flex: none;
+}
+
+.floatClose:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.floatContent {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+
+/* The SE resize corner (mirror of .cornerHandle). */
+.floatResize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  z-index: 2;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.floatResize:hover {
+  background: var(--dsw-alias-interactive-bg-hover-accent);
+}
+
+/* A pane highlighted as the dock target while a float header drag hovers it
+   (the attribute is written directly by the drag at pointer cadence;
+   skin-addressable via [data-dsh-pane][data-dsh-float-dock-over]). */
+.pane[data-dsh-float-dock-over] {
+  outline: 2px dashed var(--dsw-alias-interactive-bg-hover-accent);
+  outline-offset: -2px;
+}
+
+/* The drag-out hint over the conversation column: a dashed frame marking
+   the drop zone, pointer-transparent so it never disturbs the drag it
+   describes. z-index 46: above the windows (42) for unambiguous feedback,
+   still below the app's overlay stack. */
+.floatDropHint {
+  position: absolute;
+  z-index: 46;
+  pointer-events: none;
+  border: 2px dashed var(--dsw-alias-interactive-bg-hover-accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dsw-alias-interactive-bg-hover-accent) 12%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floatDropHintLabel {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font: var(--dsw-font-xxs-12);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l2);
+}
+
 /* ── Desktop drag-region opt-out ──────────────────────────────────────── */
 
 /* Frameless desktop shells make the top strip of the web content draggable
@@ -293,7 +428,8 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
    browsers and in shells without drag regions — safe everywhere. */
 .toggleCluster,
 .toggleButton,
-.tabBar {
+.tabBar,
+.floatHeader {
   -webkit-app-region: no-drag;
 }
 
