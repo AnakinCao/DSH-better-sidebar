@@ -122,6 +122,13 @@ function sessionCwdOf(ctx: Context, sessionId: string, clientCwd?: string): stri
   return process.cwd()
 }
 
+/** Optional repository selected by the Git panel when cwd is a container. */
+function selectedRepoOf(payload: unknown): string | undefined {
+  const record = payload as { repoRoot?: unknown }
+  if (record.repoRoot === undefined) return undefined
+  return requireAbsolute(requireString(payload, 'repoRoot'))
+}
+
 /**
  * Resolve a path that a git command reported — `git status`/`git diff`
  * print paths RELATIVE TO THE REPO TOP LEVEL, which may sit above the
@@ -129,7 +136,7 @@ function sessionCwdOf(ctx: Context, sessionId: string, clientCwd?: string): stri
  * paths pass through; relative ones join the repo root (falling back to the
  * cwd when the root cannot be resolved, e.g. a bare directory).
  */
-async function resolveGitPath(cwd: string, raw: string): Promise<string> {
+async function resolveGitPath(cwd: string, raw: string, selected?: string): Promise<string> {
   if (isAbsolute(raw)) return requireAbsolute(raw)
   // Prefer the session-relative interpretation when it names an existing
   // path. Git status reports repository-root-relative names, but the sidebar
@@ -137,7 +144,7 @@ async function resolveGitPath(cwd: string, raw: string): Promise<string> {
   // inside a nested session readable without reopening the repository root.
   const sessionPath = requireAbsolute(join(cwd, raw))
   if (await stat(sessionPath).then(() => true).catch(() => false)) return sessionPath
-  const root = await git.repoRoot(cwd).catch(() => cwd)
+  const root = await git.repoRoot(cwd, selected).catch(() => cwd)
   return requireAbsolute(join(root, raw))
 }
 
@@ -239,6 +246,14 @@ function buildApi(
     const clientCwd = typeof record?.cwd === 'string' && record.cwd !== '' ? record.cwd : undefined
     return { sessionId, cwd: sessionCwdOf(ctx, sessionId, clientCwd) }
   }
+  /** Resolve the optional Git-panel checkout selector against the authoritative
+   * session repository. Unlike `cwd`, `worktree` is never trusted directly. */
+  const gitCwdOf = async (payload: unknown): Promise<{ sessionId: string; cwd: string }> => {
+    const base = cwdOf(payload)
+    const record = payload as { worktree?: unknown } | null
+    const requested = typeof record?.worktree === 'string' && record.worktree !== '' ? record.worktree : undefined
+    return { sessionId: base.sessionId, cwd: await git.resolveWorktree(base.cwd, requested) }
+  }
   // Background jobs: the LIST rides the harness's `session/jobs` push
   // mirror, so these routes only replay output the model has read (from the
   // session's own event log — no DSH source is touched, the model's
@@ -292,47 +307,52 @@ function buildApi(
       }
       return { ok: true }
     },
-    'git.status': async (payload) => {
+    'git.worktrees': async (payload) => {
       const { cwd } = cwdOf(payload)
-      return git.status(cwd)
+      return git.worktrees(cwd)
+    },
+    'git.status': async (payload) => {
+      const { cwd } = await gitCwdOf(payload)
+      return git.status(cwd, selectedRepoOf(payload))
     },
     'git.diff': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { cwd } = await gitCwdOf(payload)
       const record = payload as { path?: unknown; staged?: unknown }
-      const path = record.path === undefined ? undefined : await resolveGitPath(cwd, requireString(payload, 'path'))
-      return { diff: await git.diff(cwd, path, record.staged === true) }
+      const repoRoot = selectedRepoOf(payload)
+      const path = record.path === undefined ? undefined : await resolveGitPath(cwd, requireString(payload, 'path'), repoRoot)
+      return { diff: await git.diff(cwd, path, record.staged === true, repoRoot) }
     },
     'git.stage': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { cwd } = await gitCwdOf(payload)
       const record = payload as { path?: unknown }
       const path = record.path === undefined ? undefined : requireString(payload, 'path')
-      await git.stage(cwd, path)
+      await git.stage(cwd, path, selectedRepoOf(payload))
       return { ok: true }
     },
     'git.unstage': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { cwd } = await gitCwdOf(payload)
       const record = payload as { path?: unknown }
       const path = record.path === undefined ? undefined : requireString(payload, 'path')
-      await git.unstage(cwd, path)
+      await git.unstage(cwd, path, selectedRepoOf(payload))
       return { ok: true }
     },
     'git.commit': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { cwd } = await gitCwdOf(payload)
       const message = requireString(payload, 'message')
-      await git.commit(cwd, message)
+      await git.commit(cwd, message, selectedRepoOf(payload))
       return { ok: true }
     },
     'git.branch': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      return git.branches(cwd)
+      const { cwd } = await gitCwdOf(payload)
+      return git.branches(cwd, selectedRepoOf(payload))
     },
     'git.checkout': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.checkout(cwd, requireString(payload, 'branch'))
+      const { cwd } = await gitCwdOf(payload)
+      await git.checkout(cwd, requireString(payload, 'branch'), selectedRepoOf(payload))
       return { ok: true }
     },
     'git.log': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { cwd } = await gitCwdOf(payload)
       const record = payload as { count?: unknown; skip?: unknown }
       const count = typeof record.count === 'number' && Number.isInteger(record.count) && record.count > 0
         ? record.count
@@ -340,32 +360,34 @@ function buildApi(
       const skip = typeof record.skip === 'number' && Number.isInteger(record.skip) && record.skip >= 0
         ? record.skip
         : undefined
-      return git.log(cwd, count, skip)
+      return git.log(cwd, count, skip, selectedRepoOf(payload))
     },
     'git.commit-diff': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      return { diff: await git.commitDiff(cwd, requireString(payload, 'hash')) }
+      const { cwd } = await gitCwdOf(payload)
+      return { diff: await git.commitDiff(cwd, requireString(payload, 'hash'), selectedRepoOf(payload)) }
     },
     'git.discard': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.discard(cwd, await resolveGitPath(cwd, requireString(payload, 'path')))
+      const { cwd } = await gitCwdOf(payload)
+      const repoRoot = selectedRepoOf(payload)
+      await git.discard(cwd, await resolveGitPath(cwd, requireString(payload, 'path'), repoRoot), repoRoot)
       return { ok: true }
     },
     'git.revert': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.revert(cwd, requireString(payload, 'hash'))
+      const { cwd } = await gitCwdOf(payload)
+      await git.revert(cwd, requireString(payload, 'hash'), selectedRepoOf(payload))
       return { ok: true }
     },
     'git.cherry-pick': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.cherryPick(cwd, requireString(payload, 'hash'))
+      const { cwd } = await gitCwdOf(payload)
+      await git.cherryPick(cwd, requireString(payload, 'hash'), selectedRepoOf(payload))
       return { ok: true }
     },
     'git.show': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      const path = await resolveGitPath(cwd, requireString(payload, 'path'))
+      const { cwd } = await gitCwdOf(payload)
+      const repoRoot = selectedRepoOf(payload)
+      const path = await resolveGitPath(cwd, requireString(payload, 'path'), repoRoot)
       const rev = requireString(payload, 'rev')
-      return { content: await git.show(cwd, rev, path) }
+      return { content: await git.show(cwd, rev, path, repoRoot) }
     },
     // Release a terminal immediately. The WebSocket close frame already does
     // this while the socket is open; this route covers the tab-close that
