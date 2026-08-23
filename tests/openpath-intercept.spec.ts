@@ -108,6 +108,9 @@ describe('open-path interception wiring', () => {
       },
       workspaces: funnel,
       betterSidebar: { openTab: (seed: unknown) => { opened.push(seed as Record<string, unknown>) } },
+      get: (name: string) => name === 'betterSidebar'
+        ? { openTab: (seed: unknown) => { opened.push(seed as Record<string, unknown>) } }
+        : undefined,
     } as unknown as Context
     const store = createSidebarStore()
     const original = ctx.workspaces.openPath

@@ -83,7 +83,7 @@ function treeWidthOf(tab: SidebarTab): number {
 
 /** Merge a patch into the tab's persisted meta (rides the layout). */
 function patchMeta(ctx: Context, tab: SidebarTab, patch: Record<string, unknown>): void {
-  ctx.betterSidebar?.updateTab(tab.id, { meta: { ...metaOf(tab), ...patch } })
+  ctx.get('betterSidebar')?.updateTab(tab.id, { meta: { ...metaOf(tab), ...patch } })
 }
 
 /** Clamp one dock width into the contract range. */
@@ -137,7 +137,7 @@ export function EditorHost(props: {
    */
   const openFile = (absolute: string): void => {
     if (inPlace) {
-      ctx.betterSidebar?.updateTab(tab.id, { path: absolute, title: baseName(absolute) })
+      ctx.get('betterSidebar')?.updateTab(tab.id, { path: absolute, title: baseName(absolute) })
     } else {
       openSidebarFile(ctx, store, scope.sessionId, absolute)
     }
@@ -303,7 +303,7 @@ export function EditorHost(props: {
               content: result.kind === 'text' ? result.content : '',
               truncated: result.truncated,
               head: result.kind === 'binary' ? result.head : undefined,
-            }, (head) => ctx.betterSidebar?.matchFileViewer(path, head), mediaUrlOf)
+            }, (head) => ctx.get('betterSidebar')?.matchFileViewer(path, head), mediaUrlOf)
             apply(outcome)
           }).catch((error: unknown) => {
             if (cancelled) return
@@ -312,7 +312,7 @@ export function EditorHost(props: {
           return
       }
     }
-    apply(planFirstMatch(ctx.betterSidebar?.matchFileViewer(path), mediaUrlOf))
+    apply(planFirstMatch(ctx.get('betterSidebar')?.matchFileViewer(path), mediaUrlOf))
     return () => { cancelled = true; controller.abort() }
   }, [scope.sessionId, scope.cwd, path, ctx, showEmpty, reloadSeq])
 

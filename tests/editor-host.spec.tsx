@@ -40,6 +40,7 @@ function setup(): {
   const sessionsSnapshot = { byId: { 'editor-home-session': { cwd: '/tmp' } }, current: 'editor-home-session' }
   const ctx = {
     betterSidebar: service,
+    get: (name: string) => name === 'betterSidebar' ? service : undefined,
     sessions: { list: { subscribe: () => () => {}, getSnapshot: () => sessionsSnapshot } },
   } as unknown as Context
   return { store, ctx, homeTab }

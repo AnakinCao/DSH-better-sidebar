@@ -363,7 +363,7 @@ export function apply(ctx: Context): void {
               let title: string | undefined
               try { title = new URL(url).hostname } catch { /* keep the default title */ }
               const type = urlTargetOf(new URL(url)) ?? 'browser'
-              ctx.betterSidebar?.openTab({ type, url, title })
+              ctx.get('betterSidebar')?.openTab({ type, url, title })
             },
             selfOrigin: window.location.origin,
           })

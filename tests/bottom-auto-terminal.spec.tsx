@@ -65,6 +65,7 @@ function mountSidebar(): MountedSidebar {
     locale: { subscribe: () => () => {}, getSnapshot: () => localeSnapshot },
     sessions: { list: { subscribe: () => () => {}, getSnapshot: () => sessionsSnapshot } },
     betterSidebar: service,
+    get: (name: string) => name === 'betterSidebar' ? service : undefined,
   }
   const root: Root = createRoot(container)
   act(() => { root.render(createElement(Sidebar, { ctx: ctx as never, store })) })

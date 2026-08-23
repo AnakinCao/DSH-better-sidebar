@@ -137,7 +137,7 @@ interface TabContentProps extends TabContentMemoKey {
 const TabContent = memo(function TabContent(props: TabContentProps) {
   const { tab, sessionId, cwd, expanded, onToggleDir, onReferenceFile, ctx, store, visible, onSubagentJump, onOpenDiff } = props
   const scope = { sessionId, cwd }
-  const descriptor = ctx.betterSidebar?.getTab(tab.type)
+  const descriptor = ctx.get('betterSidebar')?.getTab(tab.type)
   if (descriptor === undefined) {
     return <OrphanedTab ctx={ctx} store={store} scope={scope} tab={tab} visible={visible} />
   }
@@ -165,7 +165,7 @@ const TabContent = memo(function TabContent(props: TabContentProps) {
  * Tabs the user disabled in the side card settings are filtered out
  * entirely — re-enabling them is the settings page's job. */
 function buildNewTabOptions(state: SidebarState, ctx: Context, scope: SessionScope): NewTabOption[] {
-  const service = ctx.betterSidebar
+  const service = ctx.get('betterSidebar')
   if (service === undefined) return []
   return service.getTabs()
     .filter(d => !d.hidden && service.isTabEnabled(d.id))
@@ -231,7 +231,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   // from going stale, mirroring the localeRevision mechanism above.
   const [tabsVersion, setTabsVersion] = useState(0)
   useEffect(() => {
-    const service = ctx.betterSidebar
+    const service = ctx.get('betterSidebar')
     if (service === undefined) return
     return service.subscribe(() => setTabsVersion(version => version + 1))
   }, [ctx])
@@ -437,7 +437,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
         try {
           const list = JSON.parse(event.data) as Array<{ uuid: string; title: string; command: string; exited: boolean }>
           if (!Array.isArray(list)) return
-          store.reduce(s => ctx.betterSidebar?.isTabEnabled('terminal') === false
+          store.reduce(s => ctx.get('betterSidebar')?.isTabEnabled('terminal') === false
             ? s
             : reconcileAgentTerminals(s, list))
         } catch {
@@ -493,13 +493,13 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       autoOpenPendingRef.current = null
       if (!detectNewDirectSubagent(baseline, ctx.sessions.list.getSnapshot(), sessionId)) return
       if (!store.getPrefs().autoOpenSubagent) return
-      if (ctx.betterSidebar?.isTabEnabled('subagent') === false) return
+      if (ctx.get('betterSidebar')?.isTabEnabled('subagent') === false) return
       store.reduce(s => s.panelOpen ? s : togglePanel(s))
       // Pin the landing to the right panel: the auto-opened Subagent page must
       // appear where the panel just expanded, not in a bottom-panel pane the
       // user last touched.
       store.reduce(s => ({ ...s, activePane: firstLeaf(s.splits).id }))
-      ctx.betterSidebar?.openTab({ type: 'subagent', title: t('subagent') })
+      ctx.get('betterSidebar')?.openTab({ type: 'subagent', title: t('subagent') })
     }, AUTO_OPEN_DEBOUNCE_MS)
     autoOpenPendingRef.current = { baseline, timer }
   }, [sessionList, sessionId, store, ctx])
@@ -527,10 +527,10 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     if (sessionId === undefined || prev === undefined) return
     if (!detectNewJob(prev, sessionList, sessionId)) return
     if (!store.getPrefs().autoOpenJobs) return
-    if (ctx.betterSidebar?.isTabEnabled('subagent') === false) return
+    if (ctx.get('betterSidebar')?.isTabEnabled('subagent') === false) return
     store.reduce(s => s.panelOpen ? s : togglePanel(s))
     store.reduce(s => ({ ...s, activePane: firstLeaf(s.splits).id }))
-    ctx.betterSidebar?.openTab({ type: 'subagent', title: t('subagent') })
+    ctx.get('betterSidebar')?.openTab({ type: 'subagent', title: t('subagent') })
   }, [sessionList, sessionId, store, ctx])
 
   /**
@@ -551,7 +551,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     subagentJumpRef.current = undefined
     store.reduce(s => s.panelOpen ? s : togglePanel(s))
     store.reduce(s => ({ ...s, activePane: firstLeaf(s.splits).id }))
-    ctx.betterSidebar?.openTab({ type: 'subagent', title: t('subagent') })
+    ctx.get('betterSidebar')?.openTab({ type: 'subagent', title: t('subagent') })
   }, [sessionId, store, ctx])
 
   // The app shell's center column: the bottom panel spans ONLY that column
@@ -802,11 +802,11 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     if (wasOpen === undefined || wasOpen || !state.bottomOpen) return
     if (state.bottomOpenedOnce) return
     if (store.getPrefs().bottomPanelAutoTerminal === false) return
-    if (ctx.betterSidebar?.isTabEnabled('terminal') === false) return
+    if (ctx.get('betterSidebar')?.isTabEnabled('terminal') === false) return
     // Land the tab in the bottom panel's first pane; the once-flag is set
     // atomically so later expansions never repeat the auto-open.
     store.reduce(s => ({ ...s, activePane: firstLeaf(s.bottomSplits).id, bottomOpenedOnce: true }))
-    ctx.betterSidebar?.openTab({ type: 'terminal' })
+    ctx.get('betterSidebar')?.openTab({ type: 'terminal' })
   }, [state, store, ctx, narrow])
 
   // Panel drags: the right panel's width (left edge strip), the bottom
@@ -1087,7 +1087,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       // Route through the service: the tab-bar close is the canonical close
       // path (finds the pane itself, fires descriptor.onClose); the session
       // scope (with its cwd) rides to the callback.
-      ctx.betterSidebar?.closeTab(tabId, sessionId === undefined ? undefined : { sessionId, cwd })
+      ctx.get('betterSidebar')?.closeTab(tabId, sessionId === undefined ? undefined : { sessionId, cwd })
       if (tab?.type === 'terminal') {
         if (isAgentTabId(tabId)) {
           const uuid = agentUuidOf(tabId)
@@ -1101,7 +1101,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       // Route through the service: same reducer (finds the pane in EITHER
       // tree, sets the active pane) and fires descriptor.onActivate; the
       // session scope (with its cwd) rides to the callback.
-      ctx.betterSidebar?.activateTab(tabId, sessionId === undefined ? undefined : { sessionId, cwd })
+      ctx.get('betterSidebar')?.activateTab(tabId, sessionId === undefined ? undefined : { sessionId, cwd })
     },
     focusPane: (paneId) => { store.reduce(s => ({ ...s, activePane: paneId })) },
     moveTabToEdge: (payload: TabDragPayload, toPane: string, zone: DropZone) => {
@@ -1183,9 +1183,9 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   }).height
 
   const onNewTab = (optionId: string): void => {
-    const service = ctx.betterSidebar
+    const service = ctx.get('betterSidebar')
     const descriptor = service?.getTab(optionId)
-    if (descriptor === undefined) return
+    if (service === undefined || descriptor === undefined) return
     const title = typeof descriptor.title === 'function' ? descriptor.title() : descriptor.title
     // The session scope rides along: lifecycle callbacks receive it (and
     // the open stays in the current session, as before).
@@ -1200,7 +1200,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
    */
   /** The tab icon from the tab-type registry (shared by every workbench). */
   const tabIconOf = (tab: SidebarTab): ReactNode => {
-    const descriptor = ctx.betterSidebar?.getTab(tab.type)
+    const descriptor = ctx.get('betterSidebar')?.getTab(tab.type)
     if (descriptor === undefined) return null
     return typeof descriptor.icon === 'function' ? descriptor.icon(14) : descriptor.icon
   }
@@ -1211,7 +1211,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
    * strip must never break because a plugin's badge computation failed.
    */
   const tabBadgeOf = (tab: SidebarTab): ReactNode => {
-    const descriptor = ctx.betterSidebar?.getTab(tab.type)
+    const descriptor = ctx.get('betterSidebar')?.getTab(tab.type)
     if (descriptor?.badge === undefined) return null
     let value: string | number | null | undefined
     try {
