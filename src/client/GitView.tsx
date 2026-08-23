@@ -93,6 +93,7 @@ export function GitView(props: {
   const [status, setStatus] = useState<GitStatusResult | null>(null)
   const [worktrees, setWorktrees] = useState<GitWorktree[]>([])
   const [selectedWorktree, setSelectedWorktree] = useState<string | undefined>()
+  const [repoRoot, setRepoRoot] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [branchNames, setBranchNames] = useState<string[]>([])
@@ -122,6 +123,8 @@ export function GitView(props: {
   const selectedRef = useRef<string | undefined>(undefined)
   useEffect(() => { selectedRef.current = selectedWorktree }, [selectedWorktree])
 
+  const gitScope: SessionScope = repoRoot === undefined ? scope : { ...scope, repoRoot }
+
   /** Publish a complete checkout-derived view. Status, branch choices and
    *  history are one consistency unit: never mix rows from two worktrees. */
   const refreshTarget = useCallback(async (
@@ -132,12 +135,13 @@ export function GitView(props: {
     setError(null)
     try {
       const [statusResult, branchResult, logResult] = await Promise.all([
-        api.gitStatus(scope, target),
-        api.gitBranch(scope, target).catch(() => ({ current: '', names: [] as string[] })),
-        api.gitLog(scope, LOG_BATCH, 0, target).catch(() => [] as GitLogEntry[]),
+        api.gitStatus(gitScope, target),
+        api.gitBranch(gitScope, target).catch(() => ({ current: '', names: [] as string[] })),
+        api.gitLog(gitScope, LOG_BATCH, 0, target).catch(() => [] as GitLogEntry[]),
       ])
       if (options.generation !== refreshGeneration.current) return
       setStatus(statusResult)
+      if (statusResult.root !== undefined && statusResult.root !== repoRoot) setRepoRoot(statusResult.root)
       setBranchNames(branchResult.names)
       setLogEntries(logResult)
       setLogEnded(logResult.length < LOG_BATCH)
@@ -148,7 +152,7 @@ export function GitView(props: {
     } finally {
       if (options.loading && options.generation === refreshGeneration.current) setLoading(false)
     }
-  }, [scope.sessionId, scope.cwd])
+  }, [scope.sessionId, scope.cwd, repoRoot])
 
   const refresh = useCallback(async (silent = false): Promise<void> => {
     if (refreshInFlight.current) return
@@ -189,7 +193,7 @@ export function GitView(props: {
       // A poll may update status alone only while staying on the same checkout.
       // Any automatic selection change refreshes the complete derived view.
       if (silent && !targetChanged) {
-        const statusResult = await api.gitStatus(scope, target)
+        const statusResult = await api.gitStatus(gitScope, target)
         if (generation === refreshGeneration.current) setStatus(statusResult)
         return
       }
@@ -240,7 +244,7 @@ export function GitView(props: {
     const target = selectedRef.current
     setLogLoadingMore(true)
     try {
-      const next = await api.gitLog(scope, LOG_BATCH, logEntries.length, target)
+      const next = await api.gitLog(gitScope, LOG_BATCH, logEntries.length, target)
       // A worktree switch clears the old history and increments generation.
       // Never append a late page from that checkout into the new one.
       if (generation !== refreshGeneration.current || target !== selectedRef.current) return
@@ -261,7 +265,7 @@ export function GitView(props: {
       id: `diff:w:${encodeURIComponent(selectedWorktree ?? '')}:${staged ? 's' : 'u'}:${entry.path}`,
       type: 'diff',
       title: baseName(entry.path),
-      diff: { kind: 'worktree', path: entry.path, staged, untracked: isUntracked(entry), worktree: selectedWorktree },
+      diff: { kind: 'worktree', path: entry.path, staged, untracked: isUntracked(entry), worktree: selectedWorktree, repoRoot },
     })
   }
 
@@ -271,15 +275,15 @@ export function GitView(props: {
       id: `diff:c:${encodeURIComponent(selectedWorktree ?? '')}:${entry.hashFull}`,
       type: 'diff',
       title: `${entry.hash} ${entry.subject}`,
-      diff: { kind: 'commit', hash: entry.hash, hashFull: entry.hashFull, subject: entry.subject, worktree: selectedWorktree },
+      diff: { kind: 'commit', hash: entry.hash, hashFull: entry.hashFull, subject: entry.subject, worktree: selectedWorktree, repoRoot },
     })
   }
 
   const stageEntry = async (entry: GitStatusEntry, staged: boolean): Promise<void> => {
     setBusy(true)
     try {
-      if (staged) await api.gitUnstage(scope, entry.path, selectedWorktree)
-      else await api.gitStage(scope, entry.path, selectedWorktree)
+      if (staged) await api.gitUnstage(gitScope, entry.path, selectedWorktree)
+      else await api.gitStage(gitScope, entry.path, selectedWorktree)
       await refresh()
     } finally {
       setBusy(false)
@@ -289,8 +293,8 @@ export function GitView(props: {
   const stageAll = async (staged: boolean): Promise<void> => {
     setBusy(true)
     try {
-      if (staged) await api.gitUnstage(scope, undefined, selectedWorktree)
-      else await api.gitStage(scope, undefined, selectedWorktree)
+      if (staged) await api.gitUnstage(gitScope, undefined, selectedWorktree)
+      else await api.gitStage(gitScope, undefined, selectedWorktree)
       await refresh()
     } finally {
       setBusy(false)
@@ -303,7 +307,7 @@ export function GitView(props: {
     setBusy(true)
     setCommitError(null)
     try {
-      await api.gitCommit(scope, message, selectedWorktree)
+      await api.gitCommit(gitScope, message, selectedWorktree)
       setCommitMsg('')
       await refresh()
     } catch (reason) {
@@ -318,7 +322,7 @@ export function GitView(props: {
     setBusy(true)
     setCommitError(null)
     try {
-      await api.gitCheckout(scope, branch, selectedWorktree)
+      await api.gitCheckout(gitScope, branch, selectedWorktree)
       await refresh()
     } catch (reason) {
       setCommitError(`${t('checkoutError')}: ${reason instanceof Error ? reason.message : String(reason)}`)
@@ -411,6 +415,17 @@ export function GitView(props: {
         </div>
       )}
       <div className={css.gitHeader}>
+        {(status?.repositories?.length ?? 0) > 1 && (
+          <select
+            className={css.gitBranchSelect}
+            value={repoRoot ?? ''}
+            title={repoRoot}
+            onChange={(event) => { setRepoRoot(event.target.value) }}
+            disabled={busy}
+          >
+            {status!.repositories!.map(root => <option key={root} value={root}>{baseName(root)}</option>)}
+          </select>
+        )}
         <select
           className={css.gitBranchSelect}
           value={status?.branch ?? ''}
@@ -552,7 +567,7 @@ export function GitView(props: {
               if (target === null) return
               setFileMenu(null)
               if (id === 'open') {
-                onOpenFile(resolveSidebarPath(selectedWorktree ?? scope.cwd, target.entry.path))
+                onOpenFile(resolveSidebarPath(repoRoot ?? selectedWorktree ?? scope.cwd, target.entry.path))
                 return
               }
               if (id === 'stage') {
@@ -564,15 +579,15 @@ export function GitView(props: {
                   title: t('discardTitle'),
                   description: t('discardDesc', { path: target.entry.path }),
                   confirmLabel: t('discard'),
-                  onConfirm: () => api.gitDiscard(scope, target.entry.path, selectedWorktree),
+                  onConfirm: () => api.gitDiscard(gitScope, target.entry.path, selectedWorktree),
                 })
                 return
               }
               if (id === 'relative') {
-                copy(relativeTo(selectedWorktree ?? scope.cwd ?? '', target.entry.path))
+                copy(relativeTo(repoRoot ?? selectedWorktree ?? scope.cwd ?? '', target.entry.path))
                 return
               }
-              if (id === 'absolute') copy(resolveSidebarPath(selectedWorktree ?? scope.cwd, target.entry.path))
+              if (id === 'absolute') copy(resolveSidebarPath(repoRoot ?? selectedWorktree ?? scope.cwd, target.entry.path))
             }}
             portal
             align="start"
@@ -618,7 +633,7 @@ export function GitView(props: {
                   title: t('revertTitle'),
                   description: t('revertDesc', { subject: target.entry.subject }),
                   confirmLabel: t('revertCommit'),
-                  onConfirm: () => api.gitRevert(scope, target.entry.hashFull, selectedWorktree),
+                  onConfirm: () => api.gitRevert(gitScope, target.entry.hashFull, selectedWorktree),
                 })
                 return
               }
@@ -627,7 +642,7 @@ export function GitView(props: {
                   title: t('cherryPickTitle'),
                   description: t('cherryPickDesc', { subject: target.entry.subject }),
                   confirmLabel: t('cherryPickCommit'),
-                  onConfirm: () => api.gitCherryPick(scope, target.entry.hashFull, selectedWorktree),
+                  onConfirm: () => api.gitCherryPick(gitScope, target.entry.hashFull, selectedWorktree),
                 })
               }
             }}
