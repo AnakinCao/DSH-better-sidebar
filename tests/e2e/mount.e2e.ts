@@ -143,6 +143,15 @@ test('plugin mounts into the DSH shell and survives a built-in tab sweep', async
   // The unified panel host: the fixed containing block every panel lives in
   // (data-dsh-panel-host). Its presence is part of the injection contract.
   await expect(page.locator('[data-dsh-panel-host]')).toBeAttached({ timeout: 90_000 })
+  // The host's global z-index is part of the layering contract: it must
+  // sit above the AppFrame overlay layer (20) and below DSH's ui-cordis
+  // dynamic-plugin panel (fixed, 30) so that surface is never hidden behind
+  // the workbench, and below the DSH float stack (100+).
+  const hostZ = await page.locator('[data-dsh-panel-host]').evaluate(
+    (el) => Number.parseFloat(getComputedStyle(el).zIndex),
+  )
+  expect(hostZ).toBeGreaterThan(20)
+  expect(hostZ).toBeLessThan(30)
 
   // A keyless boot stacks onboarding takeovers that mask the whole shell: a
   // versioned welcome notice ("Continue", persists its acknowledgement to
@@ -181,6 +190,26 @@ test('plugin mounts into the DSH shell and survives a built-in tab sweep', async
   // shell renders a disabled toggle cluster and the tab sweep is impossible.
   const tabBar = sidebar.locator('[title]')
   await expect(tabBar.first()).toBeAttached({ timeout: 90_000 })
+
+  // Regression: with the panels still COLLAPSED, the document must not grow
+  // beyond the viewport. Collapsed panels are slid off-screen with
+  // `transform: translate(102%)`, and a transformed element still
+  // contributes to its ancestors' scrollable overflow — unclipped, the
+  // hidden panels extended the document's scroll area and the whole page
+  // became draggable left-right and up-down. The panel host clips at the
+  // viewport edge (overflow: hidden), so scrollWidth/scrollHeight must stay
+  // within the viewport here. (Assert <= not == : a classic scrollbar
+  // narrows clientWidth, so scrollWidth may sit slightly under innerWidth.)
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => ({
+          overflowX: document.documentElement.scrollWidth <= window.innerWidth,
+          overflowY: document.documentElement.scrollHeight <= window.innerHeight,
+        })),
+      { timeout: 30_000 },
+    )
+    .toEqual({ overflowX: true, overflowY: true })
 
   // openByDefault defaults OFF: a fresh session's panel starts collapsed.
   // Expand it through the toggle cluster before the layout push can apply.
