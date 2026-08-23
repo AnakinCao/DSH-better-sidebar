@@ -106,6 +106,7 @@ export const ja: Record<string, string> = {
   commit: 'コミット',
   commitError: 'コミット失敗',
   branch: 'ブランチ',
+  worktree: 'ワークツリー',
   checkoutError: 'ブランチ切り替えに失敗',
   history: '履歴',
   changes: '変更',
