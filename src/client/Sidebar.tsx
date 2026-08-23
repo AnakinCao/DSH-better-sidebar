@@ -153,7 +153,7 @@ const TabContent = memo(function TabContent(props: TabContentProps) {
     RenderBoundary,
     { className: css.tabBoundaryError },
     createElement(descriptor.component, {
-      ctx, store, scope, tab, visible, expanded,
+      ctx, store, scope, tab, visible, expanded, revealed,
       onToggleDir, onReferenceFile, onOpenDiff, onSubagentJump,
     }),
   )
@@ -1245,6 +1245,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       sessionId={sessionId}
       cwd={cwd}
       expanded={state.expanded}
+      revealed={state.revealed ?? []}
       onToggleDir={(path) => { store.reduce(s => toggleExpanded(s, path)) }}
       onReferenceFile={referenceInChat}
       ctx={ctx}
