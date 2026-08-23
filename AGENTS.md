@@ -11,6 +11,7 @@ better-sidebar 从 v0.4.0 起暴露 `ctx.betterSidebar` 服务（Cordis context 
 - **禁止修改 DeepSeek Harness (DSH) 源码**：对官方源码 checkout（`~/.dsh/source/current`）零写入——不得改 harness 包、不得把 harness 改动提交到它的分支。
 - **代码改动必须走 PR**：功能 / 修复 / 测试等非文档改动一律在分支上开发（`feat/*` / `fix/*`），用 `gh pr create` 发起 PR，review 合并后才进 main；**仅纯文档类改动**（README / AGENTS.md / docs/ 等）允许直接推送到 main。
 - **挂载只走 `cordis.patch.yml` + profile 机制**（`~/.dsh/profiles/<profile>/`），插件永远作为独立包被 profile 引用，不反向侵入 DSH。
+- **DSH 市场受管安装兼容约束**：发布清单的 `dependencies` / `peerDependencies` / `optionalDependencies` 三字段**一律不得出现 `cordis`**（市场预览按名硬拒，optional 无效），且 `scripts` 不得含 `preinstall` / `install` / `postinstall` / `prepare`。回归由 `tests/market-manifest.spec.ts` 守护——违反即市场目录拿不到 `repository_backlink` 验证目标。
 - 需要 harness 没有的能力时，用 DSH **现成的只读/公开 API** 或插件自有路由实现（参考 §7 的 `jobs.output` 事件回放：读会话事件日志而非动注册表）；如果确实做不到，先向用户说明取舍，而不是直接改 DSH。
 
 ### CI 挂载冒烟（`plugin-mount` job / `pnpm test:mount`）
@@ -39,7 +40,7 @@ better-sidebar 从 v0.4.0 起暴露 `ctx.betterSidebar` 服务（Cordis context 
 - **服务名**：`betterSidebar`（即 `ctx.betterSidebar`）
 - **发布侧**：better-sidebar 的 client half（`src/client/index.tsx`，通过 `ctx.provide('betterSidebar', service)` 发布）
 - **消费侧**：你的插件的 client half（`inject = ['betterSidebar', ...]`，然后 `ctx.betterSidebar.registerTab(...)`）
-- **类型合并**：`declare module 'cordis' { interface Context { betterSidebar: BetterSidebarService } }` 由 `dsh-better-sidebar` 包导出；消费插件 `import type {} from 'dsh-better-sidebar'` 即触发类型合并
+- **类型合并**：`declare module '@deepseek-ai/cordis' { interface Context { betterSidebar: BetterSidebarService } }` 由 `dsh-better-sidebar` 包导出；消费插件 `import type {} from 'dsh-better-sidebar'` 即触发类型合并
 
 > ⚠️ **host 半不发布此服务**：`ctx.betterSidebar` 只在 client 侧存在。如果你的插件 host 半需要读 better-sidebar 状态，走 better-sidebar 自己的 HTTP/WS 路由（`/sidebar/api/*`），不走服务。
 
@@ -53,7 +54,7 @@ better-sidebar 从 v0.4.0 起暴露 `ctx.betterSidebar` 服务（Cordis context 
 {
   "name": "my-plugin",
   "peerDependencies": {
-    "cordis": "^4.0.0-rc.8",
+    "@deepseek-ai/cordis": "^4.0.1",
     "dsh-better-sidebar": "workspace:*"
   },
   "peerDependenciesMeta": {
@@ -115,7 +116,7 @@ import type {
 } from 'dsh-better-sidebar/client/service'
 ```
 
-> 💡 **类型合并触发路径**：`import type {} from 'dsh-better-sidebar/client/service'` 同样会加载 `Context` 的 augmentation（`declare module 'cordis'` 在 context-types.d.ts 中，service 声明会拉入它）——纯浏览器侧插件建议走 `client/service` 路径，避免拉进宿主半的 Node 类型图（主入口 `dsh-better-sidebar` 的声明面含宿主代码，宿主消费者本就处于 Node 环境）。client 可达声明图（`client/*` + context-types + html-route + prefs-shared）自 v0.12.0 起**零 Node 依赖**（`scripts/check-consumer-types.sh` 守护），无 `@types/node`、`skipLibCheck: false` 也能编译。
+> 💡 **类型合并触发路径**：`import type {} from 'dsh-better-sidebar/client/service'` 同样会加载 `Context` 的 augmentation（`declare module '@deepseek-ai/cordis'` 在 context-types.d.ts 中，service 声明会拉入它）——纯浏览器侧插件建议走 `client/service` 路径，避免拉进宿主半的 Node 类型图（主入口 `dsh-better-sidebar` 的声明面含宿主代码，宿主消费者本就处于 Node 环境）。client 可达声明图（`client/*` + context-types + html-route + prefs-shared）自 v0.12.0 起**零 Node 依赖**（`scripts/check-consumer-types.sh` 守护），无 `@types/node`、`skipLibCheck: false` 也能编译。
 
 ---
 
@@ -588,7 +589,7 @@ interface OpenTabSeed {
 | 陷阱 | 说明 |
 |---|---|
 | **构建纯度门** | client bundle 禁止 value-import `@dsh-external/*` 或非白名单的 `@deepseek-ai/*`；类型 `import type {}` 会被擦除，不触发门禁 |
-| **双 cordis 实例** | 外部插件解析不到 DSH monorepo 的 cordis augmentation；better-sidebar 自己重述了 `interface Context { betterSidebar: ... }`，你 `import type {}` 即拿到类型 |
+| **统一 cordis 分支（v0.15.2+）** | 类型基底与 augmentation 全部落在 DSH 运行时正主 `@deepseek-ai/cordis`（`src/context-types.ts`：真实 cordis `Context` 与结构化服务面做**交集**，不再重述 `declare module 'cordis'`——DSH host/client 包对同一成员声明不同类型（如 `sessions`），合并会 TS2717 冲突）。消费者 `import type {} from 'dsh-better-sidebar'` 即拿到 `ctx.betterSidebar` augmentation，或直接 `import type { Context } from 'dsh-better-sidebar'`。**公开版 `cordis` 不再被依赖**（市场规则拒绝依赖字段出现 `cordis`，见 §0 硬约束） |
 | **ModuleLoader 不跨插件** | 运行时 `require()` 虽支持跨 bundle，但被构建门挡；所有交互走 `ctx.betterSidebar` 方法调用 |
 | **host 半无此服务** | `ctx.betterSidebar` 只在 client 侧存在；host 半需要 better-sidebar 数据走 `/sidebar/api/*` HTTP 路由 |
 | **portal 限制** | 整面板 slot 由 ui-layout 独占，外部 tab 只能进入 better-sidebar 的 portal 内部，无法全屏替换 |
@@ -642,7 +643,7 @@ interface OpenTabSeed {
     "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" }
   },
   "peerDependencies": {
-    "cordis": "^4.0.0-rc.8",
+    "@deepseek-ai/cordis": "^4.0.1",
     "dsh-better-sidebar": "workspace:*",
     "@deepseek-ai/dsh-client-runtime": "^0.0.1",
     "react": "^18.2.0"
@@ -657,7 +658,7 @@ interface OpenTabSeed {
 ```tsx
 import { createElement } from 'react'
 import type {} from 'dsh-better-sidebar'  // 触发 ctx.betterSidebar 类型合并
-import type { Context } from 'cordis'
+import type { Context } from '@deepseek-ai/cordis'
 
 export const inject = ['betterSidebar']
 

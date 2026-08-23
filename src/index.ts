@@ -54,8 +54,10 @@ import { readJsonBody, requireString, SidebarError, writeError, writeJson, write
 
 export { Config }
 export type { SidebarConfig, ResolvedSidebarConfig }
-// Re-export the Context augmentation (declare module 'cordis') so consumers
-// `import type {} from 'dsh-better-sidebar'` and gain `ctx.betterSidebar`.
+// Re-export the Context augmentation (`declare module '@deepseek-ai/cordis'`)
+// so consumers `import type {} from 'dsh-better-sidebar'` and gain
+// `ctx.betterSidebar`; the Context re-export below is the vendored cordis
+// Context intersected with the structural service faces.
 // Also re-export the service descriptor types so consumers can type their
 // registerTab / registerFileViewer arguments without reaching into /client.
 export type { Context } from './context-types.ts'

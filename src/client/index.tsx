@@ -313,7 +313,7 @@ export function apply(ctx: Context): void {
           return registerTurnTailInterception(ctx, sidebarStore)
         } catch (error) {
           fail('interception', error)
-          return undefined
+          return () => {}
         }
       },
       'dsh-better-sidebar: turn-tail interception',
@@ -325,7 +325,7 @@ export function apply(ctx: Context): void {
           return registerOpenPathInterception(ctx, sidebarStore)
         } catch (error) {
           fail('interception', error)
-          return undefined
+          return () => {}
         }
       },
       'dsh-better-sidebar: open-path interception',
@@ -369,7 +369,7 @@ export function apply(ctx: Context): void {
           })
         } catch (error) {
           fail('interception', error)
-          return undefined
+          return () => {}
         }
       },
       'dsh-better-sidebar: link interception',
@@ -389,7 +389,7 @@ export function apply(ctx: Context): void {
           return registerImeGuard()
         } catch (error) {
           fail('ime guard', error)
-          return undefined
+          return () => {}
         }
       },
       'dsh-better-sidebar: IME composition guard',
