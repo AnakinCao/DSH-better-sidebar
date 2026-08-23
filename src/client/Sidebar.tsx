@@ -197,14 +197,17 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   // re-render. This second uSES reads the better-locale store's `active`
   // directly, so an override switch fires a full re-render and t() picks
   // up the new override text. Optional: ctx.get returns undefined when
-  // better-locale is absent, in which case this is a no-op uSES.
+  // better-locale is absent (or when ctx is a minimal test mock without
+  // a `get` method), in which case this is a no-op uSES.
   type BetterLocaleStore = {
     readonly active: string | undefined
     subscribe(listener: () => void): () => void
   }
-  const betterLocaleStore = (ctx as unknown as {
-    get(name: 'betterLocale'): BetterLocaleStore | undefined
-  }).get('betterLocale')
+  const betterLocaleStore = typeof ctx.get === 'function'
+    ? (ctx as unknown as {
+        get(name: 'betterLocale'): BetterLocaleStore | undefined
+      }).get('betterLocale')
+    : undefined
   const betterLocaleActive = useSyncExternalStore(
     useMemo(() => {
       const store = betterLocaleStore
