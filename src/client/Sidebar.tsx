@@ -1030,18 +1030,20 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   }, [ctx, sessionId, cwd])
 
   if (state === undefined || sessionId === undefined) {
+    // Keep the unavailable controls focusable: touch users have no hover, so
+    // focus is the only way the existing Tooltip can explain what is missing.
     return (
       <div data-dsh-panel-host {...osFileDragShield}>
         <div className={css.toggleCluster} data-dsh-toggle-cluster>
           {!narrow && (
             <Tooltip label={t('noSession')} side="bottom" delayMs={500}>
-              <button type="button" className={css.toggleButton} disabled aria-label={t('noSession')}>
+              <button type="button" className={css.toggleButton} aria-disabled="true" aria-label={t('noSession')}>
                 <IconPanelBottomOutline16 />
               </button>
             </Tooltip>
           )}
           <Tooltip label={t('noSession')} side="bottom" delayMs={500}>
-            <button type="button" className={css.toggleButton} disabled aria-label={t('noSession')}>
+            <button type="button" className={css.toggleButton} aria-disabled="true" aria-label={t('noSession')}>
               <IconPanelRightOutline16 />
             </button>
           </Tooltip>
