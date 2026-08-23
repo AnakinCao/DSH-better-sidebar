@@ -24,7 +24,10 @@ import { registerSettingsNavIcon } from './settings-nav-icon.ts'
 import { loadExternalDisable, loadPrefs } from './prefs.ts'
 import { SideCardSection } from './SideCardSection.tsx'
 import { api } from './api.ts'
-import { LOCALE_NS, attachLocale, attachBetterLocale, t, zh, en, ja } from './locales.ts'
+import { LOCALE_NS, attachLocale, attachBetterLocale, t, zh, en,
+  ja, de, fr, pt, ko, ar, hi, id, tr, vi, th, ru, it, nl, sv, pl,
+  zhHK, zhTW, zhMO,
+} from './locales.ts'
 import css from './sidebar.module.css'
 import './layout.css'
 
@@ -91,7 +94,10 @@ export function apply(ctx: Context): void {
         | undefined
       attachBetterLocale(store)
       if (store !== undefined) {
-        dispose = store.register(LOCALE_NS, { ja })
+        dispose = store.register(LOCALE_NS, {
+          ja, de, fr, pt, ko, ar, hi, id, tr, vi, th, ru, it, nl, sv, pl,
+          'zh-HK': zhHK, 'zh-TW': zhTW, 'zh-MO': zhMO,
+        })
       }
     }
     // Initial check (picks up the store if better-locale activated first).
