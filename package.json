@@ -100,14 +100,10 @@
     "@deepseek-ai/dsh-subagent": "^0.1.0-rc.8",
     "@deepseek-ai/dsh-tools": "^0.1.0-rc.8",
     "@huanlin/dsh-plugin-better-locale": "^0.1.0",
-    "cordis": "^4.0.0-rc.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "peerDependenciesMeta": {
-    "cordis": {
-      "optional": true
-    },
     "@huanlin/dsh-plugin-better-locale": {
       "optional": true
     }
@@ -173,6 +169,7 @@
     "react-dom": "18.2.0",
     "tsdown": "^0.22.2",
     "typescript": "^5.6.0",
+    "unrun": "^0.3.1",
     "vitest": "^4.1.8"
   }
 }

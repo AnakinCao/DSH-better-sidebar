@@ -28,8 +28,9 @@ import {
   type SidebarConfig,
   type SidebarPrefs,
 } from './config.ts'
-import { isWithin, parentOf, requireAbsolute, listDirectory, rootLabel } from './fs-tree.ts'
+import { parentOf, requireAbsolute, listDirectory, rootLabel } from './fs-tree.ts'
 import { writeWorkspaceUpload } from './fs-operations.ts'
+import { ensureWorkspacePath, ensureWorkspaceWritePath } from './path-security.ts'
 import { searchFiles } from './fs-search.ts'
 import { decodeHtmlUrl } from './html-route.ts'
 import { extractFrameAncestors } from './browser-probe.ts'
@@ -54,8 +55,10 @@ import { readJsonBody, requireString, SidebarError, writeError, writeJson, write
 
 export { Config }
 export type { SidebarConfig, ResolvedSidebarConfig }
-// Re-export the Context augmentation (declare module 'cordis') so consumers
-// `import type {} from 'dsh-better-sidebar'` and gain `ctx.betterSidebar`.
+// Re-export the Context augmentation (`declare module '@deepseek-ai/cordis'`)
+// so consumers `import type {} from 'dsh-better-sidebar'` and gain
+// `ctx.betterSidebar`; the Context re-export below is the vendored cordis
+// Context intersected with the structural service faces.
 // Also re-export the service descriptor types so consumers can type their
 // registerTab / registerFileViewer arguments without reaching into /client.
 export type { Context } from './context-types.ts'
@@ -128,6 +131,12 @@ function sessionCwdOf(ctx: Context, sessionId: string, clientCwd?: string): stri
  */
 async function resolveGitPath(cwd: string, raw: string): Promise<string> {
   if (isAbsolute(raw)) return requireAbsolute(raw)
+  // Prefer the session-relative interpretation when it names an existing
+  // path. Git status reports repository-root-relative names, but the sidebar
+  // security boundary is the session workspace; this preference keeps files
+  // inside a nested session readable without reopening the repository root.
+  const sessionPath = requireAbsolute(join(cwd, raw))
+  if (await stat(sessionPath).then(() => true).catch(() => false)) return sessionPath
   const root = await git.repoRoot(cwd).catch(() => cwd)
   return requireAbsolute(join(root, raw))
 }
@@ -248,7 +257,7 @@ function buildApi(
     'fs.tree': async (payload) => {
       const { cwd } = cwdOf(payload)
       const record = payload as { path?: unknown }
-      const target = record.path === undefined ? cwd : requireAbsolute(requireString(payload, 'path'))
+      const target = record.path === undefined ? cwd : await ensureWorkspacePath(cwd, requireString(payload, 'path'))
       return listDirectory(target, resolved.listLimit)
     },
     'fs.search': async (payload) => {
@@ -263,14 +272,14 @@ function buildApi(
       const { cwd } = cwdOf(payload)
       // Relative paths are git-derived (status/diff report repo-root-relative
       // names; the untracked diff view reads the file through this route).
-      const path = await resolveGitPath(cwd, requireString(payload, 'path'))
+      const path = await ensureWorkspacePath(cwd, await resolveGitPath(cwd, requireString(payload, 'path')))
       const { content, truncated, binary, size, head } = await readText(path, resolved.readLimit)
       if (binary) return { kind: 'binary', size, truncated, head }
       return { kind: 'text', content, truncated }
     },
     'fs.write': async (payload) => {
       const { cwd } = cwdOf(payload)
-      const path = requireAbsolute(requireString(payload, 'path'))
+      const path = await ensureWorkspaceWritePath(cwd, requireString(payload, 'path'))
       const content = requireString(payload, 'content')
       const tmp = `${path}.dsh-sidebar-tmp-${process.pid}`
       try {
@@ -722,14 +731,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
         const raw = url.searchParams.get('path')
         if (sessionId === null || raw === null) throw new SidebarError('bad-request', 'sessionId and path are required')
         const cwd = sessionCwdOf(ctx, sessionId, url.searchParams.get('cwd') ?? undefined)
-        const path = requireAbsolute(raw)
-        if (!isWithin(cwd, path)) {
-          // Only files under the session cwd are served as media (the editor
-          // opens images from the explorer; produced files go through read).
-          // isWithin (not a raw startsWith) so case-mismatched Windows paths
-          // and mixed separators cannot be misclassified.
-          throw new SidebarError('fs-error', 'media path outside the session working directory', 403)
-        }
+        const path = await ensureWorkspacePath(cwd, raw)
         const info = await stat(path)
         if (!info.isFile() || info.size > resolved.mediaLimit) {
           throw new SidebarError('fs-error', 'not a file or too large', 400)
@@ -784,13 +786,11 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
         const { sessionId, path } = decoded.ref
         // The session's authoritative cwd (client cwd cannot ride in the URL
         // — the path encoding has no query; a detached first request falls
-        // back to the process cwd and is normally refused by isWithin, same
-        // semantics as the media route's fallback).
+        // back to the process cwd and is normally refused by the workspace
+        // real-path guard, with the same semantics as the media route's
+        // fallback.
         const cwd = sessionCwdOf(ctx, sessionId)
-        const absolute = requireAbsolute(path)
-        if (!isWithin(cwd, absolute)) {
-          throw new SidebarError('fs-error', 'html path outside the session working directory', 403)
-        }
+        const absolute = await ensureWorkspacePath(cwd, path)
         const info = await stat(absolute)
         if (!info.isFile() || info.size > resolved.mediaLimit) {
           throw new SidebarError('fs-error', 'not a file or too large', 400)
