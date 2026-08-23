@@ -946,7 +946,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   // terminals follow the session, not the reconnect grace. Agent terminals
   // are owned by the agent lifecycle and are not touched here.
   ctx.on('session/disposed', (session) => {
-    try { ptyManager.closeSession(session?.id) } catch {}
+    try { ptyManager?.closeSession(session?.id) } catch {}
   }, { global: true })
 }
 

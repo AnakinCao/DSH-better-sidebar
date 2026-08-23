@@ -27,6 +27,7 @@ describe('open-path interception', () => {
       takeoverEnabled: () => true,
       currentSessionId: () => 's1',
       openInSidebar: (path, sessionId) => { sidebar.push(`${sessionId}:${path}`) },
+      revealInExplorer: () => {},
       ...overrides,
     }
   }

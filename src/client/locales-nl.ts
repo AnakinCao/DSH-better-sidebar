@@ -259,7 +259,7 @@ export const nl: Record<string, string> = {
   settingsBrowserHttpsTitle: 'HTTPS-pagina\'s in de zijbalk openen',
   settingsBrowserHttpsDesc: 'Indien aan, opent een klik op een externe HTTPS-link in de chat of GUI de zijbalk. Standaard uit: de meeste HTTPS-sites weigeren ingebed te worden, dus de systeembrowser is soepeler',
   settingsBrowserLoopbackTitle: 'Toegestane lokale adressen',
-  settingsBrowserLoopbackDesc: 'Door komma's gescheiden allowlist van loopback-adressen (bijv. localhost:5174 of 127.0.0.1:8080) die de zijbalk-browser kan bezoeken; leeg blokkeert standaard alle lokale adressen. De sandbox blijft van toepassing — pagina's kunnen geen GUI-gegevens lezen',
+  settingsBrowserLoopbackDesc: 'Door komma gescheiden allowlist van loopback-adressen (bijv. localhost:5174 of 127.0.0.1:8080) die de zijbalk-browser kan bezoeken; leeg blokkeert standaard alle lokale adressen. De sandbox blijft van toepassing — pagina s kunnen geen GUI-gegevens lezen',
   settingsBrowserLoopbackPlaceholder: 'bijv. localhost:5174, 127.0.0.1:8080',
   browserOpenExternal: 'Openen in browser',
   browserEmbedBlocked: '{host} weigerde ingebed te worden',

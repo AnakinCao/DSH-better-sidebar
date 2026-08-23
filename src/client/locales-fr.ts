@@ -254,7 +254,7 @@ export const fr: Record<string, string> = {
   settingsBrowserHttpsTitle: 'Ouvrir les pages HTTPS de côté',
   settingsBrowserHttpsDesc: 'Une fois activé, cliquer sur un lien externe HTTPS du chat ou de l’interface l’ouvre dans la barre latérale. Désactivé par défaut : la plupart des sites HTTPS refusent l’encapsulation, le navigateur système est plus fluide',
   settingsBrowserLoopbackTitle: 'Adresses locales autorisées',
-  settingsBrowserLoopbackDesc: 'Liste blanche séparée par des virgules d'adresses de bouclage (ex. localhost:5174 ou 127.0.0.1:8080) que le navigateur de la barre latérale peut visiter ; vide bloque toutes les adresses locales par défaut. Le bac à sable s'applique toujours — les pages ne peuvent pas lire les données de l'interface',
+  settingsBrowserLoopbackDesc: 'Liste blanche séparée par des virgules des adresses de bouclage (ex. localhost:5174 ou 127.0.0.1:8080) que le navigateur de la barre latérale peut visiter ; vide bloque toutes les adresses locales par défaut. Le bac à sable reste actif — les pages ne peuvent pas lire les données de l interface',
   settingsBrowserLoopbackPlaceholder: 'ex. localhost:5174, 127.0.0.1:8080',
   browserOpenExternal: 'Ouvrir dans le navigateur',
   browserEmbedBlocked: '{host} a refusé la demande d’encapsulation',
