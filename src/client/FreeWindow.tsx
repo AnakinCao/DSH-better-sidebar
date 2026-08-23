@@ -284,8 +284,12 @@ export function FreeWindow(props: {
           anchor={<span />}
         />
       </div>
+      {/* The tab cell reuses .paneTab (the pane's per-tab wrapper): the
+          column-flex chain (window → .floatContent → .paneTab) is what
+          gives the component a definite width via align-stretch — the exact
+          sizing contract a tab gets inside a pane. */}
       <div className={css.floatContent}>
-        {renderTab(float.tab, true, float.id)}
+        <div className={css.paneTab}>{renderTab(float.tab, true, float.id)}</div>
       </div>
       <div
         className={css.floatResize}

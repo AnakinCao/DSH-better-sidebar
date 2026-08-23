@@ -144,6 +144,18 @@ async function conversationBox(page: Page): Promise<{ x: number; y: number; widt
   })
 }
 
+/** The float's content cell must hand its child a real width (the
+ *  column-flex contract): a collapsed 0px cell paints nothing — the tab is
+ *  "in" the window but invisible. */
+async function assertContentPainted(page: Page, label: string): Promise<void> {
+  const width = await page.evaluate(() => {
+    const cell = document.querySelector('[data-dsh-float-window] [class*="floatContent"]')
+    const child = cell?.firstElementChild
+    return child === null || child === undefined ? -1 : Math.round(child.getBoundingClientRect().width)
+  })
+  expect(width, `${label}: the floated tab's content must have real width`).toBeGreaterThan(200)
+}
+
 test('float a tab, move the window, reload restores it, dock it back', async ({ page }) => {
   const sidebar = await bootExpanded(page)
 
@@ -158,6 +170,7 @@ test('float a tab, move the window, reload restores it, dock it back', async ({ 
   await expect(floatWindow).toHaveCount(1, { timeout: 10_000 })
   // The tab left the strip with the window born over the conversation area
   // (center), well clear of the panel's right edge.
+  await assertContentPainted(page, 'context-menu float')
   const leftBefore = await floatWindow.evaluate((node) => Number.parseFloat((node as HTMLElement).style.left))
   expect(Number.isFinite(leftBefore), `style.left must be numeric, got ${leftBefore}`).toBe(true)
   expect(leftBefore).toBeGreaterThan(0)
@@ -240,5 +253,6 @@ test('dragging a tab onto the conversation area floats it (drag-out gesture)', a
   // its title.
   await expect(stripTabs).toHaveCount(1)
   await expect(floatWindow.locator('[class*="floatTitle"]')).toHaveText(terminalTitle)
+  await assertContentPainted(page, 'drag-out float')
   await assertNoCrash(page)
 })
