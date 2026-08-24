@@ -60,7 +60,10 @@ interface Mounted {
   unmount: () => void
 }
 
-function mountSidebar(): Mounted {
+/** Unique per-test session ids (see the comment inside). */
+let sessionSeq = 0
+
+function mountSidebar(sessionId: string = `s1-${++sessionSeq}`): Mounted {
   vi.stubGlobal('WebSocket', FakeWebSocket)
   if (!('ResizeObserver' in globalThis)) {
     vi.stubGlobal('ResizeObserver', class {
@@ -83,9 +86,15 @@ function mountSidebar(): Mounted {
     component: ({ visible }) => createElement('div', { 'data-visible': String(visible) }, 'notes body'),
   })
   store.setPrefs({ ...store.getPrefs(), openByDefault: true })
-  store.setSession('s1')
+  // The default session id is unique per test: the store persists
+  // per-session state to localStorage on a 200ms debounce, and a shared id
+  // let a PREVIOUS test's late timer write leak into this store's
+  // setSession restore (the portaled-menu/resize flakes — a stale float at
+  // the old drop point won the querySelector race on slow runners). The
+  // persistence round-trip test passes its own fixed id instead.
+  store.setSession(sessionId)
   const localeSnapshot = { active: 'en' }
-  const sessionsSnapshot = { current: 's1', byId: { s1: { cwd: '/tmp' } } }
+  const sessionsSnapshot = { current: sessionId, byId: { [sessionId]: { cwd: '/tmp' } } }
   const ctx = {
     locale: { subscribe: () => () => {}, getSnapshot: () => localeSnapshot },
     sessions: { list: { subscribe: () => () => {}, getSnapshot: () => sessionsSnapshot } },
@@ -132,6 +141,10 @@ afterEach(() => {
   document.body.innerHTML = ''
   document.documentElement.style.cssText = ''
   vi.unstubAllGlobals()
+  // Belt and braces (after unstub, so a test's storage stub never sees it):
+  // drop any persisted layout a pending 200ms debounce write left behind
+  // between tests — unique session ids already isolate the stores.
+  localStorage.clear()
 })
 
 describe('free windows: drag-out detection', () => {
@@ -380,7 +393,7 @@ describe('free windows: the window', () => {
     const getItem = vi.fn((key: string): string | null => saved.get(key) ?? null)
     const setItem = vi.fn((key: string, value: string): void => { saved.set(key, value) })
     vi.stubGlobal('localStorage', { getItem, setItem, removeItem: () => {} })
-    const first = mountSidebar()
+    const first = mountSidebar('s1')
     try {
       act(() => { first.service.openTab({ type: 'notes', title: 'Notes' }) })
       act(() => { first.store.reduce(s => floatTabReducer(s, 'notes', 512, 384)) })
@@ -390,7 +403,7 @@ describe('free windows: the window', () => {
     } finally {
       first.unmount()
     }
-    const second = mountSidebar()
+    const second = mountSidebar('s1')
     try {
       const state = second.store.getSnapshot().state!
       expect(state.floats).toHaveLength(1)

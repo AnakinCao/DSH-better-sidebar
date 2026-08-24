@@ -79,6 +79,7 @@ export const hi: Record<string, string> = {
   terminalDepsHint: 'DSH मशीन पर एक टर्मिनल या cmd में नीचे दिया गया कमांड चलाएँ, फिर पुनः प्रयास करें (node-pty DSH कोर संस्करण के साथ सिंक रहता है):',
   terminalDepsProfile: ' (पहचाना गया प्रोफ़ाइल: {profile})',
   preview: 'पूर्वावलोकन',
+  toc: 'विषय-सूची',
   edit: 'संपादित करें',
   mermaidError: 'Mermaid रेंडर विफल',
   mermaidZoomIn: 'ज़ूम इन',

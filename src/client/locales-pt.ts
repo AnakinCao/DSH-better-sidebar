@@ -62,6 +62,7 @@ export const pt: Record<string, string> = {
   terminalDepsHint: 'Execute o comando abaixo em um terminal ou cmd na máquina do DSH para reparar e tente novamente (node-pty permanece em sincronia com a versão do núcleo do DSH):',
   terminalDepsProfile: ' (perfil detectado: {profile})',
   preview: 'Pré-visualizar',
+  toc: 'Sumário',
   edit: 'Editar',
   mermaidError: 'Falha ao renderizar o Mermaid',
   mermaidZoomIn: 'Ampliar',

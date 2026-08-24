@@ -79,6 +79,7 @@ export const vi: Record<string, string> = {
   terminalDepsHint: 'Chạy lệnh sau trong terminal hoặc cmd trên máy DSH để sửa, rồi nhấn thử lại (node-pty đồng bộ phiên bản với lõi DSH):',
   terminalDepsProfile: ' (phát hiện profile: {profile})',
   preview: 'Xem trước',
+  toc: 'Mục lục',
   edit: 'Chỉnh sửa',
   mermaidError: 'Render Mermaid thất bại',
   mermaidZoomIn: 'Phóng to',

@@ -70,6 +70,7 @@ export const it: Record<string, string> = {
   terminalDepsHint: 'Esegua il comando seguente in un terminale o cmd sul computer DSH per ripristinarlo, poi riprovi (node-pty resta sincronizzato con la versione del core DSH):',
   terminalDepsProfile: ' (rilevato profilo: {profile})',
   preview: 'Anteprima',
+  toc: 'Indice',
   edit: 'Modifica',
   mermaidError: 'Rendering Mermaid non riuscito',
   mermaidZoomIn: 'Ingrandisci',

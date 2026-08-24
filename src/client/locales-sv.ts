@@ -62,6 +62,7 @@ export const sv: Record<string, string> = {
   terminalDepsHint: 'Kör kommandot nedan i en terminal eller cmd på DSH-maskinen för att reparera det, försök sedan igen (node-pty hålls synkad med DSH-kärnversionen):',
   terminalDepsProfile: ' (upptäckt profil: {profile})',
   preview: 'Förhandsgranska',
+  toc: 'Innehållsförteckning',
   edit: 'Redigera',
   mermaidError: 'Mermaid-rendering misslyckades',
   mermaidZoomIn: 'Zooma in',

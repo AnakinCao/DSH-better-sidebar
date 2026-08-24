@@ -47,6 +47,9 @@ interface MountedSidebar {
 }
 
 /** Mount the real Sidebar shell against a minimal context (real store + service). */
+/** Unique per-test session ids (see the comment inside). */
+let sessionSeq = 0
+
 function mountSidebar(): MountedSidebar {
   vi.stubGlobal('WebSocket', FakeWebSocket)
   const container = document.createElement('div')
@@ -55,14 +58,18 @@ function mountSidebar(): MountedSidebar {
   const service = createBetterSidebarService(store)
   // Fresh-session seed: open the panel explicitly (openByDefault defaults off).
   store.setPrefs({ ...store.getPrefs(), openByDefault: true })
-  store.setSession('s1')
+  // Unique session per test — the store persists per-session state to
+  // localStorage (200ms debounce); a shared id lets a previous test's late
+  // write leak into this store's setSession restore.
+  const sessionId = `s1-${++sessionSeq}`
+  store.setSession(sessionId)
   // useSyncExternalStore requires STABLE snapshots across calls (the real DSH
   // services return stable objects) — a fresh object per call loops forever.
   const localeSnapshot = { active: 'en' }
   const sessionsSnapshot = {
-    current: 's1',
+    current: sessionId,
     // cwd present → api.sessionCwd is never called in these tests.
-    byId: { s1: { cwd: '/tmp' } },
+    byId: { [sessionId]: { cwd: '/tmp' } },
   }
   const ctx = {
     locale: { subscribe: () => () => {}, getSnapshot: () => localeSnapshot },
@@ -84,6 +91,9 @@ function mountSidebar(): MountedSidebar {
 
 afterEach(() => {
   document.body.innerHTML = ''
+  // Belt and braces: drop any persisted layout a pending 200ms debounce
+  // write left behind between tests (unique session ids already isolate).
+  localStorage.clear()
   vi.unstubAllGlobals()
 })
 

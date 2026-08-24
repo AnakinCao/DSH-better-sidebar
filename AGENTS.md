@@ -437,7 +437,7 @@ interface FileViewerProps {
 
 > **head 字节从哪来**：第一次匹配（纯扩展名）没有 head。`fsRead` 策略读取后若文件为二进制，host 的 `fs.read` 响应会带 `head` 字段（base64，前 4KB），编辑器会用它对 `detect` viewer **重匹配一次**——所以 detect 型 viewer 的实际触发场景是"扩展名匹配落空/二进制文件"。文本文件的 detect 嗅探不在内置流程内（用 `exts` 或 `custom` 策略替代）。
 
-> **内置 viewer**（不可重复注册，全部 6 个）：image(0) / pdf(0) / markdown(0, fsRead) / html(0, fsRead, 沙箱 iframe 预览) / code(-100, catch-all, fsRead) / binary-download(-50, exts doc/xls/ppt + NUL detect)。Office 三件套预览（.docx/.xlsx/.pptx）**不再内置**——已迁至推荐插件（设置页「添加插件」→ 文件预览弹窗里的 Office 预览插件），该插件以相同 id 经 `ctx.betterSidebar.registerFileViewer` 注册。
+> **内置 viewer**（不可重复注册，全部 6 个）：image(0) / pdf(0) / markdown(0, fsRead，**README 级内嵌 HTML 支持**——块级 HTML 段按文档顺序 DOMPurify 白名单消毒内联渲染、`<details>` 跨段嵌套内部 markdown、markdown 表格单元格等处的内联标签消毒还原为元素、本地媒体 src 重写走 `/sidebar/file`；预览顶部浮动目录大纲按钮（≥3 标题出现，点击条目平滑滚动并自动展开折叠 `<details>`；纯 markdown 文档走原单次解析路径零变化。实现 `src/client/markdown-html.ts` / `MarkdownHtml.tsx` / `md-toc.tsx`，设计文档 `docs/plans/2026-08-24-markdown-html-toc-design.md`) / html(0, fsRead, 沙箱 iframe 预览) / code(-100, catch-all, fsRead) / binary-download(-50, exts doc/xls/ppt + NUL detect)。Office 三件套预览（.docx/.xlsx/.pptx）**不再内置**——已迁至推荐插件（设置页「添加插件」→ 文件预览弹窗里的 Office 预览插件），该插件以相同 id 经 `ctx.betterSidebar.registerFileViewer` 注册。
 > code 是兜底 viewer：任何其他 viewer 未认领的文件都会落到 code（CodeMirror 文本编辑）；二进制文件经 head 重匹配被 binary-download 的 NUL detect 认领（下载按钮）。外部 viewer 注册同扩展名 + 更高 priority 即可覆盖。
 
 ### 4.5 注册示例
@@ -729,6 +729,7 @@ better-sidebar 自己的内置 tab 和 viewer 就是参考实现（"吃狗粮"�
 - **`tests/builtins.spec.ts`**：内置注册清单断言（7 tab + 6 viewer + 声明式元数据）
 - **`src/client/plugins-tabs.ts`** / **`src/client/plugins-viewers.ts`**：推荐插件目录（名字/url/简介/安装脚本，分别对应 Tab 注册与文件预览注册），在设置页两个「添加插件」弹窗展示（共享类型在 `plugins-shared.ts`）；插件作者可按扩展点加一条数据（弹窗内「跳转」直达仓库、「复制」把安装命令写入剪贴板，粘贴到 DSH 所在环境的终端执行）——数据完整性由 `tests/plugin-list.spec.ts` 守护
 - **`src/client/FileTree.tsx`** / **`src/client/TreePanel.tsx`** / **`src/fs-search.ts`**：受控文件树组件（纯树体，文件行右键菜单含「在新 Tab 中打开」「在侧边打开」，仅宿主编排提供回调时渲染）/ 树面板（搜索框 + 刷新 + FileTree，文件窗口的内嵌 dock 使用）与 host 侧递归文件名搜索（`fs.search` 路由，预算兜底 + 跳过 `.git` / `node_modules` / 构建缓存 / symlink 目录；测试 `tests/fs-search.spec.ts`、组件测试 `tests/editor-host.spec.tsx`）
+- **`src/client/markdown-html.ts`** / **`src/client/MarkdownHtml.tsx`** / **`src/client/md-toc.tsx`**：markdown 预览的内嵌 HTML 渲染（fence 感知切分器 + DOMPurify 消毒管线 + 跨段 `<details>` 嵌套状态机 + 内联标签 commit 后还原 + MutationObserver 迟到内容）与目录大纲（DOM 收集 + sticky 浮动按钮 + 跳转展开折叠块；注意 `md-toc.tsx` 头注释记录的「子组件读父 ref 为 null」React 时序陷阱）。测试 `tests/markdown-html.spec.ts` / `tests/markdown-html-render.spec.tsx` / `tests/md-toc.spec.tsx`，设计文档 `docs/plans/2026-08-24-markdown-html-toc-design.md`
 - **`src/agent-opens.ts`** / **`/sidebar/ws/agent-opens`**：模型主动打开（`sidebar_open` 工具 + `agentOpenTools` 设置，默认关闭）——会话级队列推送注册表 + 工具注册；客户端在 Sidebar.tsx 订阅推送并路由到 editor（文件/文件夹窗口）/browser（HTTP(S) 网页）tab，文件夹窗口是 `meta.dir: true` 的 editor tab（全窗树以目录为根）；设计文档 `docs/plans/2026-08-23-agent-open-tools-design.md`
 - **`docs/plans/2026-08-11-service-registry-design.md`** / **`docs/plans/2026-08-11-declarative-sidebar-settings-design.md`** / **`docs/plans/2026-08-14-add-plugins-modal-design.md`**：设计文档（含实施偏差记录）
 

@@ -75,6 +75,7 @@ export const ru: Record<string, string> = {
   terminalDepsHint: 'Выполните приведённую ниже команду в терминале или cmd на машине DSH, затем нажмите «Повторить» (node-pty остаётся синхронизированным с версией ядра DSH):',
   terminalDepsProfile: ' (обнаружен profile: {profile})',
   preview: 'Предпросмотр',
+  toc: 'Оглавление',
   edit: 'Изменить',
   mermaidError: 'Сбой рендеринга Mermaid',
   mermaidZoomIn: 'Приблизить',

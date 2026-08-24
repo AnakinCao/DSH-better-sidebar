@@ -65,28 +65,41 @@ function normalizeLocalPath(path: string): string {
  * so the core rewrite stays pure and unit-testable.
  * @returns The markdown with local image destinations rewritten in place.
  */
+/**
+ * Resolve one media destination against the session's media route: local
+ * (relative or absolute) paths become absolute `/sidebar/file` URLs (prefixed
+ * with the GUI's own origin so the shared MarkdownText http(s) allowlist
+ * accepts them), while remote URLs, `#`-anchors and empty destinations are
+ * returned untouched. Shared by the markdown image rewriter below and by the
+ * preview's raw-HTML sanitizer (`markdown-html.tsx`, which meets the same
+ * allowlist when rendering `<img src="./x.png">` inside HTML blocks).
+ */
+export function resolveLocalMediaDest(
+  dest: string,
+  scope: SessionScope,
+  filePath: string,
+  origin: string,
+): string {
+  const trimmed = dest.trim()
+  if (trimmed === '' || trimmed.startsWith('#')) return dest
+  if (isRemoteUrl(trimmed)) return dest
+  const slash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+  const directory = slash === -1 ? '/' : filePath.slice(0, slash + 1)
+  const candidate = isAbsolutePath(trimmed) ? trimmed : directory + trimmed
+  // Mirrors api.ts fileUrl/mediaUrl for the /sidebar/file media route, made
+  // absolute so the shared MarkdownText http(s) allowlist accepts it.
+  const params = new URLSearchParams({ sessionId: scope.sessionId, path: normalizeLocalPath(candidate) })
+  if (scope.cwd !== undefined && scope.cwd !== '') params.set('cwd', scope.cwd)
+  return `${origin}/sidebar/file?${params.toString()}`
+}
+
 export function rewriteLocalImageUrls(
   text: string,
   scope: SessionScope,
   filePath: string,
   origin: string,
 ): string {
-  const slash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
-  const directory = slash === -1 ? '/' : filePath.slice(0, slash + 1)
-  const mediaUrl = (candidate: string): string => {
-    // Mirrors api.ts fileUrl/mediaUrl for the /sidebar/file media route, made
-    // absolute so the shared MarkdownText http(s) allowlist accepts it.
-    const params = new URLSearchParams({ sessionId: scope.sessionId, path: candidate })
-    if (scope.cwd !== undefined && scope.cwd !== '') params.set('cwd', scope.cwd)
-    return `${origin}/sidebar/file?${params.toString()}`
-  }
-  const resolve = (dest: string): string => {
-    const trimmed = dest.trim()
-    if (trimmed === '' || trimmed.startsWith('#')) return dest
-    if (isRemoteUrl(trimmed)) return dest
-    const candidate = isAbsolutePath(trimmed) ? trimmed : directory + trimmed
-    return mediaUrl(normalizeLocalPath(candidate))
-  }
+  const resolve = (dest: string): string => resolveLocalMediaDest(dest, scope, filePath, origin)
 
   // Mask fenced code blocks and inline code spans so image-looking text
   // inside documentation examples is never rewritten. The sentinel uses a
