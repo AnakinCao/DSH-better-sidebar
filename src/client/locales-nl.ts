@@ -77,6 +77,7 @@ export const nl: Record<string, string> = {
   terminalDepsHint: 'Voer het onderstaande commando uit in een terminal of cmd op de DSH-machine om het te herstellen en probeer het opnieuw (node-pty blijft in sync met de DSH-coreversie):',
   terminalDepsProfile: ' (gedetecteerde profile: {profile})',
   preview: 'Voorbeeld',
+  toc: 'Inhoudsopgave',
   edit: 'Bewerken',
   mermaidError: 'Mermaid-renderen mislukt',
   mermaidZoomIn: 'Inzoomen',

@@ -79,6 +79,7 @@ export const tr: Record<string, string> = {
   terminalDepsHint: 'Onarmak için DSH makinesindeki bir terminalde veya cmd’de aşağıdaki komutu çalıştırın, sonra yeniden deneyin (node-pty, DSH çekirdek sürümüyle senkron kalır):',
   terminalDepsProfile: ' (algılanan profil: {profile})',
   preview: 'Önizleme',
+  toc: 'İçindekiler',
   edit: 'Düzenle',
   mermaidError: 'Mermaid oluşturma başarısız',
   mermaidZoomIn: 'Yakınlaştır',

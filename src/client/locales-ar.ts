@@ -80,6 +80,7 @@ export const ar: Record<string, string> = {
   terminalDepsHint: 'شغّل الأمر التالي في طرفية أو cmd على جهاز DSH للإصلاح، ثم أعد المحاولة (يبقى node-pty متزامناً مع إصدار نواة DSH):',
   terminalDepsProfile: ' (الملف الشخصي المكتشف: {profile})',
   preview: 'معاينة',
+  toc: 'الفهرس',
   edit: 'تحرير',
   mermaidError: 'فشل رسم Mermaid',
   mermaidZoomIn: 'تكبير',

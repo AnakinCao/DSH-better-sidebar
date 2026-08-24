@@ -77,6 +77,7 @@ export const id: Record<string, string> = {
   terminalDepsHint: 'Jalankan perintah di bawah ini di terminal atau cmd pada mesin DSH untuk memperbaikinya, lalu coba lagi (node-pty tetap sinkron dengan versi inti DSH):',
   terminalDepsProfile: ' (profil terdeteksi: {profile})',
   preview: 'Pratinjau',
+  toc: 'Daftar Isi',
   edit: 'Edit',
   mermaidError: 'Render Mermaid gagal',
   mermaidZoomIn: 'Perbesar',

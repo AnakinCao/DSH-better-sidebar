@@ -65,6 +65,7 @@ export const de: Record<string, string> = {
   terminalDepsHint: 'Führen Sie den folgenden Befehl in einem Terminal oder in cmd auf dem DSH-System aus, um dies zu beheben, und klicken Sie dann auf „Erneut versuchen“ (node-pty bleibt mit der DSH-Core-Version synchron):',
   terminalDepsProfile: ' (erkanntes Profil: {profile})',
   preview: 'Vorschau',
+  toc: 'Inhaltsverzeichnis',
   edit: 'Bearbeiten',
   mermaidError: 'Mermaid-Rendering fehlgeschlagen',
   mermaidZoomIn: 'Vergrößern',

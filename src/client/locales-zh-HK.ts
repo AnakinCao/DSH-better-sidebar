@@ -94,6 +94,7 @@ export const zhHK: Record<string, string> = {
   terminalDepsHint: '在 DSH 所在環境的終端或 cmd 中執行以下命令修復，然後點重試（node-pty 與 DSH 核心保持同一版本）：',
   terminalDepsProfile: '（偵測到 profile：{profile}）',
   preview: '預覽',
+  toc: '目錄',
   edit: '編輯',
   mermaidError: 'Mermaid 渲染失敗',
   mermaidZoomIn: '放大',

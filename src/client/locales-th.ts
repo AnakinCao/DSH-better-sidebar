@@ -79,6 +79,7 @@ export const th: Record<string, string> = {
   terminalDepsHint: 'เรียกใช้คำสั่งด้านล่างในเทอร์มินัลหรือ cmd บนเครื่อง DSH เพื่อซ่อมแซม แล้วกดลองอีกครั้ง (node-pty ต้องซิงค์กับเวอร์ชันหลักของ DSH):',
   terminalDepsProfile: ' (ตรวจพบ profile: {profile})',
   preview: 'พรีวิว',
+  toc: 'สารบัญ',
   edit: 'แก้ไข',
   mermaidError: 'เรนเดอร์ Mermaid ล้มเหลว',
   mermaidZoomIn: 'ซูมเข้า',
