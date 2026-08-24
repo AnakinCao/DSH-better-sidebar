@@ -354,4 +354,5 @@ export const ja: Record<string, string> = {
   pluginTurnReviewDesc: '「直近のターン」の diff に Approve / Request changes のヒューマンゲート。直前ターンのみ審査、会話を fork しない。ファイルをメイン会話/サブエージェント/未帰属グループ分け、ファイル単位でチェックして差し戻し + 任意コメント、ファイルをクリックするとターン開始スナップショット vs 現在の diff を先に表示。/rewind ではない',
   pluginVideoPreviewDesc: 'better-sidebar エディター内で動画ファイルをインラインプレビュー（.mp4/.webm/.mov/.mkv/.avi 等）。HTTP Range (206) をサポートする専用 /video ホストルートを搭載、プログレスバードラッグ可、20MB mediaLimit 制限なし',
   pluginDocsPanelDesc: 'DSH サイドバー内の「グローバルドキュメント」：任意のワークスペースから読めるグローバル Markdown ノート。リストで選んで閲覧、ホバーでアウトラインジャンプ、Chrome / VS Code で外部オープン、コードコピー。ディレクトリは設定可（デフォルト ~/.dsh/docs）',
+  pluginEgoBrowserDesc: 'DeepSeek Harness 用エージェントブラウザ：32 個の ego_* ツールが本物の Chromium を操作し、サイドバーのネイティブ「ego ブラウザ」Tab がエージェントの訪れる全ページをライブ表示。クリック・ドラッグ・入力で操作を引き継げます。better-sidebar があれば Tab を自動登録、なければフローティングバブルにフォールバック',
 }
