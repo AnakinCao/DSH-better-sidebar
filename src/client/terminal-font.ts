@@ -59,6 +59,10 @@ export const ICON_FONT_FALLBACKS: readonly string[] = [
   '"MesloLGS NF"',
 ]
 
+/** The symbols-only patch count at the head of {@link ICON_FONT_FALLBACKS}
+ *  (these carry no Latin glyphs, so they can never hijack ASCII metrics). */
+const SYMBOLS_ONLY_COUNT = 2
+
 /**
  * CSS generic font families. A generic is a catch-all that always resolves,
  * so icon fonts must be spliced in *before* the first one to stay reachable.
@@ -141,7 +145,11 @@ function splitFamilies(stack: string): string[] {
  *   keeps their exact priority.
  * - The icon fonts are spliced in ahead of the *first* generic family
  *   (`monospace` etc.), because a generic always resolves: anything after it
- *   would never be consulted.
+ *   would never be consulted. A stack that OPENS with a generic is the one
+ *   exception: only the symbols-only patches (no Latin) may precede it — a
+ *   fully-patched Nerd Font there would become xterm's measuring base font
+ *   and override the user/theme family precedence, so it is placed after the
+ *   generic instead.
  * - Idempotent — re-applying to an already-topped-up stack is a no-op, which
  *   matters because `TerminalView` diffs the resolved value against the live
  *   `term.options.fontFamily` before reflowing.
@@ -154,12 +162,22 @@ export function withIconFontFallbacks(stack: string): string {
   if (entries.length === 0) return ICON_FONT_FALLBACKS.join(', ')
 
   const present = new Set(entries.map(normalizeFamily))
-  const additions = ICON_FONT_FALLBACKS.filter(family => !present.has(normalizeFamily(family)))
-  if (additions.length === 0) return entries.join(', ')
+  const notPresent = (family: string): boolean => !present.has(normalizeFamily(family))
+  const symbolsOnly = ICON_FONT_FALLBACKS.slice(0, SYMBOLS_ONLY_COUNT).filter(notPresent)
+  const patched = ICON_FONT_FALLBACKS.slice(SYMBOLS_ONLY_COUNT).filter(notPresent)
+  if (symbolsOnly.length === 0 && patched.length === 0) return entries.join(', ')
 
   const firstGeneric = entries.findIndex(entry => GENERIC_FAMILIES.has(normalizeFamily(entry)))
   const cut = firstGeneric === -1 ? entries.length : firstGeneric
-  return [...entries.slice(0, cut), ...additions, ...entries.slice(cut)].join(', ')
+  // A fully-patched distribution ships Latin glyphs: placed ahead of a
+  // LEADING generic (cut === 0) it would become xterm's measuring/base font
+  // and override the user/theme family precedence. Only the symbols-only
+  // patches — which carry no Latin — may precede it; the patched fonts go
+  // after the generic (still reachable per character, never the base).
+  if (cut === 0) {
+    return [...symbolsOnly, entries[0]!, ...patched, ...entries.slice(1)].join(', ')
+  }
+  return [...entries.slice(0, cut), ...symbolsOnly, ...patched, ...entries.slice(cut)].join(', ')
 }
 
 /**

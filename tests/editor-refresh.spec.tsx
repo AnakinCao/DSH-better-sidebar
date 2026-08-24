@@ -96,7 +96,7 @@ function mount(ctx: Context, tab: () => SidebarTab): { container: HTMLDivElement
   act(() => {
     root.render(createElement(EditorHost, {
       ctx, store: ctx.betterSidebar as never, scope: { sessionId: 'editor-home-session' },
-      tab: tab(), expanded: [], onToggleDir: () => {}, onReferenceFile: () => {},
+      tab: tab(), expanded: [], revealed: [], onToggleDir: () => {}, onReferenceFile: () => {},
     }))
   })
   return {

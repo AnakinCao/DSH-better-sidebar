@@ -46,7 +46,12 @@ export function revealInExplorer(
 ): void {
   const summary = ctx.sessions.list.getSnapshot().byId[sessionId]
   const cwd = summary?.cwd
-  const targets = files.length > 0 ? files : cwd === undefined ? [] : [cwd]
+  // Deliverables report paths as-is (often relative to the session cwd), but
+  // the explorer tree and revealPaths work on absolute paths — resolve every
+  // target so the ancestors expand and the row actually matches.
+  const targets = files.length > 0
+    ? files.map(path => resolveSidebarPath(cwd, path))
+    : cwd === undefined ? [] : [cwd]
   store.reduce(state => revealPaths(state, cwd, targets))
   // A type-only open never auto-expands the panel (only content opens do,
   // see service.openTab) — so a reveal opens the panel itself when it is
@@ -58,8 +63,10 @@ export function revealInExplorer(
   // touched.
   store.reduce(s => ({ ...s, activePane: firstLeaf(s.splits).id }))
   // Focus the single-instance editor home tab (the files window) where the
-  // reveal highlight renders.
-  ctx.betterSidebar?.openTab({ type: 'editor', title: t('files') })
+  // reveal highlight renders. Read via ctx.get like every other internal
+  // consumer (#357): the provider is not on this fiber chain, so a direct
+  // ctx.betterSidebar read can throw before optional chaining applies.
+  ctx.get('betterSidebar')?.openTab({ type: 'editor', title: t('files') })
 }
 
 /** The intercepted produced-files row (visual twin of the deliverables chips). */

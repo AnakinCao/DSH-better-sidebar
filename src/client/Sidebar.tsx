@@ -500,9 +500,9 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
           const scope = { sessionId }
           const title = typeof request.title === 'string' && request.title !== '' ? request.title : undefined
           if (request.kind === 'url') {
-            ctx.betterSidebar?.openTab({ type: 'browser', url: request.target, title }, scope)
+            ctx.get('betterSidebar')?.openTab({ type: 'browser', url: request.target, title }, scope)
           } else if (request.kind === 'folder') {
-            ctx.betterSidebar?.openTab({
+            ctx.get('betterSidebar')?.openTab({
               type: 'editor',
               title,
               path: request.target,
@@ -510,7 +510,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
               meta: { dir: true },
             }, scope)
           } else {
-            ctx.betterSidebar?.openFile(scope, request.target, title)
+            ctx.get('betterSidebar')?.openFile(scope, request.target, title)
           }
         } catch {
           // Malformed push: ignore (the next push carries its own request).
@@ -1620,7 +1620,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
           onMove={(x, y) => { store.reduce(s => moveFloat(s, float.id, x, y)) }}
           onResize={(w, h) => { store.reduce(s => resizeFloat(s, float.id, w, h)) }}
           onDock={(paneId) => { store.reduce(s => dockFloat(s, float.id, paneId ?? undefined)) }}
-          onClose={() => { ctx.betterSidebar?.closeTab(float.tab.id, sessionId === undefined ? undefined : { sessionId, cwd }) }}
+          onClose={() => { ctx.get('betterSidebar')?.closeTab(float.tab.id, sessionId === undefined ? undefined : { sessionId, cwd }) }}
         />
       ))}
       {/*

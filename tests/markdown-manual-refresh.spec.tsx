@@ -78,6 +78,7 @@ function mount(ctx: Context, store: ReturnType<typeof createSidebarStore>, tab: 
       scope: { sessionId: 'markdown-manual-refresh-session', cwd: '/tmp' },
       tab,
       expanded: [],
+      revealed: [],
       onToggleDir: () => {},
       onReferenceFile: () => {},
     }))

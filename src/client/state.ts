@@ -730,8 +730,13 @@ export function revealPaths(state: SidebarState, cwd: string | undefined, files:
     revealed.push(file)
     const parts = file.split(/[\\/]+/).filter(part => part !== '' && part !== '.')
     const separator = file.includes('\\') ? '\\' : '/'
+    // Keep the original leading separator(s) when rebuilding ancestor dirs:
+    // FileTree matches expansion against ABSOLUTE paths, so dropping the
+    // root (POSIX `/w/src` �W `w/src`) or a UNC prefix (`\\server\share`)
+    // would leave every ancestor collapsed and the row unreachable.
+    const prefix = file.startsWith('/') ? '/' : file.startsWith('\\\\') ? '\\\\' : file.startsWith('\\') ? '\\' : ''
     for (let i = rootParts.length; i < parts.length - 1; i++) {
-      expanded.add(parts.slice(0, i + 1).join(separator))
+      expanded.add(prefix + parts.slice(0, i + 1).join(separator))
     }
   }
   if (revealed.length === 0) return state
@@ -1454,8 +1459,13 @@ export class SidebarStore {
 
   private schedulePersist(sessionId: string, state: SidebarState): void {
     // Keep the cross-session width in sync: any width change (drag, fullscreen
-    // toggle) becomes the shared width for every conversation.
-    writeGlobalWidth(state.width)
+    // toggle) on the ACTIVE session becomes the shared width for every
+    // conversation. A targeted open persists an INACTIVE session (reduceFor)
+    // and must not clobber that global — its width is stale by definition,
+    // so writing it would break "last drag wins".
+    if (sessionId === this.snapshot.sessionId) {
+      writeGlobalWidth(state.width)
+    }
     // Per-session debounce timers: one session's pending write must never
     // cancel another's (targeted opens schedule writes for INACTIVE
     // sessions while the active session may already have one pending —

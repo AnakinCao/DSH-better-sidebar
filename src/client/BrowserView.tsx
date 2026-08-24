@@ -55,9 +55,25 @@ const BROWSER_IFRAME_SANDBOX_SAME_ORIGIN =
  * the page access to the GUI — it stays cross-origin to it and to every
  * other site — but it does give it its OWN origin privileges (localStorage,
  * fetch without CORS), so it is only granted for the explicit allowlist.
+ *
+ * The GUI itself is the one hard exception: even when its own host is
+ * allowlisted (a bare-host entry covers every port, so the GUI origin
+ * matches), a page at the GUI's exact origin must never get
+ * `allow-same-origin` — that would make it same-origin with its parent and
+ * hand it the GUI's storage/API (and the ability to shed the sandbox). The
+ * GUI keeps the opaque-origin sandbox no matter what the allowlist says.
  */
-export function iframeSandboxFor(url: string | undefined, allowedLoopback: string): string | undefined {
+export function iframeSandboxFor(url: string | undefined, allowedLoopback: string, selfOrigin?: string): string | undefined {
   if (url === undefined) return undefined
+  if (selfOrigin !== undefined) {
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      return BROWSER_IFRAME_SANDBOX
+    }
+    if (parsed.origin === selfOrigin) return BROWSER_IFRAME_SANDBOX
+  }
   return isAllowedLoopbackUrl(url, allowedLoopback)
     ? BROWSER_IFRAME_SANDBOX_SAME_ORIGIN
     : BROWSER_IFRAME_SANDBOX
@@ -230,7 +246,7 @@ export function BrowserView(props: TabComponentProps) {
           key={`${reloadKey}:${noSandbox ? 'ns' : 'sb'}`}
           className={css.browserFrame}
           src={url}
-          sandbox={noSandbox ? undefined : iframeSandboxFor(url, store.getPrefs().browserAllowedLoopback)}
+          sandbox={noSandbox ? undefined : iframeSandboxFor(url, store.getPrefs().browserAllowedLoopback, window.location.origin)}
           referrerPolicy="no-referrer"
           allow=""
           title={url}

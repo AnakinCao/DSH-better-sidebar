@@ -182,7 +182,7 @@
 }
 
 .panelResizeActive {
-  /* Drag feedback disabled by local preference: no highlight while resizing. */
+  background: var(--dsw-alias-interactive-bg-hover-accent);
 }
 
 .panelBody {
@@ -267,7 +267,7 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
 }
 
 .bottomResizeActive {
-  /* Drag feedback disabled by local preference: no highlight while resizing. */
+  background: var(--dsw-alias-interactive-bg-hover-accent);
 }
 
 /* The bottom panel's close control: the app's icon-button pattern (28px
@@ -504,8 +504,8 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   touch-action: none;
 }
 
-.cornerHandle:hover {
-  /* Only hover feedback stays; dragging highlight disabled by local preference. */
+.cornerHandle:hover,
+.cornerHandle[data-dragging] {
   background: var(--dsw-alias-interactive-bg-hover-accent);
 }
 
@@ -930,6 +930,13 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
 
 .explorerRow:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* A "Show in folder" reveal highlight: the target row stays tinted until
+   the transient reveal set is cleared (a reload starts unhighlighted). */
+.explorerRowRevealed {
+  background: color-mix(in srgb, var(--dsw-alias-interactive-bg-hover-accent) 18%, transparent);
+  box-shadow: inset 2px 0 0 var(--dsw-alias-interactive-bg-hover-accent);
 }
 
 .explorerDir {

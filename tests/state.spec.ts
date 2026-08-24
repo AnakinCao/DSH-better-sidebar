@@ -4,7 +4,7 @@ import {
   dockFloat, FLOAT_MIN_H, FLOAT_MIN_W, floatTab, floatWithTab, insertLeafAt, makeDefaultState,
   migrateBottomTabs, moveFloat, moveTab, moveTabToEdge, openDiffTab,
   openTabInActivePane, patchTab, raiseFloat, reconcileAgentTerminals, resizeFloat, resizeSplit,
-  resizeSplitIn, sanitizeState, setBottomHeight,
+  resizeSplitIn, revealPaths, sanitizeState, setBottomHeight,
   splitPane, tabOpenIn, toggleBottomPanel, toggleExpanded, togglePanel,
   type SidebarLeaf, type SidebarState, type SidebarTab, type SplitNode,
 } from '../src/client/state.ts'
@@ -1082,6 +1082,33 @@ describe('free windows (v0.16.0)', () => {
     const after = reconcileAgentTerminals(s, [{ uuid: 'u2', title: 'A2' }])
     expect(after.floats).toHaveLength(0)
     expect(allLeaves(after.splits).flatMap(leaf => leaf.tabs).some(tab => tab.id === 'agent:u2')).toBe(true)
+  })
+
+  describe('revealPaths (show in folder)', () => {
+    it('expands ancestors with their ABSOLUTE path (leading separator preserved)', () => {
+      // POSIX: the root (/w/src) is not itself expanded, but the subdirs
+      // below it must be recorded as ABSOLUTE paths so FileTree's
+      // `expanded.includes(entry.path)` matches.
+      const base = makeDefaultState()
+      const next = revealPaths(base, '/w/src', ['/w/src/sub/deep/a.ts'])
+      expect(next.revealed).toEqual(['/w/src/sub/deep/a.ts'])
+      expect(next.expanded).toContain('/w/src/sub')
+      expect(next.expanded).toContain('/w/src/sub/deep')
+      expect(next.expanded).not.toContain('w/src/sub')
+      expect(next.expanded).not.toContain('/w/src')
+    })
+
+    it('keeps a Windows drive-letter root and a UNC prefix', () => {
+      const drive = revealPaths(makeDefaultState(), 'C:\\work', ['C:\\work\\src\\a.ts'])
+      expect(drive.expanded).toContain('C:\\work\\src')
+      const unc = revealPaths(makeDefaultState(), '\\\\server\\share', ['\\\\server\\share\\sub\\a.ts'])
+      expect(unc.expanded).toContain('\\\\server\\share\\sub')
+    })
+
+    it('resolves nothing to the same reference (no churn)', () => {
+      const base = makeDefaultState()
+      expect(revealPaths(base, '/w', [])).toBe(base)
+    })
   })
 
   describe('sanitizeState (floats)', () => {

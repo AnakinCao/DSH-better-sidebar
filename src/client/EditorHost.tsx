@@ -97,10 +97,11 @@ export function EditorHost(props: {
   scope: SessionScope
   tab: SidebarTab
   expanded: string[]
+  revealed: string[]
   onToggleDir: (path: string) => void
   onReferenceFile: (path: string) => void
 }) {
-  const { ctx, store, scope, tab, expanded, onToggleDir, onReferenceFile } = props
+  const { ctx, store, scope, tab, expanded, revealed, onToggleDir, onReferenceFile } = props
   const path = tab.path ?? ''
   const title = tab.title
   // A folder window: the model's `sidebar_open` (or any caller) opens a
@@ -371,6 +372,7 @@ export function EditorHost(props: {
           sessionId={scope.sessionId}
           cwd={folderRoot ?? scope.cwd}
           expanded={expanded}
+          revealed={revealed}
           onToggle={onToggleDir}
           onOpenFile={openFile}
           onOpenFileNewTab={openFileNewTab}
@@ -489,6 +491,7 @@ export function EditorHost(props: {
               sessionId={scope.sessionId}
               cwd={scope.cwd}
               expanded={expanded}
+              revealed={revealed}
               onToggle={onToggleDir}
               onOpenFile={openFile}
               onOpenFileNewTab={openFileNewTab}

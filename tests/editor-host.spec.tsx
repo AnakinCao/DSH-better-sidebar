@@ -62,6 +62,7 @@ function mountHost(ctx: Context, store: ReturnType<typeof createSidebarStore>, t
       scope: { sessionId: 'editor-home-session' },
       tab: tab(),
       expanded: [],
+      revealed: [],
       onToggleDir: () => {},
       onReferenceFile: () => {},
     }))

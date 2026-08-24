@@ -54,6 +54,17 @@ describe('withIconFontFallbacks', () => {
       .toBeLessThan(indexOfFamily(stack, 'ui-monospace'))
   })
 
+  it('keeps fully-patched fonts BEHIND a leading generic (they carry Latin and would become the base)', () => {
+    // A leading generic resolves, so prepending a fully-patched Nerd Font
+    // (which ships Latin glyphs) would make it xterm's measuring/base font
+    // and override the user/theme family precedence. Only the symbols-only
+    // patches (no Latin) may precede it.
+    const stack = withIconFontFallbacks('monospace')
+    expect(indexOfFamily(stack, '"Symbols Nerd Font Mono"')).toBeLessThan(indexOfFamily(stack, 'monospace'))
+    expect(indexOfFamily(stack, '"Hack Nerd Font Mono"')).toBeGreaterThan(indexOfFamily(stack, 'monospace'))
+    expect(indexOfFamily(stack, '"JetBrainsMono Nerd Font Mono"')).toBeGreaterThan(indexOfFamily(stack, 'monospace'))
+  })
+
   it('splices ahead of the FIRST generic when several are present', () => {
     const stack = withIconFontFallbacks('Menlo, monospace, sans-serif')
     const nerd = indexOfFamily(stack, '"Symbols Nerd Font Mono"')

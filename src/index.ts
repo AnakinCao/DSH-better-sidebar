@@ -554,6 +554,11 @@ function buildApi(
         const csp = response.headers.get('content-security-policy')
         const frameAncestors = extractFrameAncestors(csp)
         const xFrameOptions = response.headers.get('x-frame-options')
+        // The GET fallbacks stream a real body that nothing reads; "body
+        // discarded" is not automatic with fetch, so cancel it explicitly to
+        // release the socket (a large/streaming response would otherwise stay
+        // pinned after the timer clears).
+        void response.body?.cancel()
         return {
           reachable: true,
           url: response.url,
