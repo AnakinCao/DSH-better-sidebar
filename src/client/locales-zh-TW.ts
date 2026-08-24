@@ -369,4 +369,5 @@ export const zhTW: Record<string, string> = {
   pluginTurnReviewDesc: '對「剛剛這一回合」的 diff 做 Approve / Request changes 的人閘門：只審上一回合，不 fork 工作階段；檔案按主工作階段/子代理/未歸因分組，按檔案勾選打回 + 可選評語，點檔案先看回合開始快照 vs 現在的 diff。不是 /rewind',
   pluginVideoPreviewDesc: '在 better-sidebar 編輯器內聯預覽影片檔案（.mp4/.webm/.mov/.mkv/.avi 等），自帶支援 HTTP Range（206）的 /video 宿主路由，可拖曳進度條、不受 20MB mediaLimit 限制',
   pluginDocsPanelDesc: 'DSH 側邊欄裡的「全域文件」：全域 Markdown 筆記，任何工作區隨時可讀——列表點選閱讀、懸浮大綱跳轉、Chrome / VS Code 外部開啟、程式碼複製，目錄可設定（預設 ~/.dsh/docs）',
+  pluginEgoBrowserDesc: '將 CitroLabs/ego-lite 接進 DeepSeek Harness 的 agent 瀏覽器：32 個 ego_* 工具驅動真實 Chromium，側邊欄原生「ego 瀏覽器」Tab 實時觀察 agent 逛的每個頁面，可直接點擊/拖拽/輸入接管；裝 better-sidebar 時自動註冊 Tab，沒裝則退回浮動浮窗',
 }

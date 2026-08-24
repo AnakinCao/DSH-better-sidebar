@@ -354,4 +354,5 @@ export const vi: Record<string, string> = {
   pluginTurnReviewDesc: 'Cổng duyệt người cho diff «vừa rồi»: Approve / Request changes theo path kèm comment tùy chọn; path nhóm theo phiên chính / tác nhân con / không rõ nguồn; nhấp file xem diff snapshot đầu vòng vs hiện tại. Không fork, không /rewind',
   pluginVideoPreviewDesc: 'Xem trước video inline trong trình soạn thảo better-sidebar (.mp4/.webm/.mov/.mkv/.avi v.v.), có route host /video hỗ trợ HTTP Range (206), có thể tua tiến độ, không bị giới hạn mediaLimit 20MB',
   pluginDocsPanelDesc: '«Tài liệu toàn cục» trong thanh bên DSH: ghi chú Markdown toàn cục, đọc từ bất kỳ workspace nào — danh sách chọn để đọc, outline hover để nhảy, mở ngoài trong Chrome / VS Code, sao chép code, thư mục cấu hình được (mặc định ~/.dsh/docs)',
+  pluginEgoBrowserDesc: 'Trình duyệt agent cho DeepSeek Harness: 32 công cụ ego_* điều khiển Chromium thật; tab «ego browser» gốc trong thanh bên hiển thị trực tiếp mọi trang agent truy cập — bạn có thể bấm, kéo và gõ để tiếp quản. Tự động đăng ký tab khi có better-sidebar, nếu không thì rơi về bong bóng nổi',
 }
