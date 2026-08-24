@@ -294,4 +294,31 @@ describe('EditorHost (files window)', () => {
       unmount()
     }
   })
+
+  it('a folder tab (meta.dir) renders the tree rooted at the folder, no editor chrome', () => {
+    const { store, ctx } = setup()
+    ctx.betterSidebar!.openTab({
+      type: 'editor',
+      title: 'src',
+      path: '/work/src',
+      id: 'editor:/work/src',
+      meta: { dir: true },
+    }, { sessionId: 'editor-home-session' })
+    const dirTab = (): SidebarTab =>
+      allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
+        .find(tab => tab.path === '/work/src')!
+    const { container, unmount } = mountHost(ctx, store, dirTab)
+    try {
+      const html = container.innerHTML
+      // The folder window is the full tree surface: the folder basename is
+      // the tree root row and the search box is present; the editor empty
+      // hint and the file path input are NOT.
+      expect(html).toContain('src')
+      expect(html).toContain('Search files by name…')
+      expect(html).not.toContain('Pick a file from the tree panel')
+      expect(html).not.toContain('File path (relative')
+    } finally {
+      unmount()
+    }
+  })
 })

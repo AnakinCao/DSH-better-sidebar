@@ -103,6 +103,11 @@ export function EditorHost(props: {
   const { ctx, store, scope, tab, expanded, onToggleDir, onReferenceFile } = props
   const path = tab.path ?? ''
   const title = tab.title
+  // A folder window: the model's `sidebar_open` (or any caller) opens a
+  // directory as an editor tab carrying `meta.dir: true` with the directory
+  // as its path. It renders the file tree rooted at that folder instead of
+  // the viewer loading flow (a directory is not a file).
+  const isDir = metaOf(tab).dir === true
   const [load, setLoad] = useState<EditorLoad>({ status: 'loading' })
   // Manual refresh (issue #167): bumping the sequence re-runs the load effect
   // with the same path/scope — the only reload entry besides open/close.
@@ -126,9 +131,12 @@ export function EditorHost(props: {
   const openWithConfig = useMemo(() => parseOpenWithConfig(editorBlob.openWith), [editorBlob])
   const openWithTargets = useMemo(() => resolveOpenWithTargets(openWithConfig), [openWithConfig])
   // A path-less tab shows the empty-state hint in merged mode — and in split
-  // mode it is the standalone explorer (tree-only, see the render below).
+  // mode it is the standalone explorer (tree-only, see the render below). A
+  // folder tab is a folder window in BOTH modes: the tree rooted at the
+  // folder, no editor chrome.
   const showEmpty = path === ''
   const treeOnly = showEmpty && !inPlace
+  const folderRoot = isDir ? path : undefined
 
   /**
    * Open a file from THIS window (tree click / search row / path input):
@@ -261,8 +269,9 @@ export function EditorHost(props: {
     // fresh viewer re-registers its own.
     setToolbar(null)
     // The seeded home tab (no path) never loads a viewer — the empty-state
-    // hint renders until the user picks a file.
-    if (showEmpty) return
+    // hint renders until the user picks a file. A folder tab never loads a
+    // viewer either — its tree is rooted at the folder.
+    if (showEmpty || isDir) return
     let cancelled = false
     // Aborts the matched viewer's `load` when the editor tears down (tab
     // closed, path changed, session switched) or re-matches the viewer.
@@ -314,7 +323,7 @@ export function EditorHost(props: {
     }
     apply(planFirstMatch(ctx.get('betterSidebar')?.matchFileViewer(path), mediaUrlOf))
     return () => { cancelled = true; controller.abort() }
-  }, [scope.sessionId, scope.cwd, path, ctx, showEmpty, reloadSeq])
+  }, [scope.sessionId, scope.cwd, path, ctx, showEmpty, isDir, reloadSeq])
 
   // Save-then-refresh in preview mode (issue #167 part C): the edge into
   // 'saved' (never a lingering 'saved' state) triggers exactly one reload, so
@@ -340,13 +349,15 @@ export function EditorHost(props: {
   // Split mode: the path-less window IS the standalone explorer — the tree
   // panel fills the whole tab (search + FileTree, full form), no editor
   // chrome. File opens land in new per-path tabs through openFile above.
-  if (treeOnly) {
+  // A folder window (meta.dir, any mode) renders the SAME surface rooted
+  // at the folder instead of the session cwd.
+  if (treeOnly || folderRoot !== undefined) {
     return (
       <div className={css.editor}>
         <TreePanel
           full
           sessionId={scope.sessionId}
-          cwd={scope.cwd}
+          cwd={folderRoot ?? scope.cwd}
           expanded={expanded}
           onToggle={onToggleDir}
           onOpenFile={openFile}

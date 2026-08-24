@@ -464,6 +464,78 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   }, [sessionId, store])
 
   /**
+   * Agent opens push: subscribe to the host's `sidebar_open` requests for
+   * this session (the model actively opens a file / folder / HTTP(S) page).
+   * The host pushes one JSON request per open; the sidebar routes it to the
+   * matching built-in tab: a file opens in the editor (per-path dedupe), a
+   * folder opens a file window whose tree is rooted at the folder
+   * (`meta.dir`), and a URL opens in the browser tab. A disconnected socket
+   * retries with a short backoff (mirror of the agent-terminals loop): the
+   * host queue keeps undelivered requests and replays them on the first
+   * attach, so a refresh or a session switch lands the opens the model
+   * queued while no view was connected.
+   * While the side-card setting is off, pushes are ignored as a defensive
+   * gate — the host already unregisters the tool and drains the queue.
+   */
+  useEffect(() => {
+    if (sessionId === undefined) return
+    let socket: WebSocket | null = null
+    let retry: number | undefined
+    let closed = false
+    let failures = 0
+    const connect = (): void => {
+      if (closed) return
+      const url = new URL('/sidebar/ws/agent-opens', location.origin)
+      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+      url.search = new URLSearchParams({ sessionId }).toString()
+      socket = new WebSocket(url.toString())
+      socket.onmessage = (event) => {
+        if (typeof event.data !== 'string') return
+        try {
+          const request = JSON.parse(event.data) as { kind?: unknown; target?: unknown; title?: unknown }
+          if (request === null || typeof request !== 'object') return
+          if (request.kind !== 'file' && request.kind !== 'folder' && request.kind !== 'url') return
+          if (typeof request.target !== 'string' || request.target === '') return
+          if (store.getPrefs().agentOpenTools !== true) return
+          const scope = { sessionId }
+          const title = typeof request.title === 'string' && request.title !== '' ? request.title : undefined
+          if (request.kind === 'url') {
+            ctx.betterSidebar?.openTab({ type: 'browser', url: request.target, title }, scope)
+          } else if (request.kind === 'folder') {
+            ctx.betterSidebar?.openTab({
+              type: 'editor',
+              title,
+              path: request.target,
+              id: `editor:${request.target}`,
+              meta: { dir: true },
+            }, scope)
+          } else {
+            ctx.betterSidebar?.openFile(scope, request.target, title)
+          }
+        } catch {
+          // Malformed push: ignore (the next push carries its own request).
+        }
+      }
+      socket.onclose = () => {
+        if (closed) return
+        failures += 1
+        if (failures >= FAILURE_LIMIT) {
+          console.error('[dsh-better-sidebar] agent-opens connection failed; stopping reconnect loop', sessionId)
+          return
+        }
+        retry = window.setTimeout(connect, 2000)
+      }
+      socket.onerror = () => { socket?.close() }
+    }
+    connect()
+    return () => {
+      closed = true
+      window.clearTimeout(retry)
+      socket?.close()
+    }
+  }, [sessionId, store])
+
+  /**
    * Subagent auto-activation: the moment the current conversation spawns its
    * FIRST direct subagent (a 0 → N transition on the list feed), the "auto
    * open" pref is on, and the Subagent tab type is enabled in settings,

@@ -58,6 +58,9 @@ export function parsePrefs(value: unknown): SidebarPrefs {
     agentTerminalTools: typeof record.agentTerminalTools === 'boolean'
       ? record.agentTerminalTools
       : SIDEBAR_PREFS_DEFAULTS.agentTerminalTools,
+    agentOpenTools: typeof record.agentOpenTools === 'boolean'
+      ? record.agentOpenTools
+      : SIDEBAR_PREFS_DEFAULTS.agentOpenTools,
     bottomPanelAutoTerminal: typeof record.bottomPanelAutoTerminal === 'boolean'
       ? record.bottomPanelAutoTerminal
       : SIDEBAR_PREFS_DEFAULTS.bottomPanelAutoTerminal,

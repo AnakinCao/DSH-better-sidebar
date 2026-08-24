@@ -110,7 +110,7 @@ describe('host plugin smoke', () => {
       '/sidebar/file',
       '/sidebar/html',
     ])
-    expect(upgrades.map(route => route.path)).toEqual(['/sidebar/ws/terminal', '/sidebar/ws/agent-terminals'])
+    expect(upgrades.map(route => route.path)).toEqual(['/sidebar/ws/terminal', '/sidebar/ws/agent-terminals', '/sidebar/ws/agent-opens'])
     // Teardown runs without throwing (pty manager has nothing open).
     for (const cleanup of effects) cleanup()
   })
@@ -891,7 +891,7 @@ describe('side card settings routes', () => {
         defaultWidthPercent: 35,
         autoOpenSubagent: true,
         autoOpenJobs: true,
-        agentTerminalTools: false,
+        agentTerminalTools: false, agentOpenTools: false,
         bottomPanelAutoTerminal: true,
         terminalFontFamily: '',
         terminalFontSize: 13,
@@ -1067,6 +1067,59 @@ describe('agent terminal tool gating', () => {
     expect(live()).toBe(8)
     expect(registered).toBe(16)
   })
+})
 
-
+describe('agent sidebar-open tool gating', () => {
+  it('injects the one open tool only when the side-card setting is enabled (default off)', () => {
+    let registered = 0
+    let disposed = 0
+    const live = (): number => registered - disposed
+    const watcherRef: { current: (() => void) | null } = { current: null }
+    let enabled = false
+    const settings = {
+      register() {
+        return {
+          get: () => ({ agentOpenTools: enabled, tabsEnabled: {} }),
+          watch: (callback: () => void) => { watcherRef.current = callback; return () => {} },
+          update: async () => {},
+          replace: async () => {},
+        }
+      },
+      describe: () => [],
+      async update() {},
+    }
+    const ctx = {
+      webRuntime: { trustedHosts: [] },
+      webServer: {
+        register: (route: SidebarWebRoute) => { void route; return () => {} },
+        registerUpgrade: (route: SidebarWebUpgradeRoute) => { void route; return () => {} },
+      },
+      sessions: { get: () => undefined },
+      tools: { register: () => { registered += 1; return () => { disposed += 1 } } },
+      effect: (fn: () => void | (() => void)) => { fn() },
+      inject: (deps: readonly string[], callback: (sctx: { settings: unknown }) => void) => {
+        if (deps.includes('settings')) callback({ settings })
+        return () => {}
+      },
+      get: () => undefined,
+    }
+    apply(ctx as never)
+    // Default off: no open tool is registered even though the settings service is mounted.
+    expect(live()).toBe(0)
+    // Flipping the setting on registers the single sidebar_open tool.
+    enabled = true
+    watcherRef.current?.()
+    expect(live()).toBe(1)
+    expect(disposed).toBe(0)
+    // Flipping it back off unregisters it (and drains the undelivered queue).
+    enabled = false
+    watcherRef.current?.()
+    expect(live()).toBe(0)
+    expect(disposed).toBe(1)
+    // And a redundant toggle registers it fresh (no double-registration).
+    enabled = true
+    watcherRef.current?.()
+    expect(live()).toBe(1)
+    expect(registered).toBe(2)
+  })
 })
