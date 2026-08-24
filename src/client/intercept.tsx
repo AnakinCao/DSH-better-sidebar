@@ -8,7 +8,7 @@
  */
 import { IconCodeOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../context-types.ts'
-import { revealPaths, type SidebarStore } from './state.ts'
+import { firstLeaf, revealPaths, togglePanel, type SidebarStore } from './state.ts'
 import { t } from './locales.ts'
 import { resolveSidebarPath, selectProducedFiles } from './produced-files.ts'
 import { wrapOpenPath } from './openpath-intercept.ts'
@@ -48,8 +48,17 @@ export function revealInExplorer(
   const cwd = summary?.cwd
   const targets = files.length > 0 ? files : cwd === undefined ? [] : [cwd]
   store.reduce(state => revealPaths(state, cwd, targets))
-  // A content open (path seed) lands in sight: the single-instance editor
-  // home tab (the files window) is focused and its hosting panel expands.
+  // A type-only open never auto-expands the panel (only content opens do,
+  // see service.openTab) — so a reveal opens the panel itself when it is
+  // collapsed, exactly like the subagent auto-open flows, or the highlight
+  // would be set on an invisible panel.
+  store.reduce(s => (s.panelOpen ? s : togglePanel(s)))
+  // Pin the landing to the right panel: the files window must appear where
+  // the panel just expanded, not in a bottom-panel pane the user last
+  // touched.
+  store.reduce(s => ({ ...s, activePane: firstLeaf(s.splits).id }))
+  // Focus the single-instance editor home tab (the files window) where the
+  // reveal highlight renders.
   ctx.betterSidebar?.openTab({ type: 'editor', title: t('files') })
 }
 
