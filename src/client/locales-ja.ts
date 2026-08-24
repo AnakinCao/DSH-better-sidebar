@@ -186,6 +186,8 @@ export const ja: Record<string, string> = {
   settingsWidthSuffix: '%',
   settingsOpenPathTitle: 'チャット内ファイルをサイドバーで開く',
   settingsOpenPathDesc: 'チャット内のファイルリンク（ツール行、産物リスト、ファイル言及）クリック時に、システム既定アプリではなくサイドバーエディターで開く',
+  settingsOpenToolsTitle: 'モデルにサイドバー開くツールを注入',
+  settingsOpenToolsDesc: 'オンにすると、モデルは sidebar_open ツールでサイドバーにファイル・フォルダー・HTTP(S) ページを開ける（デフォルトオフ）',
   settingsTitleBarTitle: '位置互換モード',
   settingsTitleBarDesc: 'タイトルバー互換スキームを選択：自動検出（デフォルト、控えめ）/ DSH 公式 Web / 既知のデスクトップシェル / カスタムスキーム（下移動距離 + カスタム CSS）',
   settingsTitleBarStripTitle: '下移動距離',

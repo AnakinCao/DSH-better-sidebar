@@ -169,6 +169,8 @@ export const pt: Record<string, string> = {
   settingsWidthSuffix: '%',
   settingsOpenPathTitle: 'Abrir arquivos do chat na barra lateral',
   settingsOpenPathDesc: 'Abrir links de arquivos no chat (linhas de ferramentas, arquivos produzidos, menções) no editor da barra lateral em vez do aplicativo padrão do sistema',
+  settingsOpenToolsTitle: 'Injetar a ferramenta de abertura na barra lateral para o modelo',
+  settingsOpenToolsDesc: 'Quando ativado, o modelo pode abrir arquivos, pastas e páginas HTTP(S) na barra lateral pela ferramenta sidebar_open (desativado por padrão)',
   settingsTitleBarTitle: 'Modo de compatibilidade de posição',
   settingsTitleBarDesc: 'Escolha o esquema de compatibilidade da barra de título: detecção automática (padrão, conservador) / web oficial do DSH / shells de desktop conhecidos / personalizado (distância de deslocamento + CSS personalizado)',
   settingsTitleBarStripTitle: 'Distância de deslocamento',

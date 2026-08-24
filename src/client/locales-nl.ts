@@ -184,6 +184,8 @@ export const nl: Record<string, string> = {
   settingsWidthSuffix: '%',
   settingsOpenPathTitle: 'Chatbestanden in de zijbalk openen',
   settingsOpenPathDesc: 'Bestandslinks in de chat (toolrijen, geproduceerde bestanden, vermeldingen) openen in de zijbalk-editor in plaats van de standaard systeemapp',
+  settingsOpenToolsTitle: 'Zijbalk-openen-tool voor het model injecteren',
+  settingsOpenToolsDesc: 'Indien ingeschakeld kan het model bestanden, mappen en HTTP(S)-pagina\'s in de zijbalk openen via de sidebar_open-tool (standaard uit)',
   settingsTitleBarTitle: 'Positiecompatibiliteitsmodus',
   settingsTitleBarDesc: 'Kies het titelbalk-compatibiliteitsschema: auto-detect (standaard, conservatief) / DSH officiële web / bekende desktop-shells / aangepast (verschuivingsafstand + aangepaste CSS)',
   settingsTitleBarStripTitle: 'Verschuivingsafstand',

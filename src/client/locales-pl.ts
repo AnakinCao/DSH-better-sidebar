@@ -188,6 +188,8 @@ export const pl: Record<string, string> = {
   settingsWidthSuffix: '%',
   settingsOpenPathTitle: 'Otwieraj pliki czatu w panelu bocznym',
   settingsOpenPathDesc: 'Otwieraj linki plików na czacie (wiersze narzędzi, wyprodukowane pliki, wzmianki) w edytorze panelu bocznego zamiast w domyślnej aplikacji systemu',
+  settingsOpenToolsTitle: 'Wstrzyknij narzędzie otwierania panelu bocznego dla modelu',
+  settingsOpenToolsDesc: 'Po włączeniu model może otwierać pliki, foldery i strony HTTP(S) w panelu bocznym za pomocą narzędzia sidebar_open (domyślnie wyłączone)',
   settingsTitleBarTitle: 'Tryb zgodności pozycji',
   settingsTitleBarDesc: 'Wybierz schemat zgodności paska tytułu: automatyczne wykrywanie (domyślne, konserwatywne) / oficjalny web DSH / znane powłoki pulpitu / niestandardowy (przesunięcie + własne CSS)',
   settingsTitleBarStripTitle: 'Przesunięcie',
