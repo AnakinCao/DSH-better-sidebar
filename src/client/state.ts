@@ -89,6 +89,12 @@ export interface SidebarState {
   nextBrowser: number
   /** Explorer expansion set (absolute directory paths). */
   expanded: string[]
+  /**
+   * Explorer rows highlighted by a "Show in folder" reveal (absolute paths).
+   * Transient by design: sanitizeState never restores it, so a reload starts
+   * unhighlighted.
+   */
+  revealed: string[]
   /** The right sidebar's split tree (the original workbench). */
   splits: SplitNode
   /** Whether the bottom panel (a second, independent workbench) is open. */
@@ -213,6 +219,7 @@ export function makeDefaultState(width = PANEL_DEFAULT, panelOpen = true, seed: 
     nextTerminal: 1,
     nextBrowser: 1,
     expanded: [],
+    revealed: [],
     splits: leaf,
     bottomOpen: false,
     bottomHeight: BOTTOM_DEFAULT,
@@ -704,6 +711,38 @@ export function toggleExpanded(state: SidebarState, path: string): SidebarState 
   return { ...state, expanded }
 }
 
+/**
+ * Reveal files in the explorer: expand every ancestor directory between the
+ * explorer root and each file (so the lazy tree actually shows the row) and
+ * record the paths for highlighting. The reveal set is transient —
+ * sanitizeState never restores it, so a reload starts unhighlighted.
+ * @param state - current sidebar state.
+ * @param cwd - the explorer's root (session working directory).
+ * @param files - absolute paths to highlight (parent dirs are expanded).
+ * @returns the next state, or the same reference when nothing is revealed.
+ */
+export function revealPaths(state: SidebarState, cwd: string | undefined, files: readonly string[]): SidebarState {
+  const expanded = new Set(state.expanded)
+  const revealed: string[] = []
+  const rootParts = (cwd ?? '').split(/[\\/]+/).filter(part => part !== '')
+  for (const file of files) {
+    if (typeof file !== 'string' || file === '') continue
+    revealed.push(file)
+    const parts = file.split(/[\\/]+/).filter(part => part !== '' && part !== '.')
+    const separator = file.includes('\\') ? '\\' : '/'
+    // Keep the original leading separator(s) when rebuilding ancestor dirs:
+    // FileTree matches expansion against ABSOLUTE paths, so dropping the
+    // root (POSIX `/w/src` �W `w/src`) or a UNC prefix (`\\server\share`)
+    // would leave every ancestor collapsed and the row unreachable.
+    const prefix = file.startsWith('/') ? '/' : file.startsWith('\\\\') ? '\\\\' : file.startsWith('\\') ? '\\' : ''
+    for (let i = rootParts.length; i < parts.length - 1; i++) {
+      expanded.add(prefix + parts.slice(0, i + 1).join(separator))
+    }
+  }
+  if (revealed.length === 0) return state
+  return { ...state, expanded: [...expanded], revealed }
+}
+
 /** Adjust one split divider: `i` is the left/top child index, delta in fractions. */
 export function resizeSplit(node: SplitNode, splitId: string, index: number, delta: number): SplitNode {
   if (node.kind === 'leaf') return node
@@ -940,6 +979,44 @@ export function reconcileAgentTerminals(
 
 const STORAGE_PREFIX = 'dsh-sidebar:v1'
 
+/**
+ * Cross-session panel width: the last dragged width, shared by EVERY
+ * conversation (the panel width is a layout preference, not per-session
+ * content). Written on every persist, read at session load and on
+ * cache-hit session switches, so a drag in one conversation carries to all
+ * the others (last drag wins).
+ */
+const GLOBAL_WIDTH_KEY = 'dsh-sidebar:v1:width'
+
+/** Clamp one width to the contract and the current viewport (mirror of {@link setWidth}). */
+function clampWidth(width: number): number {
+  const max = typeof window !== 'undefined' ? Math.max(PANEL_MIN, window.innerWidth) : PANEL_MAX
+  return Math.min(max, Math.max(PANEL_MIN, Math.round(width)))
+}
+
+/** Read the cross-session panel width (undefined when never dragged). */
+function readGlobalWidth(): number | undefined {
+  try {
+    const raw = localStorage.getItem(GLOBAL_WIDTH_KEY)
+    if (raw !== null) {
+      const parsed = Number(raw)
+      if (Number.isFinite(parsed) && parsed > 0) return clampWidth(parsed)
+    }
+  } catch {
+    // Storage unavailable: fall back to the per-session behavior.
+  }
+  return undefined
+}
+
+/** Persist the cross-session panel width (best-effort, like the session states). */
+function writeGlobalWidth(width: number): void {
+  try {
+    localStorage.setItem(GLOBAL_WIDTH_KEY, String(width))
+  } catch {
+    // Storage full or unavailable: layout memory is best-effort.
+  }
+}
+
 /** Immutable snapshot handed to React (replaced only on real changes). */
 export interface SidebarSnapshot {
   sessionId: string | undefined
@@ -960,6 +1037,10 @@ export function defaultWidthFor(viewport: number, percent: number): number {
 }
 
 function loadState(sessionId: string, prefs: SidebarPrefs): SidebarState {
+  // The panel width is a cross-session preference: the last dragged width
+  // wins over a session's own persisted value, so switching conversations
+  // keeps the width the user chose anywhere.
+  const globalWidth = readGlobalWidth()
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}:${sessionId}`)
     if (raw !== null) {
@@ -968,7 +1049,9 @@ function loadState(sessionId: string, prefs: SidebarPrefs): SidebarState {
       // sanitize re-ids any duplicates the pre-seeding counter left behind.
       nextIdCounter = maxCounterId(parsed)
       const sanitized = sanitizeState(parsed)
-      if (sanitized !== undefined) return sanitized
+      if (sanitized !== undefined) {
+        return globalWidth === undefined ? sanitized : { ...sanitized, width: globalWidth }
+      }
     }
   } catch {
     // Corrupt or unavailable storage: fall through to the default.
@@ -985,9 +1068,9 @@ function loadState(sessionId: string, prefs: SidebarPrefs): SidebarState {
   // user expands the drawer, `panelOpen: true` persists like any other
   // state.
   const viewport = typeof window !== 'undefined' ? window.innerWidth : undefined
-  const width = viewport === undefined
+  const width = globalWidth ?? (viewport === undefined
     ? PANEL_DEFAULT
-    : defaultWidthFor(viewport, prefs.defaultWidthPercent)
+    : defaultWidthFor(viewport, prefs.defaultWidthPercent))
   const openByDefault = prefs.openByDefault && (viewport === undefined || !isNarrowWidth(viewport))
   const seed: DefaultSeed = prefs.tabsEnabled['editor'] === false ? 'none' : 'editor-home'
   return makeDefaultState(width, openByDefault, seed)
@@ -1084,6 +1167,7 @@ export function sanitizeState(parsed: unknown): SidebarState | undefined {
     nextTerminal: record.nextTerminal,
     nextBrowser,
     expanded: record.expanded as string[],
+    revealed: [],
     splits,
     bottomOpen,
     bottomHeight,
@@ -1273,6 +1357,13 @@ export class SidebarStore {
         // counter below THIS session's persisted ids — re-seed so fresh
         // pane/split ids can never collide with its tree.
         nextIdCounter = maxCounterId(state)
+        // The panel width is cross-session: adopt the latest dragged width
+        // (a cached session keeps its own layout otherwise).
+        const globalWidth = readGlobalWidth()
+        if (globalWidth !== undefined && state.width !== globalWidth) {
+          state = { ...state, width: globalWidth }
+          this.bySession.set(sessionId, state)
+        }
       }
       this.snapshot = { sessionId, state, prefs: this.prefs }
     }
@@ -1367,6 +1458,14 @@ export class SidebarStore {
   }
 
   private schedulePersist(sessionId: string, state: SidebarState): void {
+    // Keep the cross-session width in sync: any width change (drag, fullscreen
+    // toggle) on the ACTIVE session becomes the shared width for every
+    // conversation. A targeted open persists an INACTIVE session (reduceFor)
+    // and must not clobber that global — its width is stale by definition,
+    // so writing it would break "last drag wins".
+    if (sessionId === this.snapshot.sessionId) {
+      writeGlobalWidth(state.width)
+    }
     // Per-session debounce timers: one session's pending write must never
     // cancel another's (targeted opens schedule writes for INACTIVE
     // sessions while the active session may already have one pending —

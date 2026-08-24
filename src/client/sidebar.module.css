@@ -932,6 +932,13 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
+/* A "Show in folder" reveal highlight: the target row stays tinted until
+   the transient reveal set is cleared (a reload starts unhighlighted). */
+.explorerRowRevealed {
+  background: color-mix(in srgb, var(--dsw-alias-interactive-bg-hover-accent) 18%, transparent);
+  box-shadow: inset 2px 0 0 var(--dsw-alias-interactive-bg-hover-accent);
+}
+
 .explorerDir {
   font: var(--dsw-font-s-strong-14);
 }

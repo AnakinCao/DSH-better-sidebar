@@ -119,13 +119,14 @@ export function builtinTabs(ctx: Context, options: BuiltinTabOptions = {}): read
           <OpenWithSettings pluginSettings={pluginSettings} updatePluginSetting={updatePluginSetting} />
         ),
       },
-      component: ({ ctx, store, scope, tab, expanded, onToggleDir, onReferenceFile }) => (
+      component: ({ ctx, store, scope, tab, expanded, revealed, onToggleDir, onReferenceFile }) => (
         <EditorHost
           ctx={ctx}
           store={store}
           scope={scope}
           tab={tab}
           expanded={expanded ?? []}
+          revealed={revealed ?? []}
           onToggleDir={onToggleDir ?? (() => { /* no-op */ })}
           onReferenceFile={onReferenceFile ?? (() => { /* no-op */ })}
         />
@@ -309,6 +310,12 @@ export function builtinTabs(ctx: Context, options: BuiltinTabOptions = {}): read
           key: 'browserInterceptHttps',
           title: () => t('settingsBrowserHttpsTitle'),
           desc: () => t('settingsBrowserHttpsDesc'),
+        }, {
+          key: 'browserAllowedLoopback',
+          type: 'text',
+          title: () => t('settingsBrowserLoopbackTitle'),
+          desc: () => t('settingsBrowserLoopbackDesc'),
+          placeholder: t('settingsBrowserLoopbackPlaceholder'),
         }],
       },
       createTab: (state) => ({
