@@ -565,16 +565,32 @@ describe('session cwd resolution over the API route', () => {
     // instead of the host process cwd. On Windows the host process cwd is
     // the DSH source root (dsh.cmd's `pushd`), so every user-project path
     // was misclassified as "outside workspace" by the realpath guard.
+    const coldCwd = resolvePath('/cold-project-cwd')
     const route = mount({
       sessionPersistence: {
         inspect: async (id) => ({
-          meta: id === 's-cold' ? { cwd: '/cold-project-cwd' } : {},
+          meta: id === 's-cold' ? { cwd: coldCwd } : {},
         }),
       },
     })
     const result = await invoke(route, 'session.cwd', { sessionId: 's-cold' })
     expect(result.ok).toBe(true)
-    expect(result.value?.cwd).toBe('/cold-project-cwd')
+    expect(result.value?.cwd).toBe(coldCwd)
+  })
+
+  it('rejects a relative cwd from the persistence index', async () => {
+    // A buggy / corrupt persistence layer that stored a relative cwd must
+    // be rejected by requireAbsolute instead of flowing into the workspace
+    // guard, where it would be resolved against the host process cwd and
+    // potentially recreate the original "outside workspace" misclassification.
+    const route = mount({
+      sessionPersistence: {
+        inspect: async () => ({ meta: { cwd: 'relative/path' } }),
+      },
+    })
+    const result = await invoke(route, 'session.cwd', { sessionId: 's-bad' })
+    expect(result.ok).toBe(false)
+    expect(result.error?.message).toMatch(/invalid working directory/)
   })
 
   it('falls back to the process cwd when persistence has no cwd for the session', async () => {

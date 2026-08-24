@@ -130,7 +130,13 @@ async function sessionCwdOf(ctx: Context, sessionId: string, clientCwd?: string)
   if (persistence !== undefined) {
     const inspected = await persistence.inspect(sessionId)
     const metaCwd = inspected.meta.cwd
-    if (metaCwd !== undefined && metaCwd !== '') return metaCwd
+    if (metaCwd !== undefined && metaCwd !== '') {
+      try {
+        return requireAbsolute(metaCwd)
+      } catch {
+        throw new SidebarError('bad-request', `invalid working directory "${metaCwd}"`)
+      }
+    }
   }
   return process.cwd()
 }

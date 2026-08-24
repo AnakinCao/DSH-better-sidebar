@@ -73,9 +73,10 @@ function sessionIdOf(exec: ToolRunContext): string {
  * session's terminals.
  * @param ctx - host plugin context (carries the tools service).
  * @param registry - the agent-owned terminal registry.
- * @param resolveCwd - live cwd resolver for one session id. Resolves through
+ * @param resolveCwd - async cwd resolver for one session id. Resolves through
  *  the session header, the client-supplied cwd, and the persistence index
- *  before throwing — never falls back to the host process cwd.
+ *  before falling back to the host process cwd (production always provides
+ *  persistence, so the fallback is reached only in tests / stripped-down hosts).
  * @returns a disposer that unregisters all eight tools (the caller gates
  * registration on the side-card setting and calls this to turn them off).
  */
