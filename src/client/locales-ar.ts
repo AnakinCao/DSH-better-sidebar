@@ -186,6 +186,8 @@ export const ar: Record<string, string> = {
   settingsWidthSuffix: '%',
   settingsOpenPathTitle: 'فتح ملفات المحادثة في الشريط الجانبي',
   settingsOpenPathDesc: 'فتح روابط الملفات في المحادثة (صفوف الأدوات، الملفات الناتجة، الإشارات) في محرّر الشريط الجانبي بدلاً من التطبيق الافتراضي للنظام',
+  settingsOpenToolsTitle: 'حقن أداة فتح الشريط الجانبي للنموذج',
+  settingsOpenToolsDesc: 'عند التفعيل، يمكن للنموذج فتح الملفات والمجلدات وصفحات HTTP(S) في الشريط الجانبي عبر أداة sidebar_open (معطّل افتراضياً)',
   settingsTitleBarTitle: 'وضع توافق الموضع',
   settingsTitleBarDesc: 'اختر نظام توافق الشريط العلوي: كشف تلقائي (افتراضي، محافظ) / ويب DSH الرسمي / أغلفة سطح المكتب المعروفة / مخصّص (مسافة الإزاحة + CSS مخصّص)',
   settingsTitleBarStripTitle: 'مسافة الإزاحة',

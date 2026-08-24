@@ -168,6 +168,8 @@ export const sv: Record<string, string> = {
   settingsWidthSuffix: '%',
   settingsOpenPathTitle: 'Öppna chattfiler i sidopanelen',
   settingsOpenPathDesc: 'Öppna fillänkar i chatten (verktygsrader, producerade filer, omnämnanden) i sidopanelens editor i stället för systemets standardapp',
+  settingsOpenToolsTitle: 'Injicera sidopanel-öppningsverktyg för modellen',
+  settingsOpenToolsDesc: 'När aktiverat kan modellen öppna filer, mappar och HTTP(S)-sidor i sidopanelen via sidebar_open-verktyget (av som standard)',
   settingsTitleBarTitle: 'Positions kompatibilitetsläge',
   settingsTitleBarDesc: 'Välj titelfälts kompatibilitetsschema: auto-detektera (standard, konservativt) / DSH officiella webb / kända skrivbordsskal / anpassat (förskjutningsavstånd + egen CSS)',
   settingsTitleBarStripTitle: 'Förskjutningsavstånd',

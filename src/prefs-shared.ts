@@ -34,6 +34,14 @@ export interface SidebarPrefs {
    */
   agentTerminalTools: boolean
   /**
+   * Whether the model-facing `sidebar_open` tool is injected into the
+   * model's toolset — one tool that lets the model actively open a local
+   * file, a local folder (as a tree rooted there), or an HTTP(S) page in
+   * the calling session's sidebar. Off by default: the feature stays
+   * dormant until the user explicitly enables it in the side card settings.
+   */
+  agentOpenTools: boolean
+  /**
    * Custom terminal font-family stack (a CSS font-family value, e.g.
    * `'JetBrains Mono', monospace`). Empty string follows the app's theme
    * monospace font (`--ds-font-family-code`). Applied live to every
@@ -229,6 +237,7 @@ export const SIDEBAR_PREFS_DEFAULTS: SidebarPrefs = {
   autoOpenSubagent: true,
   autoOpenJobs: true,
   agentTerminalTools: false,
+  agentOpenTools: false,
   bottomPanelAutoTerminal: true,
   terminalFontFamily: '',
   terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
