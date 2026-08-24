@@ -1,5 +1,5 @@
 import { execFile, execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -10,6 +10,9 @@ import { parseLogLines, parsePorcelainZ, repoRoots, status } from '../src/git.ts
 
 const execFileAsync = promisify(execFile)
 const normalizePath = (path: string): string => path.replaceAll('\\', '/')
+// macOS tmpdir() is the /var symlink while git reports the resolved
+// /private/var prefix — canonicalize both sides before comparing.
+const canonical = (path: string): string => normalizePath(realpathSync(path))
 
 describe('git parsing', () => {
   it('discovers and selects direct child repositories under a workspace directory', async () => {
@@ -23,11 +26,11 @@ describe('git parsing', () => {
         execFileAsync('git', ['-C', second, 'init']),
       ])
 
-      await expect(repoRoots(workspace)).resolves.toEqual([normalizePath(first), normalizePath(second)])
-      await expect(status(workspace, normalizePath(second))).resolves.toMatchObject({
+      await expect(repoRoots(workspace)).resolves.toEqual([canonical(first), canonical(second)])
+      await expect(status(workspace, canonical(second))).resolves.toMatchObject({
         isRepo: true,
-        root: normalizePath(second),
-        repositories: [normalizePath(first), normalizePath(second)],
+        root: canonical(second),
+        repositories: [canonical(first), canonical(second)],
       })
     } finally {
       await rm(workspace, { recursive: true, force: true })

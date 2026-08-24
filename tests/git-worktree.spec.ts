@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { parseWorktreeList, resolveWorktree, status, worktrees } from '../src/git.ts'
@@ -67,13 +67,16 @@ describe('linked Git worktrees', () => {
       git(main, ['commit', '-q', '-m', 'base'])
       git(main, ['worktree', 'add', '-q', '-b', 'agent', agent])
       writeFileSync(join(agent, 'tracked.txt'), 'changed by agent\n')
+      // macOS tmpdir() keeps the /var symlink while git reports the resolved
+      // /private/var prefix — canonicalize every path handed to git APIs.
+      const agentPath = realpathSync(agent)
 
       const listed = await worktrees(main)
       expect(listed).toHaveLength(2)
       expect(listed.find(entry => entry.current)).toMatchObject({ branch: 'main', changes: 0 })
       expect(listed.find(entry => !entry.current)).toMatchObject({ branch: 'agent', changes: 1 })
-      expect(resolve(await resolveWorktree(main, agent))).toBe(resolve(agent))
-      expect((await status(await resolveWorktree(main, agent))).entries).toEqual([
+      expect(resolve(await resolveWorktree(main, agentPath))).toBe(resolve(agentPath))
+      expect((await status(await resolveWorktree(main, agentPath))).entries).toEqual([
         { path: 'tracked.txt', xy: ' M' },
       ])
       await expect(resolveWorktree(main, root)).rejects.toThrow('unknown linked worktree')
@@ -84,9 +87,9 @@ describe('linked Git worktrees', () => {
       rmSync(agent, { recursive: true, force: true })
       const remaining = await worktrees(main)
       expect(remaining).toHaveLength(1)
-      expect(resolve(remaining[0]!.path)).toBe(resolve(main))
+      expect(resolve(remaining[0]!.path)).toBe(resolve(realpathSync(main)))
       expect(remaining[0]!.current).toBe(true)
-      await expect(resolveWorktree(main, agent)).rejects.toThrow('unknown linked worktree')
+      await expect(resolveWorktree(main, agentPath)).rejects.toThrow('unknown linked worktree')
     } finally {
       try { git(main, ['worktree', 'remove', '--force', agent]) } catch { /* fixture may not be fully initialized */ }
       rmSync(root, { recursive: true, force: true })
