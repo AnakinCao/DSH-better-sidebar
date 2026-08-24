@@ -79,7 +79,14 @@ describe('PowerShell installer entry points', () => {
       const source = readFileSync(resolve(ROOT, file), 'utf8')
       expect(source, file).not.toMatch(new RegExp(`irm [^\\r\\n]*${INSTALLER_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\r\\n]*\\|\\s*iex`, 'i'))
       expect(source, file).not.toMatch(/\[scriptblock\]::Create\(\(irm\b/i)
-      expect(source.match(/\.TrimStart\(\[char\]0xFEFF\)/g)?.length, file).toBeGreaterThanOrEqual(2)
+      // Where remote invocation IS documented, it must be BOM-safe: the
+      // READMEs switched to the prompt-based install flow and no longer
+      // document `irm` at all, so the TrimStart gate applies to the script
+      // (whose usage comment demonstrates the safe pattern).
+      const documentsInvocation = /\birm\b|\$script\s*=|\[scriptblock\]/.test(source)
+      if (documentsInvocation) {
+        expect(source.match(/\.TrimStart\(\[char\]0xFEFF\)/g)?.length, file).toBeGreaterThanOrEqual(2)
+      }
     }
   })
 

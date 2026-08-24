@@ -87,6 +87,8 @@ export const ja: Record<string, string> = {
   mermaidZoomReset: 'リセット',
   mermaidZoomHint: 'スクロールで拡大 ・ ドラッグで移動 ・ Esc で閉じる',
   refresh: '更新',
+  showInFolder: 'フォルダーで表示',
+  refreshUnsavedConfirm: 'ディスク上のファイルが変更されました。更新すると未保存の編集が失われます。続行しますか？',
   save: '保存',
   saved: '保存済み',
   unsaved: '未保存',

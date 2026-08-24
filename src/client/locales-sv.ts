@@ -70,6 +70,8 @@ export const sv: Record<string, string> = {
   mermaidZoomReset: 'Återställ',
   mermaidZoomHint: 'Rulla för att zooma · dra för att panorera · Esc för att stänga',
   refresh: 'Uppdatera',
+  showInFolder: 'Visa i mapp',
+  refreshUnsavedConfirm: 'Filen ändrades på disken. Uppdatering kastar osparade ändringar. Fortsätta?',
   save: 'Spara',
   saved: 'Sparad',
   unsaved: 'Osparad',

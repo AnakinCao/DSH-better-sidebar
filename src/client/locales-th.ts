@@ -87,6 +87,8 @@ export const th: Record<string, string> = {
   mermaidZoomReset: 'รีเซ็ต',
   mermaidZoomHint: 'เลื่อนเพื่อซูม · ลากเพื่อแพน · Esc เพื่อปิด',
   refresh: 'รีเฟรช',
+  showInFolder: 'แสดงในโฟลเดอร์',
+  refreshUnsavedConfirm: 'ไฟล์เปลี่ยนบนดิสก์ การรีเฟรชจะทิ้งการแก้ไขที่ยังไม่ได้บันทึก ดำเนินการต่อหรือไม่',
   save: 'บันทึก',
   saved: 'บันทึกแล้ว',
   unsaved: 'ยังไม่ได้บันทึก',

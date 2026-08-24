@@ -79,6 +79,8 @@ export const ko: Record<string, string> = {
   mermaidZoomReset: '초기화',
   mermaidZoomHint: '휠로 확대/축소 · 드래그로 이동 · Esc로 닫기',
   refresh: '새로고침',
+  showInFolder: '폴더에서 표시',
+  refreshUnsavedConfirm: '디스크의 파일이 변경되었습니다. 새로고침하면 저장되지 않은 편집 내용이 손실됩니다. 계속하시겠습니까?',
   save: '저장',
   saved: '저장됨',
   unsaved: '저장 안 됨',

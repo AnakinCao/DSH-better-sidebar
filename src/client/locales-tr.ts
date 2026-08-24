@@ -87,6 +87,8 @@ export const tr: Record<string, string> = {
   mermaidZoomReset: 'Sıfırla',
   mermaidZoomHint: 'Yakınlaştırmak için kaydır · taşımak için sürükle · kapatmak için Esc',
   refresh: 'Yenile',
+  showInFolder: 'Klasörde göster',
+  refreshUnsavedConfirm: 'Dosya diskte değişti. Yenileme kaydedilmemiş düzenlemeleri atar. Devam edilsin mi?',
   save: 'Kaydet',
   saved: 'Kaydedildi',
   unsaved: 'Kaydedilmedi',

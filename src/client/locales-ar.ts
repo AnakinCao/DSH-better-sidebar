@@ -88,6 +88,8 @@ export const ar: Record<string, string> = {
   mermaidZoomReset: 'إعادة تعيين',
   mermaidZoomHint: 'العجلة للتقريب · السحب للتحريك · Esc للإغلاق',
   refresh: 'تحديث',
+  showInFolder: 'إظهار في المجلد',
+  refreshUnsavedConfirm: 'تغيّر الملف على القرص. سيؤدي التحديث إلى فقدان التعديلات غير المحفوظة. متابعة؟',
   save: 'حفظ',
   saved: 'تم الحفظ',
   unsaved: 'غير محفوظ',

@@ -871,7 +871,10 @@ describe('v0.12.0 store additions', () => {
         // timers BOTH writes are pending and both land when they fire.
         expect(timers.size).toBe(2)
         for (const [, fn] of [...timers]) fn()
-        expect(writes).toEqual(['dsh-sidebar:v1:a', 'dsh-sidebar:v1:b'])
+        // Each persist also syncs the shared cross-session width key (PR #36).
+        expect(writes.filter(key => key !== 'dsh-sidebar:v1:width'))
+          .toEqual(['dsh-sidebar:v1:a', 'dsh-sidebar:v1:b'])
+        expect(writes).toContain('dsh-sidebar:v1:width')
       } finally {
         delete g.window
         delete g.localStorage

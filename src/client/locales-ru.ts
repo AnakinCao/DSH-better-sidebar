@@ -83,6 +83,8 @@ export const ru: Record<string, string> = {
   mermaidZoomReset: 'Сбросить',
   mermaidZoomHint: 'Колесо — масштаб · перетаскивание — панорама · Esc — закрыть',
   refresh: 'Обновить',
+  showInFolder: 'Показать в папке',
+  refreshUnsavedConfirm: 'Файл изменился на диске. Обновление отбросит несохранённые изменения. Продолжить?',
   save: 'Сохранить',
   saved: 'Сохранено',
   unsaved: 'Не сохранено',

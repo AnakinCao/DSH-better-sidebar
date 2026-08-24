@@ -80,6 +80,8 @@ export const fr: Record<string, string> = {
   mermaidZoomReset: 'Réinitialiser',
   mermaidZoomHint: 'Molette pour zoomer · glisser pour déplacer · Échap pour fermer',
   refresh: 'Actualiser',
+  showInFolder: 'Afficher dans le dossier',
+  refreshUnsavedConfirm: 'Le fichier a changé sur le disque. Actualiser supprimera les modifications non enregistrées. Continuer ?',
   save: 'Enregistrer',
   saved: 'Enregistré',
   unsaved: 'Non enregistré',

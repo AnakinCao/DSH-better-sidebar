@@ -89,6 +89,8 @@ export const pl: Record<string, string> = {
   mermaidZoomReset: 'Resetuj',
   mermaidZoomHint: 'Kółko: powiększenie · przeciąganie: panowanie · Esc: zamknięcie',
   refresh: 'Odśwież',
+  showInFolder: 'Pokaż w folderze',
+  refreshUnsavedConfirm: 'Plik zmienił się na dysku. Odświeżenie odrzuci niezapisane zmiany. Kontynuować?',
   save: 'Zapisz',
   saved: 'Zapisano',
   unsaved: 'Niezapisane',

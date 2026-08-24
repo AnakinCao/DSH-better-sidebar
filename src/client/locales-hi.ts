@@ -87,6 +87,8 @@ export const hi: Record<string, string> = {
   mermaidZoomReset: 'रीसेट',
   mermaidZoomHint: 'स्क्रॉल से ज़ूम · खींचें पैन करने · Esc से बंद',
   refresh: 'ताज़ा करें',
+  showInFolder: 'फ़ोल्डर में दिखाएँ',
+  refreshUnsavedConfirm: 'डिस्क पर फ़ाइल बदल गई है। रीफ़्रेश करने पर असहेज किए गए संपादन खो जाएँगे। जारी रखें?',
   save: 'सहेजें',
   saved: 'सहेजा गया',
   unsaved: 'असहेजित',

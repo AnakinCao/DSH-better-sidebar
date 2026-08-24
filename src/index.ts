@@ -533,8 +533,10 @@ function buildApi(
         let response = await fetch(parsed, { method: 'HEAD', redirect: 'follow', signal: controller.signal })
         // Some servers answer HEAD with 405/501; retry once as GET (the
         // body is discarded — only the headers matter).
+        let retriedFromHeadRejection = false
         if (response.status === 405 || response.status === 501) {
           response = await fetch(parsed, { method: 'GET', redirect: 'follow', signal: controller.signal })
+          retriedFromHeadRejection = true
         }
         // Some servers (e.g. aliyun consoles) answer HEAD without the
         // X-Frame-Options / CSP headers that only their GET response
@@ -542,9 +544,11 @@ function buildApi(
         // would wrongly report the site as embeddable and the plain iframe
         // would surface the browser's misleading "refused to connect".
         // Retry once as GET when both signals are absent (body discarded).
+        // A 405/501 retry already fetched the GET response, so the signals
+        // are either there or genuinely absent — another GET adds nothing.
         const hasEmbedSignals = response.headers.get('content-security-policy') !== null
           || response.headers.get('x-frame-options') !== null
-        if (!hasEmbedSignals && response.status !== 405 && response.status !== 501) {
+        if (!hasEmbedSignals && !retriedFromHeadRejection && response.status !== 405 && response.status !== 501) {
           response = await fetch(parsed, { method: 'GET', redirect: 'follow', signal: controller.signal })
         }
         const csp = response.headers.get('content-security-policy')
@@ -1006,13 +1010,6 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     agentListWss.close()
     agentOpenWss.close()
   }, 'dsh-better-sidebar: teardown')
-
-  // Close all UI terminals of a session when the conversation is deleted —
-  // terminals follow the session, not the reconnect grace. Agent terminals
-  // are owned by the agent lifecycle and are not touched here.
-  ctx.on('session/disposed', (session) => {
-    try { ptyManager?.closeSession(session?.id) } catch {}
-  }, { global: true })
 }
 
 /** Push queued `sidebar_open` requests for one session to a connected view. */

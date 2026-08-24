@@ -78,6 +78,8 @@ export const it: Record<string, string> = {
   mermaidZoomReset: 'Ripristina',
   mermaidZoomHint: 'Scorra per zoom · trascini per panoramica · Esc per chiudere',
   refresh: 'Aggiorna',
+  showInFolder: 'Mostra nella cartella',
+  refreshUnsavedConfirm: 'Il file è cambiato su disco. Aggiornare scarterà le modifiche non salvate. Continuare?',
   save: 'Salva',
   saved: 'Salvato',
   unsaved: 'Non salvato',

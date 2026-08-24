@@ -70,6 +70,8 @@ export const pt: Record<string, string> = {
   mermaidZoomReset: 'Redefinir',
   mermaidZoomHint: 'Rolar para ampliar · arrastar para mover · Esc para fechar',
   refresh: 'Atualizar',
+  showInFolder: 'Mostrar na pasta',
+  refreshUnsavedConfirm: 'O arquivo mudou no disco. Atualizar descartará edições não salvas. Continuar?',
   save: 'Salvar',
   saved: 'Salvo',
   unsaved: 'Não salvo',

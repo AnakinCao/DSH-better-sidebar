@@ -85,6 +85,8 @@ export const nl: Record<string, string> = {
   mermaidZoomReset: 'Resetten',
   mermaidZoomHint: 'Scrollen om te zoomen · slepen om te pannen · Esc om te sluiten',
   refresh: 'Vernieuwen',
+  showInFolder: 'In map tonen',
+  refreshUnsavedConfirm: 'Het bestand is op schijf gewijzigd. Vernieuwen gooit niet-opgeslagen wijzigingen weg. Doorgaan?',
   save: 'Opslaan',
   saved: 'Opgeslagen',
   unsaved: 'Niet opgeslagen',

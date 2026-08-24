@@ -102,6 +102,8 @@ export const zhMO: Record<string, string> = {
   mermaidZoomReset: '重設',
   mermaidZoomHint: '滾輪縮放 · 拖曳平移 · Esc 關閉',
   refresh: '重新整理',
+  showInFolder: '在文件夾中顯示',
+  refreshUnsavedConfirm: '檔案已在磁碟上變更。重新整理會丟失尚未儲存的編輯。繼續？',
   save: '儲存',
   saved: '已儲存',
   unsaved: '未儲存',

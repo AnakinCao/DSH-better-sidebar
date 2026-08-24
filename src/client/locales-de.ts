@@ -73,6 +73,8 @@ export const de: Record<string, string> = {
   mermaidZoomReset: 'Zurücksetzen',
   mermaidZoomHint: 'Scrollen zum Zoomen · Ziehen zum Verschieben · Esc zum Schließen',
   refresh: 'Aktualisieren',
+  showInFolder: 'Im Ordner anzeigen',
+  refreshUnsavedConfirm: 'Die Datei wurde geändert. Beim Aktualisieren gehen ungespeicherte Änderungen verloren. Fortfahren?',
   save: 'Speichern',
   saved: 'Gespeichert',
   unsaved: 'Nicht gespeichert',

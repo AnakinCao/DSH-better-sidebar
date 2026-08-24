@@ -80,6 +80,7 @@ function setup(initialMode: 'preview' | 'edit' = 'preview', dirty = false): {
   const ctx = {
     betterSidebar: service,
     sessions: { list: { subscribe: () => () => {}, getSnapshot: () => sessionsSnapshot } },
+    get: (name: string) => name === 'betterSidebar' ? service : undefined,
   } as unknown as Context
   ctx.betterSidebar.openTab({ type: 'editor', title: 'a.ts', path: '/tmp/a.ts', id: 'editor:/tmp/a.ts' })
   const fileTab = (): SidebarTab =>

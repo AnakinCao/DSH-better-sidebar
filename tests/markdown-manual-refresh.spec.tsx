@@ -60,7 +60,10 @@ function setup(): {
     .flatMap(leaf => leaf.tabs)
     .find(candidate => candidate.type === 'editor')!
   const tab: SidebarTab = { ...home, path: '/tmp/notes.md', title: 'notes.md' }
-  const ctx = { betterSidebar: service } as unknown as Context
+  const ctx = {
+    betterSidebar: service,
+    get: (name: string) => name === 'betterSidebar' ? service : undefined,
+  } as unknown as Context
   return { store, ctx, tab }
 }
 

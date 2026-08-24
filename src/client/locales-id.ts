@@ -85,6 +85,8 @@ export const id: Record<string, string> = {
   mermaidZoomReset: 'Reset',
   mermaidZoomHint: 'Gulir untuk zoom · seret untuk geser · Esc untuk tutup',
   refresh: 'Segarkan',
+  showInFolder: 'Tampilkan di folder',
+  refreshUnsavedConfirm: 'File berubah di disk. Menyegarkan akan membuang edit yang belum disimpan. Lanjutkan?',
   save: 'Simpan',
   saved: 'Tersimpan',
   unsaved: 'Belum disimpan',

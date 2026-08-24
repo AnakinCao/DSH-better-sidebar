@@ -87,6 +87,8 @@ export const vi: Record<string, string> = {
   mermaidZoomReset: 'Đặt lại',
   mermaidZoomHint: 'Cuộn để zoom · kéo để di chuyển · Esc để đóng',
   refresh: 'Làm mới',
+  showInFolder: 'Hiển thị trong thư mục',
+  refreshUnsavedConfirm: 'Tệp đã thay đổi trên đĩa. Làm mới sẽ loại bỏ các chỉnh sửa chưa lưu. Tiếp tục?',
   save: 'Lưu',
   saved: 'Đã lưu',
   unsaved: 'Chưa lưu',

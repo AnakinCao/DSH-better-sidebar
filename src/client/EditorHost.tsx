@@ -113,6 +113,18 @@ export function EditorHost(props: {
   // with the same path/scope — the only reload entry besides open/close.
   const [reloadSeq, setReloadSeq] = useState(0)
 
+  // Manual refresh (issue #167 + PR #228): a dirty draft is dropped by the
+  // reload (the editor instance remounts), so confirm before discarding it.
+  const refreshFile = (): void => {
+    if (toolbar?.dirty === true) {
+      const confirmed = typeof window.confirm === 'function'
+        ? window.confirm(t('refreshUnsavedConfirm'))
+        : false
+      if (!confirmed) return
+    }
+    setReloadSeq(sequence => sequence + 1)
+  }
+
   // Reactive prefs read: flipping editorExplorer re-renders this tab with no
   // reload. The snapshot is the bare boolean so unrelated store churn never
   // re-renders the editor.
@@ -426,7 +438,7 @@ export function EditorHost(props: {
             className={css.iconButton}
             aria-label={t('refresh')}
             title={t('refresh')}
-            onClick={() => { setReloadSeq(sequence => sequence + 1) }}
+            onClick={refreshFile}
           >
             <IconRefreshOutline14 size={14} />
           </button>
