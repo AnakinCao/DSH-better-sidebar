@@ -87,6 +87,7 @@ export const sv: Record<string, string> = {
   splitDown: 'Dela ner',
   notRepo: 'Denna katalog är inte ett Git-arkiv',
   noChanges: 'Inga ändringar',
+  statusTruncated: 'För många ändringar; endast de första 2000 posterna visas',
   stage: 'Köa',
   unstage: 'Avköa',
   stageAll: 'Köa alla',

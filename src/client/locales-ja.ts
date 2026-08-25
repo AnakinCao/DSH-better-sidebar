@@ -104,6 +104,7 @@ export const ja: Record<string, string> = {
   splitDown: '下に分割',
   notRepo: 'このディレクトリは git リポジトリではありません',
   noChanges: '変更はありません',
+  statusTruncated: '変更が多すぎるため、最初の 2000 件のみ表示しています',
   stage: 'ステージ',
   unstage: 'ステージ解除',
   stageAll: 'すべてステージ',

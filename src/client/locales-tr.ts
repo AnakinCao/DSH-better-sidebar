@@ -104,6 +104,7 @@ export const tr: Record<string, string> = {
   splitDown: 'Aşağı böl',
   notRepo: 'Bu dizin bir git deposu değil',
   noChanges: 'Değişiklik yok',
+  statusTruncated: 'Çok fazla değişiklik var; yalnızca ilk 2000 giriş gösteriliyor',
   stage: 'Sahnele',
   unstage: 'Sahnelemeden kaldır',
   stageAll: 'Tümünü sahnele',

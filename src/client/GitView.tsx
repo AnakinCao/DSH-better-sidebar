@@ -471,6 +471,9 @@ export function GitView(props: {
 
       {status !== null && status.isRepo && (
         <>
+          {status.truncated === true && (
+            <div className={css.gitEmpty}>{t('statusTruncated')}</div>
+          )}
           <div className={css.gitSection}>
             <div className={css.gitSectionHeader}>
               <span>{t('staged')} ({stagedEntries.length})</span>

@@ -26,6 +26,10 @@ export interface GitStatusResult {
   isRepo: boolean
   branch?: string
   entries: GitStatusEntry[]
+  /** True when the working tree had more rows than `GIT_STATUS_LIMIT`; the
+   *  panel shows a truncation notice instead of freezing on a huge untracked
+   *  set (issue #369). */
+  truncated?: boolean
   /** Selected repository root, or the discovered roots when the cwd is a container. */
   root?: string
   repositories?: string[]
@@ -184,10 +188,28 @@ function runGit(cwd: string, args: string[], timeoutMs = 30_000): Promise<string
   })
 }
 
-/** Whether the directory is inside a git work tree (exit-0 `git rev-parse`). */
+/** Cap on child directories probed by the workspace-container fallback scan.
+ *  A home-directory cwd can hold hundreds of visible folders (Library, iCloud
+ *  mounts…); probing them all serially is what froze the panel in #369. */
+const DISCOVERY_LIMIT = 200
+/** Per-probe and direct-discovery budget. `rev-parse` is millisecond-scale on
+ *  a healthy checkout; a probe that needs longer is a stalled mount and is
+ *  better abandoned than waited on. */
+const DISCOVERY_TIMEOUT_MS = 3_000
+/** Discovery results are cheap to recompute but expensive to storm: the panel
+ *  polls every 2s and each poll fans out into several git.* calls that all
+ *  resolve the same roots. A short TTL keeps fan-out at one scan per cwd. */
+const DISCOVERY_CACHE_TTL_MS = 60_000
+
+const repoRootsCache = new Map<string, { roots: string[]; expires: number }>()
+const repoRootsInFlight = new Map<string, Promise<string[]>>()
+
+/** Whether the directory is inside a git work tree (exit-0 `git rev-parse`).
+ *  Probe timeout is short: a cwd on a stalled mount must not hold the panel
+ *  hostage for the full command budget (issue #369). */
 export async function isGitRepo(cwd: string): Promise<boolean> {
   try {
-    const out = await runGit(cwd, ['rev-parse', '--is-inside-work-tree'])
+    const out = await runGit(cwd, ['rev-parse', '--is-inside-work-tree'], DISCOVERY_TIMEOUT_MS)
     return out.trim() === 'true'
   } catch {
     return false
@@ -196,12 +218,34 @@ export async function isGitRepo(cwd: string): Promise<boolean> {
 
 /** The repository top level containing `cwd` (`git rev-parse --show-toplevel`). */
 async function directRepoRoot(cwd: string): Promise<string> {
-  const out = await runGit(cwd, ['rev-parse', '--show-toplevel'])
+  const out = await runGit(cwd, ['rev-parse', '--show-toplevel'], DISCOVERY_TIMEOUT_MS)
   return out.trim()
 }
 
-/** Discover the current repository or direct child repositories. */
-export async function repoRoots(cwd: string): Promise<string[]> {
+/** Discover the current repository or direct child repositories. Results are
+ *  cached per cwd and concurrent callers share one in-flight scan, so opening
+ *  the panel (three parallel git.* requests) costs a single discovery pass. */
+export function repoRoots(cwd: string): Promise<string[]> {
+  const cached = repoRootsCache.get(cwd)
+  if (cached !== undefined && cached.expires > Date.now()) return Promise.resolve(cached.roots)
+  const pending = repoRootsInFlight.get(cwd)
+  if (pending !== undefined) return pending
+  const promise = discoverRepoRoots(cwd).then(
+    (roots) => {
+      repoRootsCache.set(cwd, { roots, expires: Date.now() + DISCOVERY_CACHE_TTL_MS })
+      repoRootsInFlight.delete(cwd)
+      return roots
+    },
+    (error: unknown) => {
+      repoRootsInFlight.delete(cwd)
+      throw error
+    },
+  )
+  repoRootsInFlight.set(cwd, promise)
+  return promise
+}
+
+async function discoverRepoRoots(cwd: string): Promise<string[]> {
   try {
     return [await directRepoRoot(cwd)]
   } catch {
@@ -209,7 +253,8 @@ export async function repoRoots(cwd: string): Promise<string[]> {
     const roots: string[] = []
     for (const entry of entries
       .filter(entry => entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules')
-      .sort((left, right) => left.name.localeCompare(right.name))) {
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .slice(0, DISCOVERY_LIMIT)) {
       try {
         const root = await directRepoRoot(join(cwd, entry.name))
         if (!roots.some(existing => pathIdentity(existing) === pathIdentity(root))) roots.push(root)
@@ -241,6 +286,12 @@ export async function currentBranch(cwd: string): Promise<string> {
   return out.trim()
 }
 
+/** Upper bound on status rows shipped to the client. Beyond this the result
+ *  is truncated (with `truncated: true`) so a pathological untracked set —
+ *  e.g. the working tree discovered under a home-directory cwd — cannot
+ *  freeze the browser main thread on JSON parse or list render (#369). */
+const GIT_STATUS_LIMIT = 2_000
+
 /**
  * Working-tree status (untracked included). `--untracked-files=all` lists
  * the contents of new directories as individual entries, while preserving
@@ -254,7 +305,16 @@ export async function status(cwd: string, selected?: string): Promise<GitStatusR
     currentBranch(root).catch(() => 'HEAD'),
     runGit(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']),
   ])
-  return { isRepo: true, branch, entries: parsePorcelainZ(raw), root, repositories }
+  const parsed = parsePorcelainZ(raw)
+  const truncated = parsed.length > GIT_STATUS_LIMIT
+  return {
+    isRepo: true,
+    branch,
+    entries: truncated ? parsed.slice(0, GIT_STATUS_LIMIT) : parsed,
+    truncated,
+    root,
+    repositories,
+  }
 }
 
 /** Platform-aware identity used only for comparing absolute checkout roots. */

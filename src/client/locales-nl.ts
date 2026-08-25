@@ -102,6 +102,7 @@ export const nl: Record<string, string> = {
   splitDown: 'Splitsen omlaag',
   notRepo: 'Deze map is geen git-repository',
   noChanges: 'Geen wijzigingen',
+  statusTruncated: 'Te veel wijzigingen; alleen de eerste 2000 items worden weergegeven',
   stage: 'Stagen',
   unstage: 'Unstagen',
   stageAll: 'Alles stagen',

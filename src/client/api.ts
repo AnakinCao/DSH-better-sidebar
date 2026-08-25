@@ -44,6 +44,9 @@ export interface GitStatusResult {
   isRepo: boolean
   branch?: string
   entries: GitStatusEntry[]
+  /** True when the host capped `entries` (huge untracked set); the panel
+   *  shows a truncation notice instead of freezing (#369). */
+  truncated?: boolean
   root?: string
   repositories?: string[]
 }

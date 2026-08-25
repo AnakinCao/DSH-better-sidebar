@@ -100,6 +100,7 @@ export const ru: Record<string, string> = {
   splitDown: 'Разделить вниз',
   notRepo: 'Этот каталог не является git-репозиторием',
   noChanges: 'Нет изменений',
+  statusTruncated: 'Слишком много изменений; показаны только первые 2000 записей',
   stage: 'Индексировать',
   unstage: 'Убрать из индекса',
   stageAll: 'Индексировать всё',

@@ -102,6 +102,7 @@ export const id: Record<string, string> = {
   splitDown: 'Bagi ke bawah',
   notRepo: 'Direktori ini bukan repositori git',
   noChanges: 'Tidak ada perubahan',
+  statusTruncated: 'Terlalu banyak perubahan; hanya 2000 entri pertama yang ditampilkan',
   stage: 'Stage',
   unstage: 'Unstage',
   stageAll: 'Stage semua',

@@ -105,6 +105,7 @@ export const ar: Record<string, string> = {
   splitDown: 'تقسيم لأسفل',
   notRepo: 'هذا الدليل ليس مستودع git',
   noChanges: 'لا تغييرات',
+  statusTruncated: 'التغييرات كثيرة جدًا؛ يتم عرض أول 2000 إدخال فقط',
   stage: 'إدراج',
   unstage: 'إلغاء الإدراج',
   stageAll: 'إدراج الكل',

@@ -106,6 +106,7 @@ export const pl: Record<string, string> = {
   splitDown: 'Podziel w dół',
   notRepo: 'Ten katalog nie jest repozytorium git',
   noChanges: 'Brak zmian',
+  statusTruncated: 'Zbyt wiele zmian; pokazywane jest tylko pierwsze 2000 wpisów',
   stage: 'Dodaj do indeksu',
   unstage: 'Usuń z indeksu',
   stageAll: 'Dodaj wszystko do indeksu',

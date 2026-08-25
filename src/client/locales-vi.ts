@@ -104,6 +104,7 @@ export const vi: Record<string, string> = {
   splitDown: 'Chia xuống dưới',
   notRepo: 'Thư mục hiện tại không phải repo git',
   noChanges: 'Không có thay đổi',
+  statusTruncated: 'Quá nhiều thay đổi; chỉ hiển thị 2000 mục đầu tiên',
   stage: 'Stage',
   unstage: 'Unstage',
   stageAll: 'Stage tất cả',
