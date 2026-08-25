@@ -93,4 +93,14 @@ export const builtinTabPlugins: readonly PluginEntry[] = [
     // Needs dsh-better-sidebar (optional peer) for the tab; no model tools.
     install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add git+https://github.com/yq04/dsh-turn-review.git',
   },
+  {
+    id: 'dsh-bilingual-reader',
+    name: 'dsh-bilingual-reader 双语阅读',
+    url: 'https://github.com/Johnblur/dsh-bilingual-reader',
+    description: () => t('pluginBilingualReaderDesc'),
+    // Bilingual paper reading: a native-PDF tab with LLM selection translation,
+    // isolated from the main conversation context. Hard-depends on the
+    // better-sidebar tab service, so install the prerequisite first.
+    install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add github:Johnblur/dsh-bilingual-reader',
+  },
 ]
