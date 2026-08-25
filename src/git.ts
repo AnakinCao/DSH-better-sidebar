@@ -195,7 +195,7 @@ const DISCOVERY_LIMIT = 200
 /** Per-probe and direct-discovery budget. `rev-parse` is millisecond-scale on
  *  a healthy checkout; a probe that needs longer is a stalled mount and is
  *  better abandoned than waited on. */
-const DISCOVERY_TIMEOUT_MS = 3_000
+const DISCOVERY_TIMEOUT_MS = 5_000
 /** Discovery results are cheap to recompute but expensive to storm: the panel
  *  polls every 2s and each poll fans out into several git.* calls that all
  *  resolve the same roots. A short TTL keeps fan-out at one scan per cwd. */
