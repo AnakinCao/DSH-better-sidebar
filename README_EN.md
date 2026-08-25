@@ -89,7 +89,7 @@ If anything fails, check the troubleshooting table in the README at https://gith
 dsh plugin --profile web add dsh-better-sidebar@latest
 ```
 
-or bump the version in `~/.dsh/profiles/web/package.json` (e.g. `"^0.16.0"`) and run `pnpm install`. Then hard-refresh the browser (Cmd/Ctrl+Shift+R) — client changes do not need a DSH restart.
+or bump the version in `~/.dsh/profiles/web/package.json` (e.g. `"^0.16.1"`) and run `pnpm install`. Then hard-refresh the browser (Cmd/Ctrl+Shift+R) — client changes do not need a DSH restart.
 
 </details>
 
@@ -130,7 +130,7 @@ To debug local changes or track the dev branch, point the dependency at a local 
 5. Restart DSH and hard-refresh
 ```
 
-Update: `git pull && pnpm install && pnpm build` → just hard-refresh the browser (client changes hot-reload; only host-half changes need a DSH restart). To switch back to the npm channel, restore `"dsh-better-sidebar": "^0.16.0"` and re-run `pnpm install`.
+Update: `git pull && pnpm install && pnpm build` → just hard-refresh the browser (client changes hot-reload; only host-half changes need a DSH restart). To switch back to the npm channel, restore `"dsh-better-sidebar": "^0.16.1"` and re-run `pnpm install`.
 
 </details>
 
@@ -259,6 +259,14 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 </div>
 
 **Supported DSH versions**: <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions: 0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a> · full release history on the [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases) page
+
+### v0.16.1
+
+All changes since v0.16.0:
+
+**🐛 Fixes**
+
+- 🧊 **Git panel freeze + restart loop** ([#376](https://github.com/omdsh-dev/DSH-better-sidebar/pull/376), fixes [#369](https://github.com/omdsh-dev/DSH-better-sidebar/issues/369)): opening the Source Control panel could freeze the whole page, and the frozen layout restored itself after every reload with no way out — three unbounded layers compounding, now all bounded: **① status truncation** — the `git status --untracked-files=all` response is capped at 2,000 entries (capped results carry `truncated` and the panel shows a notice, mirroring `fs.read`'s truncation semantics; worktree change counts inherit the bound), so a huge untracked set can no longer freeze the browser main thread; **② bounded repository discovery** — a non-repository cwd (e.g. the home directory) no longer probes every visible child directory serially without limit: probe timeout 30s→5s, at most 200 probed directories, concurrent requests share one in-flight scan plus a 60s TTL cache, ending the `git rev-parse` spawn storm under `~`; **③ reset escape hatch** — loading with `?dsh-sidebar-reset` drops the persisted layout (shared width included) and starts from the default, breaking the loop even when the page is already hung; persisting resumes once the param is gone; `statusTruncated` copy synced across all 19 dictionaries
 
 ### v0.16.0
 
