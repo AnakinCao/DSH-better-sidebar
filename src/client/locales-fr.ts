@@ -97,6 +97,7 @@ export const fr: Record<string, string> = {
   splitDown: 'Diviser en bas',
   notRepo: 'Ce répertoire n’est pas un dépôt git',
   noChanges: 'Aucune modification',
+  statusTruncated: 'Trop de modifications ; seules les 2000 premières entrées sont affichées',
   stage: 'Mettre en scène',
   unstage: 'Annuler la mise en scène',
   stageAll: 'Tout mettre en scène',

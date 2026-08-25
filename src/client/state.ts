@@ -1036,25 +1036,55 @@ export function defaultWidthFor(viewport: number, percent: number): number {
   return Math.min(viewport, Math.max(PANEL_MIN, Math.round(viewport * percent / 100)))
 }
 
+/**
+ * URL escape hatch (#369): loading the app with `?dsh-sidebar-reset` drops
+ * the persisted layout for the session instead of restoring it. When a
+ * restored tab hangs the page on mount (the #369 freeze loop), reloading
+ * into the same state replays the hang forever; this param starts from the
+ * default layout and clears the stored copy, breaking the loop. Persisting
+ * resumes as soon as the param is gone from the URL.
+ */
+const RESET_PARAM = 'dsh-sidebar-reset'
+
+/** Whether the current page load asked for a persisted-state reset. */
+function resetRequested(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).has(RESET_PARAM)
+  } catch {
+    return false
+  }
+}
+
 function loadState(sessionId: string, prefs: SidebarPrefs): SidebarState {
+  const reset = resetRequested()
+  if (reset) {
+    try {
+      localStorage.removeItem(`${STORAGE_PREFIX}:${sessionId}`)
+      localStorage.removeItem(GLOBAL_WIDTH_KEY)
+    } catch {
+      // Storage unavailable: the default layout below is still the escape.
+    }
+  }
   // The panel width is a cross-session preference: the last dragged width
   // wins over a session's own persisted value, so switching conversations
   // keeps the width the user chose anywhere.
-  const globalWidth = readGlobalWidth()
-  try {
-    const raw = localStorage.getItem(`${STORAGE_PREFIX}:${sessionId}`)
-    if (raw !== null) {
-      const parsed = JSON.parse(raw) as unknown
-      // Seed the uid counter past the persisted ids (it resets on reload);
-      // sanitize re-ids any duplicates the pre-seeding counter left behind.
-      nextIdCounter = maxCounterId(parsed)
-      const sanitized = sanitizeState(parsed)
-      if (sanitized !== undefined) {
-        return globalWidth === undefined ? sanitized : { ...sanitized, width: globalWidth }
+  const globalWidth = reset ? undefined : readGlobalWidth()
+  if (!reset) {
+    try {
+      const raw = localStorage.getItem(`${STORAGE_PREFIX}:${sessionId}`)
+      if (raw !== null) {
+        const parsed = JSON.parse(raw) as unknown
+        // Seed the uid counter past the persisted ids (it resets on reload);
+        // sanitize re-ids any duplicates the pre-seeding counter left behind.
+        nextIdCounter = maxCounterId(parsed)
+        const sanitized = sanitizeState(parsed)
+        if (sanitized !== undefined) {
+          return globalWidth === undefined ? sanitized : { ...sanitized, width: globalWidth }
+        }
       }
+    } catch {
+      // Corrupt or unavailable storage: fall through to the default.
     }
-  } catch {
-    // Corrupt or unavailable storage: fall through to the default.
   }
   // New sessions seed from the user's side card prefs: the width is the
   // chosen percent of the window (clamped to the panel floor and the

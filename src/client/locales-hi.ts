@@ -104,6 +104,7 @@ export const hi: Record<string, string> = {
   splitDown: 'नीचे स्प्लिट',
   notRepo: 'यह डायरेक्टरी एक git रिपॉज़िटरी नहीं है',
   noChanges: 'कोई बदलाव नहीं',
+  statusTruncated: 'बहुत अधिक बदलाव; केवल पहली 2000 प्रविष्टियाँ दिखाई जा रही हैं',
   stage: 'स्टेज',
   unstage: 'अनस्टेज',
   stageAll: 'सभी स्टेज करें',

@@ -96,6 +96,7 @@ export const ko: Record<string, string> = {
   splitDown: '아래로 분할',
   notRepo: '현재 디렉터리는 git 저장소가 아닙니다',
   noChanges: '변경 사항 없음',
+  statusTruncated: '변경 사항이 너무 많아 처음 2000개만 표시합니다',
   stage: '스테이징',
   unstage: '스테이징 해제',
   stageAll: '모두 스테이징',

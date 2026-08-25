@@ -90,6 +90,7 @@ export const de: Record<string, string> = {
   splitDown: 'Nach unten teilen',
   notRepo: 'Dieses Verzeichnis ist kein Git-Repository',
   noChanges: 'Keine Änderungen',
+  statusTruncated: 'Zu viele Änderungen; nur die ersten 2000 Einträge werden angezeigt',
   stage: 'Stagen',
   unstage: 'Unstagen',
   stageAll: 'Alle stagen',

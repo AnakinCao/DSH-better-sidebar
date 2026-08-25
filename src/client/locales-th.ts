@@ -104,6 +104,7 @@ export const th: Record<string, string> = {
   splitDown: 'แยกลง',
   notRepo: 'ไดเรกทอรีนี้ไม่ใช่ git repository',
   noChanges: 'ไม่มีการเปลี่ยนแปลง',
+  statusTruncated: 'การเปลี่ยนแปลงมากเกินไป แสดงเพียง 2000 รายการแรก',
   stage: 'Stage',
   unstage: 'Unstage',
   stageAll: 'Stage ทั้งหมด',

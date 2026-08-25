@@ -78,6 +78,60 @@ describe('git parsing', () => {
     }
   })
 
+  it('caps status entries at the truncation limit (issue #369)', async () => {
+    // A pathological untracked set — e.g. a repository discovered under a
+    // home-directory cwd — must ship a bounded payload: the browser main
+    // thread froze when one status response carried tens of thousands of
+    // rows into response.json() and the unvirtualized change list.
+    const root = mkdtempSync(join(tmpdir(), 'dsh-git-truncate-'))
+    try {
+      execFileSync('git', ['init', '-q'], { cwd: root })
+      const many = join(root, 'many')
+      mkdirSync(many)
+      for (let index = 0; index <= 2_000; index += 1) writeFileSync(join(many, `f${index}.ts`), 'x')
+      const result = await status(root)
+      expect(result.entries).toHaveLength(2_000)
+      expect(result.truncated).toBe(true)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('leaves ordinary statuses untruncated', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-git-untruncated-'))
+    try {
+      execFileSync('git', ['init', '-q'], { cwd: root })
+      for (const name of ['a.ts', 'b.ts', 'c.ts']) writeFileSync(join(root, name), 'x')
+      const result = await status(root)
+      expect(result.entries).toHaveLength(3)
+      expect(result.truncated).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('shares one in-flight discovery scan between concurrent callers and caches the result (issue #369)', async () => {
+    // The panel fires gitStatus/gitBranch/gitLog in parallel and then polls
+    // every 2s; without sharing/caching, each call re-probed every visible
+    // child directory of the cwd (the home-directory spawn storm of #369).
+    const workspace = await mkdtemp(join(tmpdir(), 'dsh-git-cache-'))
+    const repo = join(workspace, 'a-repo')
+    try {
+      await mkdir(repo)
+      await execFileAsync('git', ['-C', repo, 'init'])
+      const first = repoRoots(workspace)
+      // A second call while the first scan is still running joins it…
+      expect(repoRoots(workspace)).toBe(first)
+      const roots = await first
+      expect(roots).toEqual([canonical(repo)])
+      // …and once settled, the cached array (same reference) is served
+      // without re-probing for the TTL window.
+      await expect(repoRoots(workspace)).resolves.toBe(roots)
+    } finally {
+      await rm(workspace, { recursive: true, force: true })
+    }
+  })
+
   it('parses log rows with unit separators (full hash + refs)', () => {
     const rows = parseLogLines(
       'abc1234\x1fFirst subject\x1fAlice\x1f2024-01-01 10:00:00 +0800\x1fabc1234def5678abc1234def5678abc1234def5678\x1fHEAD -> main, origin/main\n'

@@ -87,6 +87,7 @@ export const pt: Record<string, string> = {
   splitDown: 'Dividir abaixo',
   notRepo: 'Este diretório não é um repositório git',
   noChanges: 'Sem alterações',
+  statusTruncated: 'Muitas alterações; exibindo apenas as primeiras 2000 entradas',
   stage: 'Preparar (stage)',
   unstage: 'Desfazer stage',
   stageAll: 'Preparar tudo',

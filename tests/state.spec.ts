@@ -1213,3 +1213,73 @@ describe('free windows (v0.16.0)', () => {
     })
   })
 })
+
+describe('URL reset escape hatch (issue #369)', () => {
+  // Same browser-global stubs as the v0.12.0 block above; loadState reads
+  // window.location.search (reset param) and localStorage (persisted state).
+  beforeEach(() => {
+    const g = globalThis as Record<string, unknown>
+    g.window = { clearTimeout: () => {}, setTimeout: () => 0, innerWidth: 1024, innerHeight: 800, location: { search: '' } }
+    g.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+  })
+  afterEach(() => {
+    const g = globalThis as Record<string, unknown>
+    delete g.window
+    delete g.localStorage
+  })
+
+  /** A persisted layout whose restored git tab would re-hang the page. */
+  const frozenState = JSON.stringify({
+    panelOpen: true,
+    width: 400,
+    nextTerminal: 1,
+    activePane: 'pane:1',
+    expanded: [],
+    splits: { kind: 'leaf', id: 'pane:1', active: 'g1', tabs: [{ id: 'g1', type: 'git', title: 'Git' }] },
+    bottomSplits: { kind: 'leaf', id: 'pane:b', active: null, tabs: [] },
+  })
+
+  const searchOf = (): { search: string } =>
+    (globalThis as unknown as { window: { location: { search: string } } }).window.location
+
+  it('restores the persisted layout when the param is absent', () => {
+    const g = globalThis as Record<string, unknown>
+    g.localStorage = {
+      getItem: (key: string) => (key === 'dsh-sidebar:v1:s1' ? frozenState : null),
+      setItem: () => {},
+      removeItem: () => {},
+    }
+    const store = createSidebarStore()
+    store.setSession('s1')
+    const leaf = store.getSnapshot().state!.splits as { tabs: { type: string }[] }
+    expect(leaf.tabs.map(tab => tab.type)).toEqual(['git'])
+  })
+
+  it('?dsh-sidebar-reset drops the persisted layout and clears the stored copy', () => {
+    const g = globalThis as Record<string, unknown>
+    const removed: string[] = []
+    g.localStorage = {
+      getItem: (key: string) => (key === 'dsh-sidebar:v1:s1' ? frozenState : null),
+      setItem: () => {},
+      removeItem: (key: string) => { removed.push(key) },
+    }
+    searchOf().search = '?dsh-sidebar-reset'
+    const store = createSidebarStore()
+    store.setSession('s1')
+    // The default layout (editor home tab) — NOT the frozen git-only state.
+    const leaf = store.getSnapshot().state!.splits as { tabs: { type: string }[] }
+    expect(leaf.tabs.map(tab => tab.type)).toEqual(['editor'])
+    // The stored copy is gone, so reloading without the param cannot restore
+    // the hanging layout either.
+    expect(removed).toContain('dsh-sidebar:v1:s1')
+    expect(removed).toContain('dsh-sidebar:v1:width')
+  })
+
+  it('the reset param tolerates a value (?dsh-sidebar-reset=1)', () => {
+    searchOf().search = '?foo=bar&dsh-sidebar-reset=1'
+    const store = createSidebarStore()
+    store.setSession('s1')
+    const leaf = store.getSnapshot().state!.splits as { tabs: { type: string }[] }
+    expect(leaf.tabs.map(tab => tab.type)).toEqual(['editor'])
+  })
+})

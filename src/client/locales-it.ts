@@ -95,6 +95,7 @@ export const it: Record<string, string> = {
   splitDown: 'Dividi in basso',
   notRepo: 'Questa directory non è un repository git',
   noChanges: 'Nessuna modifica',
+  statusTruncated: 'Troppe modifiche; vengono mostrate solo le prime 2000 voci',
   stage: 'Prepara',
   unstage: 'Rimuovi dalla preparazione',
   stageAll: 'Prepara tutto',

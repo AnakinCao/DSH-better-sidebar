@@ -119,6 +119,7 @@ export const zhMO: Record<string, string> = {
   splitDown: '向下分欄',
   notRepo: '目前目錄不是 git 倉庫',
   noChanges: '沒有變更',
+  statusTruncated: '變更過多，僅顯示前 2000 條',
   stage: '暫存',
   unstage: '取消暫存',
   stageAll: '全部暫存',
