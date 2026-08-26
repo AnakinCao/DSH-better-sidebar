@@ -37,6 +37,12 @@ export interface SidebarTab {
   /** Plugin-owned state (v0.12.0+): MUST be JSON-serializable — it is
    *  persisted with the layout and restored verbatim on reload. */
   meta?: unknown
+  /** Pinned-terminal marker (v0.17.0+): a pinned terminal tab survives a
+   *  session switch in its home session's state and surfaces in the
+   *  PinnedRail of every session the scope allows. `homeCwd` is the cwd
+   *  snapshot at pin time — a `workspace`-scoped pin is only visible to
+   *  sessions whose cwd matches it. Absent = unpinned (legacy states). */
+  pin?: { scope: 'workspace' | 'global'; homeCwd?: string }
 }
 
 /** A tab group. */
@@ -526,6 +532,57 @@ export function patchTab(
       ...(patch.path !== undefined ? { path: patch.path } : {}),
       ...(patch.meta !== undefined ? { meta: patch.meta } : {}),
     }
+  }
+  const walk = (node: SplitNode): SplitNode => {
+    if (node.kind === 'leaf') {
+      const tabs = node.tabs.map(tab => (tab.id === tabId ? apply(tab) : tab))
+      return tabs === node.tabs ? node : { ...node, tabs }
+    }
+    const children = node.children.map(walk)
+    return children === node.children ? node : { ...node, children }
+  }
+  const splits = walk(state.splits)
+  const bottomSplits = walk(state.bottomSplits)
+  const floats = state.floats.map(float => (float.tab.id === tabId ? { ...float, tab: apply(float.tab) } : float))
+  return changed ? { ...state, splits, bottomSplits, floats } : state
+}
+
+/**
+ * Set or clear the pin marker on one open tab (v0.17.0+). A pin marker is
+ * structural metadata (NOT display fields like title/path), so it walks
+ * both split trees AND the free windows exactly like {@link patchTab} —
+ * the tab may live in either tree or float. Passing `null` clears the pin
+ * (the tab stays open in its home session); passing a `{ scope, homeCwd }`
+ * object sets it. An unknown tab id is a strict no-op (same reference
+ * returned) so a stale pin request never churns the state or rewrites
+ * localStorage.
+ * @param state - the current per-session sidebar state.
+ * @param tabId - the tab to pin/unpin.
+ * @param pin - the pin marker to set, or null to clear.
+ * @returns the next state (or the same reference when the tab is missing
+ *          or the pin marker is already the requested value).
+ */
+export function setTabPin(
+  state: SidebarState,
+  tabId: string,
+  pin: { scope: 'workspace' | 'global'; homeCwd?: string } | null,
+): SidebarState {
+  let changed = false
+  const apply = (tab: SidebarTab): SidebarTab => {
+    // Idempotent: setting the same pin (deep-equal on scope + homeCwd) is a
+    // no-op so re-clicking the menu item never churns the state.
+    if (pin === null) {
+      if (tab.pin === undefined) return tab
+    } else if (
+      tab.pin !== undefined
+      && tab.pin.scope === pin.scope
+      && tab.pin.homeCwd === pin.homeCwd
+    ) {
+      return tab
+    }
+    changed = true
+    const { pin: _omit, ...rest } = tab
+    return pin === null ? rest : { ...rest, pin }
   }
   const walk = (node: SplitNode): SplitNode => {
     if (node.kind === 'leaf') {
@@ -1267,13 +1324,28 @@ function sanitizePersistedTab(tab: unknown): SidebarTab | 'diff' | undefined {
   // `meta` is plugin-owned JSON-serializable state (v0.12.0+): the persisted
   // value already went through JSON.parse, so it is inherently serializable —
   // carry it through verbatim (absent on older states).
-  return {
+  const result: SidebarTab = {
     id: candidate.id,
     type: candidate.type,
     title: candidate.title,
     ...(typeof candidate.path === 'string' ? { path: candidate.path } : {}),
     ...(candidate.meta !== undefined ? { meta: candidate.meta } : {}),
   }
+  // `pin` (v0.17.0+): a pinned-terminal marker. Whitelist-validate the
+  // shape so a hand-edited / corrupted pin never crashes the rail's
+  // resolver: an unknown scope or a non-string homeCwd drops the pin
+  // silently (the tab survives, just unpinned — the legacy behavior).
+  const pin = (candidate as Record<string, unknown>).pin
+  if (pin !== null && typeof pin === 'object' && !Array.isArray(pin)) {
+    const pinRecord = pin as Record<string, unknown>
+    if (pinRecord.scope === 'workspace' || pinRecord.scope === 'global') {
+      const homeCwd = pinRecord.homeCwd
+      result.pin = homeCwd === undefined || typeof homeCwd === 'string'
+        ? { scope: pinRecord.scope, ...(typeof homeCwd === 'string' ? { homeCwd } : {}) }
+        : { scope: pinRecord.scope }
+    }
+  }
+  return result
 }
 
 /** Validate one split-tree node (leaf or split) and rebuild it cleanly. */
@@ -1435,6 +1507,19 @@ export class SidebarStore {
     const state = this.bySession.get(sessionId)
       ?? (this.snapshot.sessionId === sessionId ? this.snapshot.state : undefined)
     return state !== undefined && tabOpenIn(state, tabId)
+  }
+
+  /**
+   * Read-only view of EVERY cached session's state (v0.17.0+). The
+   * PinnedRail uses this to collect pinned terminals across sessions
+   * without each render reading private fields. The map is the live
+   * `bySession` reference — callers MUST treat it as read-only (mutations
+   * go through {@link reduce} / {@link reduceFor}). A session that has
+   * never been visited in this run is absent (its pinned tabs are not
+   * visible until first load — accepted as YAGNI by the design).
+   */
+  getSessionStates(): ReadonlyMap<string, SidebarState> {
+    return this.bySession
   }
 
   /** Apply a pure reducer (returns the next state). */
