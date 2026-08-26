@@ -35,11 +35,13 @@ import { IconCloseFill14, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context, SidebarSessionList } from '../context-types.ts'
 import { appendToDraft } from './conversation-draft.ts'
 import {
-  BOTTOM_MIN, PANEL_MIN, agentUuidOf, dockFloat, firstLeaf, floatTab, isAgentTabId, leafWithTab, migrateBottomTabs,
-  moveFloat, moveTab, moveTabToEdge, openDiffTab, raiseFloat, reconcileAgentTerminals,
+  BOTTOM_MIN, PANEL_MIN, activateTab, agentUuidOf, allLeaves, closeFloatByTab, closeTab, dockFloat, firstLeaf, floatTab,
+  floatWithTab, isAgentTabId, leafWithTab, migrateBottomTabs,
+  moveFloat, moveTab, moveTabToEdge, openDiffTab, openTabInActivePane, raiseFloat, reconcileAgentTerminals,
   resizeFloat, resizeSplitIn, setBottomHeight, setTabPin, setWidth, toggleBottomPanel, toggleExpanded, togglePanel,
   type DropZone, type SidebarState, type SidebarStore, type SidebarTab, type SplitNode,
 } from './state.ts'
+import { collectPinnedTabs, type PinnedTabEntry } from './pinned.ts'
 import { IconPanelBottomOutline16, IconPanelRightOutline16 } from './icons.tsx'
 import { Workbench, type WorkbenchActions } from './split-pane.tsx'
 import { isNarrowWidth, useViewportSize } from './breakpoints.ts'
@@ -51,6 +53,7 @@ import { computeTitleBarStrip } from './titlebar-strip.ts'
 import type { NewTabOption } from './TabBar.tsx'
 import { TAB_DRAG_TYPE, parseDrag, type TabDragPayload } from './TabBar.tsx'
 import { FreeWindow } from './FreeWindow.tsx'
+import { PinnedRail } from './PinnedRail.tsx'
 import { relativeTo } from './paths.ts'
 import { OrphanedTab } from './OrphanedTab.tsx'
 import { RenderBoundary } from './RenderBoundary.tsx'
@@ -625,6 +628,53 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     store.reduce(s => ({ ...s, activePane: firstLeaf(s.splits).id }))
     ctx.get('betterSidebar')?.openTab({ type: 'subagent', title: t('subagent') })
   }, [sessionId, store, ctx])
+
+  /**
+   * Pinned-terminal jump-back (v0.17.0+): clicking a rail entry from another
+   * session navigates to the home session and activates the pinned tab (or
+   * raises its free window). The ref records the target {homeSessionId,
+   * tabId}; once the current session becomes the home session, the effect
+   * fires: expand the panel if collapsed, then activate the tab (docked) or
+   * raise its float. Mirrors the subagentJumpRef pattern above.
+   *
+   * The railRevision state forces the entries useMemo to recompute after a
+   * rail action (unpin/close) that goes through reduceFor — which doesn't
+   * notify (targeted opens must not re-render the active session's UI). The
+   * revision bump is the only signal the rail has that another session's
+   * state changed.
+   */
+  const pinnedJumpRef = useRef<{ homeSessionId: string; tabId: string } | undefined>(undefined)
+  const [railRevision, setRailRevision] = useState(0)
+  useEffect(() => {
+    const pending = pinnedJumpRef.current
+    if (pending === undefined || sessionId !== pending.homeSessionId) return
+    pinnedJumpRef.current = undefined
+    store.reduce(s => s.panelOpen ? s : togglePanel(s))
+    store.reduce(s => {
+      // Docked: find in either tree and activate.
+      for (const leaf of allLeaves(s.splits).concat(allLeaves(s.bottomSplits))) {
+        if (leaf.tabs.some(tab => tab.id === pending.tabId)) {
+          return activateTab(s, leaf.id, pending.tabId)
+        }
+      }
+      // Floated: raise the window.
+      const floated = floatWithTab(s, pending.tabId)
+      if (floated !== undefined) return raiseFloat(s, floated.id)
+      return s
+    })
+  }, [sessionId, store])
+
+  /**
+   * Cross-session pinned-tab collection for the rail. Recomputed on every
+   * store notify (active session state change), session-list change (cwd
+   * hydration), and rail action (the revision bump covers reduceFor updates
+   * that don't notify). The rail only shows tabs from OTHER sessions — the
+   * viewer's own pinned tabs are already on its tab strip.
+   */
+  const pinnedEntries: readonly PinnedTabEntry[] = useMemo(() => {
+    if (sessionId === undefined) return []
+    return collectPinnedTabs(store.getSessionStates(), { sessionId, cwd })
+  }, [store, sessionId, cwd, snapshot, railRevision])
 
   // The app shell's center column: the bottom panel spans ONLY that column
   // ("squeezes the agent output area") — it starts at the app sidebar's
@@ -1213,6 +1263,48 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   }), [store, sessionId, cwd])
 
   /**
+   * Pinned-rail actions (v0.17.0+): unpin and close target the HOME session
+   * (which is NOT the current session — the rail only shows other sessions'
+   * pinned tabs). reduceFor updates the home session's state without
+   * notifying (targeted opens must not re-render the active session); the
+   * railRevision bump is the local signal that makes the entries useMemo
+   * recompute and the rail re-render.
+   */
+  const onUnpinPinned = useCallback((homeSessionId: string, tabId: string): void => {
+    store.reduceFor(homeSessionId, s => setTabPin(s, tabId, null))
+    setRailRevision(v => v + 1)
+  }, [store])
+
+  const onClosePinned = useCallback((homeSessionId: string, tabId: string): void => {
+    store.reduceFor(homeSessionId, s => {
+      // Docked: find in either tree and close (empties pane if last tab).
+      const leaf = leafWithTab(s.splits, tabId) ?? leafWithTab(s.bottomSplits, tabId)
+      if (leaf !== undefined) return closeTab(s, leaf.id, tabId)
+      // Floated: close the window (the tab leaves with it).
+      if (s.floats.some(f => f.tab.id === tabId)) return closeFloatByTab(s, tabId)
+      return s
+    })
+    // Kill the PTY (the tab is gone; the WS close frame may not reach the
+    // host if the terminal was in a non-active session).
+    if (isAgentTabId(tabId)) {
+      void api.agentPtyClose(agentUuidOf(tabId)).catch(() => { /* already released */ })
+    } else {
+      // The home cwd is the pin's homeCwd (snapshot at pin time); fall back
+      // to undefined for a global pin without homeCwd.
+      void api.ptyClose({ sessionId: homeSessionId }, tabId).catch(() => { /* already released */ })
+    }
+    setRailRevision(v => v + 1)
+  }, [store])
+
+  const onFocusPinned = useCallback((homeSessionId: string, tabId: string): void => {
+    // Navigate to the home session (the sessions service switches the host
+    // current session; Sidebar's setSession effect follows). Record the
+    // jump target so the effect above can activate the tab once we land.
+    pinnedJumpRef.current = { homeSessionId, tabId }
+    ctx.sessions.open?.(homeSessionId)
+  }, [ctx])
+
+  /**
    * The explorer's @-reference button: append `@<relative path>` to the
    * session's composer draft (space-separated). The conversation service is
    * resolved lazily through `ctx.get` (the inject-free read — the app's own
@@ -1442,6 +1534,12 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
             />
           )}
         <div className={css.panelBody}>
+          <PinnedRail
+            entries={pinnedEntries}
+            onFocus={onFocusPinned}
+            onUnpin={onUnpinPinned}
+            onClose={onClosePinned}
+          />
           <Workbench
             state={state}
             newTabOptions={buildNewTabOptions(state, ctx, { sessionId, cwd })}

@@ -31,12 +31,12 @@ function stubZh(): void {
 
 const MENU_LABELS = ['移动到自由窗口', '关闭', '关闭其他页签', '关闭左侧页签', '关闭右侧页签']
 
-function mountBar(tabs: SidebarTab[], opts: { onPinTab?: ReturnType<typeof vi.fn> } = {}): {
+function mountBar(tabs: SidebarTab[], opts: { onPinTab?: (tabId: string, scope: 'workspace' | 'global' | null) => void } = {}): {
   tabEls: HTMLElement[]
   onClose: ReturnType<typeof vi.fn>
   onActivate: ReturnType<typeof vi.fn>
   onFloatTab: ReturnType<typeof vi.fn>
-  onPinTab?: ReturnType<typeof vi.fn>
+  onPinTab?: (tabId: string, scope: 'workspace' | 'global' | null) => void
   unmount: () => void
 } {
   const container = document.createElement('div')
@@ -233,7 +233,7 @@ describe('TabBar pin submenu (v0.17.0)', () => {
 
   it('adds a "Pin Terminal ▸" submenu for an unpinned UI terminal', () => {
     stubZh()
-    const onPinTab = vi.fn()
+    const onPinTab = vi.fn<(tabId: string, scope: 'workspace' | 'global' | null) => void>()
     const { tabEls, unmount } = mountBar(fourTabs(), { onPinTab })
     try {
       act(() => { rightClick(tabEls[2]!) }) // t3 = UI terminal
@@ -259,7 +259,7 @@ describe('TabBar pin submenu (v0.17.0)', () => {
 
   it('uses the "Pin Agent Terminal" label for an agent terminal tab', () => {
     stubZh()
-    const onPinTab = vi.fn()
+    const onPinTab = vi.fn<(tabId: string, scope: 'workspace' | 'global' | null) => void>()
     const tabs: SidebarTab[] = [
       { id: 'agent:abc-123', type: 'terminal', title: 'Agent T' },
     ]
@@ -275,7 +275,7 @@ describe('TabBar pin submenu (v0.17.0)', () => {
 
   it('shows "Unpin" instead of the submenu for an already-pinned terminal', () => {
     stubZh()
-    const onPinTab = vi.fn()
+    const onPinTab = vi.fn<(tabId: string, scope: 'workspace' | 'global' | null) => void>()
     const tabs: SidebarTab[] = [
       { id: 'terminal:1', type: 'terminal', title: 'T', pin: { scope: 'global' } },
     ]
@@ -295,7 +295,7 @@ describe('TabBar pin submenu (v0.17.0)', () => {
 
   it('does not add a pin entry for non-terminal tabs even with onPinTab provided', () => {
     stubZh()
-    const onPinTab = vi.fn()
+    const onPinTab = vi.fn<(tabId: string, scope: 'workspace' | 'global' | null) => void>()
     const { tabEls, unmount } = mountBar(fourTabs(), { onPinTab })
     try {
       act(() => { rightClick(tabEls[0]!) }) // t1 = editor
