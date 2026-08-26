@@ -184,7 +184,7 @@ export function TabBar(props: {
     >
       <div ref={listRef} className={css.tabList}>
         {tabs.map(tab => {
-          const pinned = isPinnedVirtualTab(tab)
+          const pinned = isPinnedVirtualTab(tab) || tab.pin !== undefined
           return (
           <div
             key={tab.id}
