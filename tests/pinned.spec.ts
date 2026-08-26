@@ -10,7 +10,10 @@ import {
   floatTab, makeDefaultState, openTabInActivePane, setTabPin, toggleBottomPanel,
   type SidebarState,
 } from '../src/client/state.ts'
-import { collectPinnedTabs, pinnedVisibleTo, type PinnedViewer } from '../src/client/pinned.ts'
+import { collectPinnedTabs, pinnedVisibleTo, type PinnedViewer,
+  isPinnedVirtualId, parsePinnedVirtualId, isPinnedVirtualTab, getPinnedHomeScope,
+  createPinnedVirtualTab, injectPinnedIntoTree,
+} from '../src/client/pinned.ts'
 
 /** A pinned terminal tab in a fresh state, opened and pinned in one go. */
 function stateWithPinnedTerminal(
@@ -138,5 +141,126 @@ describe('collectPinnedTabs', () => {
     const bySession = new Map<string, SidebarState>([['home', home]])
     const entries = collectPinnedTabs(bySession, viewer('viewer', '/p'))
     expect(entries.map(e => e.tab.id)).toEqual(['terminal:pinned'])
+  })
+})
+
+describe('isPinnedVirtualId / parsePinnedVirtualId', () => {
+  it('detects a pinned virtual id by prefix', () => {
+    expect(isPinnedVirtualId('pinned:home:terminal:3')).toBe(true)
+    expect(isPinnedVirtualId('pinned:abc-123:agent:def-456')).toBe(true)
+    expect(isPinnedVirtualId('terminal:3')).toBe(false)
+    expect(isPinnedVirtualId('agent:uuid')).toBe(false)
+  })
+
+  it('parses home session id and original tab id (terminal)', () => {
+    const { homeSessionId, tabId } = parsePinnedVirtualId('pinned:home-sess:terminal:3')
+    expect(homeSessionId).toBe('home-sess')
+    expect(tabId).toBe('terminal:3')
+  })
+
+  it('parses home session id and original tab id (agent)', () => {
+    const { homeSessionId, tabId } = parsePinnedVirtualId('pinned:abc-123:agent:def-456')
+    expect(homeSessionId).toBe('abc-123')
+    expect(tabId).toBe('agent:def-456')
+  })
+})
+
+describe('createPinnedVirtualTab', () => {
+  it('creates a virtual tab with a prefixed id and home scope in meta', () => {
+    const tab = { id: 'terminal:3', type: 'terminal' as const, title: 'T3', pin: { scope: 'global' as const, homeCwd: '/p' } }
+    const vtab = createPinnedVirtualTab({ tab, homeSessionId: 'home' })
+    expect(vtab.id).toBe('pinned:home:terminal:3')
+    expect(vtab.type).toBe('terminal')
+    expect(vtab.title).toBe('T3')
+    expect(vtab.pin).toEqual({ scope: 'global', homeCwd: '/p' })
+  })
+
+  it('stores the home scope (sessionId, cwd, original tabId) in meta', () => {
+    const tab = { id: 'terminal:3', type: 'terminal' as const, title: 'T3', pin: { scope: 'workspace' as const, homeCwd: '/proj' } }
+    const vtab = createPinnedVirtualTab({ tab, homeSessionId: 'home-sess' })
+    const home = getPinnedHomeScope(vtab)
+    expect(home).toBeDefined()
+    expect(home!.sessionId).toBe('home-sess')
+    expect(home!.cwd).toBe('/proj')
+    expect(home!.tabId).toBe('terminal:3')
+  })
+
+  it('preserves existing meta fields alongside the pinned home scope', () => {
+    const tab = { id: 'terminal:3', type: 'terminal' as const, title: 'T3', pin: { scope: 'global' as const }, meta: { custom: 42 } }
+    const vtab = createPinnedVirtualTab({ tab, homeSessionId: 'home' })
+    expect((vtab.meta as Record<string, unknown>).custom).toBe(42)
+    expect(isPinnedVirtualTab(vtab)).toBe(true)
+  })
+
+  it('cwd is undefined for a global pin without homeCwd', () => {
+    const tab = { id: 'terminal:3', type: 'terminal' as const, title: 'T3', pin: { scope: 'global' as const } }
+    const vtab = createPinnedVirtualTab({ tab, homeSessionId: 'home' })
+    expect(getPinnedHomeScope(vtab)!.cwd).toBeUndefined()
+  })
+
+  it('isPinnedVirtualTab returns false for a regular tab', () => {
+    const tab = { id: 'terminal:3', type: 'terminal' as const, title: 'T3' }
+    expect(isPinnedVirtualTab(tab)).toBe(false)
+  })
+})
+
+describe('injectPinnedIntoTree', () => {
+  it('returns the original tree when no pinned tabs and no active override', () => {
+    const tree = makeDefaultState().splits
+    expect(injectPinnedIntoTree(tree, [], null)).toBe(tree)
+  })
+
+  it('appends pinned virtual tabs to the first leaf', () => {
+    const s = makeDefaultState()
+    const vtab = createPinnedVirtualTab({
+      tab: { id: 'terminal:3', type: 'terminal', title: 'T3', pin: { scope: 'global' } },
+      homeSessionId: 'home',
+    })
+    const result = injectPinnedIntoTree(s.splits, [vtab], null)
+    expect(result.kind).toBe('leaf')
+    if (result.kind === 'leaf') {
+      expect(result.tabs[result.tabs.length - 1]!.id).toBe('pinned:home:terminal:3')
+    }
+  })
+
+  it('overrides the first leaf active when activePinnedId is set', () => {
+    const s = openTabInActivePane(makeDefaultState(), { id: 'terminal:1', type: 'terminal', title: 'T1' })
+    const vtab = createPinnedVirtualTab({
+      tab: { id: 'terminal:2', type: 'terminal', title: 'T2', pin: { scope: 'global' } },
+      homeSessionId: 'home',
+    })
+    const result = injectPinnedIntoTree(s.splits, [vtab], vtab.id)
+    if (result.kind === 'leaf') {
+      expect(result.active).toBe(vtab.id)
+      expect(result.tabs.map(t => t.id)).toContain(vtab.id)
+      expect(result.tabs.map(t => t.id)).toContain('terminal:1')
+    }
+  })
+
+  it('injects into the first child of a split tree', () => {
+    let s = makeDefaultState()
+    s = openTabInActivePane(s, { id: 'terminal:1', type: 'terminal', title: 'T1' })
+    // Create a split (splits the active pane into two)
+    const leafId = s.splits.kind === 'leaf' ? s.splits.id : ''
+    s = { ...s, splits: { kind: 'split', id: 'split:1', dir: 'row', sizes: [0.5, 0.5], children: [
+      { kind: 'leaf', id: leafId, tabs: s.splits.kind === 'leaf' ? s.splits.tabs : [], active: 'terminal:1' },
+      { kind: 'leaf', id: 'pane:2', tabs: [], active: null },
+    ] } }
+    const vtab = createPinnedVirtualTab({
+      tab: { id: 'terminal:2', type: 'terminal', title: 'T2', pin: { scope: 'global' } },
+      homeSessionId: 'home',
+    })
+    const result = injectPinnedIntoTree(s.splits, [vtab], null)
+    expect(result.kind).toBe('split')
+    if (result.kind === 'split') {
+      const first = result.children[0]!
+      if (first.kind === 'leaf') {
+        expect(first.tabs.map(t => t.id)).toContain(vtab.id)
+      }
+      const second = result.children[1]!
+      if (second.kind === 'leaf') {
+        expect(second.tabs.map(t => t.id)).not.toContain(vtab.id)
+      }
+    }
   })
 })

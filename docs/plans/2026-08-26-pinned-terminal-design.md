@@ -120,9 +120,19 @@ getSessionStates(): ReadonlyMap<string, SidebarState>
 
 设计 §6 原表「Agent 终端被 reconcile 移除」行提到「标题渲染时追加 `（已断开）`」。实施时收敛为：**M3 只做豁免，断开的用户可见信号由 xterm 现有重连失败 banner 承担**。原因：rail/tab 标题渲染处无法知道宿主列表（`reconcileAgentTerminals` 的 uuid 匹配是 state 级的，渲染层不持有该信息），改 meta 会写持久化（违反「reconcile uuid 匹配不受影响」）。xterm 的 WS 连接 1011/超时已有 fatal UI，足以承担断开信号。设计 §6 表相应行实施时修正为「banner 承担断开信号」。
 
-### M4：railRevision 状态
+### M4：内联虚拟 Tab（取代 PinnedRail）
 
-设计 §3 提到「store 任意会话更新已全局 notify，rail 随 uSES 自动重渲染」。实施时发现 `reduceFor` **不 notify**（targeted opens 的契约：UI 不跟随）。rail 的 unpin/close 走 `reduceFor`（目标是其他会话），store 不 notify → rail 不重渲染。解决方案：Sidebar 维护 `railRevision` 状态，rail action 后 bump，强制 `collectPinnedTabs` useMemo 重算。这是自包含的组件级方案，不改变 `reduceFor` 的 notify 契约。
+设计 §3 原描述「PinnedRail 组件——面板顶部的紧凑条，渲染其他会话的 pinned tab」。实施时改为**内联虚拟 Tab**：pinned tab 作为虚拟 `SidebarTab` 注入到当前会话 split tree 的第一个 leaf 的 `tabs` 数组尾部，与普通 tab 并排在 TabBar 中渲染。
+
+**变更原因**：用户反馈「固定的终端是永远显示在 Tabs 栏处，而不是单独有一个地方让我点击后回到那个会话」。PinnedRail 是面板顶部的独立条，点击跳回宿主会话——这两个设计点都被否定。
+
+**新设计**：
+- **虚拟 Tab 注入**：`injectPinnedIntoTree(state.splits, pinnedVirtualTabs, activePinnedTabId)` 将虚拟 tab 追加到第一个 leaf，并在 `activePinnedTabId` 设置时覆盖 leaf 的 `active`
+- **就地激活**：点击虚拟 tab 设 `activePinnedTabId`（本地 state），TerminalView 用 home session 的 scope（sessionId + cwd）连接宿主 PTY 的 WS（`/sidebar/ws/terminal?sessionId=<home>&tab=<originalId>`），不跳转会话
+- **effectiveTabId**：`TabContent` 新增 `effectiveTabId` prop，将虚拟 tab 的原始 id 传给 descriptor component（TerminalView 的 `tabId` 参数），虚拟 id 仅作 React key
+- **不可拖拽**：TabBar 检测 `isPinnedVirtualTab(tab)` → `draggable={false}`，跳过 drop handler
+- **右键菜单精简**：pinned 虚拟 tab 右键只有 Unpin / Close（无 float / close-others / close-left / close-right）
+- **reduceFor 不 notify**：`pinnedRevision` state bump 替代 `railRevision`，force `pinnedEntries` useMemo 重算
 
 ## 7. 测试计划（Unit + 组件，vitest）
 

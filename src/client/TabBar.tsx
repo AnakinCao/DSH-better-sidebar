@@ -15,6 +15,8 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarTab } from './state.ts'
 import { isAgentTabId } from './state.ts'
+import { isPinnedVirtualTab } from './pinned.ts'
+import { IconPinOutline16 } from './icons.tsx'
 import { t } from './locales.ts'
 import css from './sidebar.module.css'
 
@@ -181,13 +183,15 @@ export function TabBar(props: {
       }}
     >
       <div ref={listRef} className={css.tabList}>
-        {tabs.map(tab => (
+        {tabs.map(tab => {
+          const pinned = isPinnedVirtualTab(tab)
+          return (
           <div
             key={tab.id}
-            className={clsx(css.tab, active === tab.id && css.tabActive)}
+            className={clsx(css.tab, active === tab.id && css.tabActive, pinned && css.pinnedTab)}
             title={tab.title}
-            draggable
-            onDragStart={(event) => {
+            draggable={!pinned}
+            onDragStart={pinned ? undefined : (event) => {
               setTabDragging(true)
               event.dataTransfer.setData(TAB_DRAG_TYPE, serializeDrag({ tabId: tab.id, paneId }))
               event.dataTransfer.effectAllowed = 'move'
@@ -195,6 +199,7 @@ export function TabBar(props: {
             onDragEnd={() => { setTabDragging(false); setDragOver(false) }}
             onDragOver={(event) => { event.preventDefault(); event.stopPropagation() }}
             onDrop={(event) => {
+              if (pinned) { event.stopPropagation(); return }
               event.preventDefault()
               event.stopPropagation()
               setTabDragging(false)
@@ -223,6 +228,7 @@ export function TabBar(props: {
               setTabMenu({ tabId: tab.id, x: event.clientX, y: event.clientY })
             }}
           >
+            {pinned && <IconPinOutline16 size={16} />}
             {getTabIcon?.(tab) ?? null}
             {getTabBadge?.(tab) ?? null}
             <span className={css.tabTitle}>{tab.title}</span>
@@ -238,7 +244,8 @@ export function TabBar(props: {
               <IconCloseFill14 />
             </button>
           </div>
-        ))}
+          )
+        })}
         {/*
           The + sits immediately after the rightmost tab (sticky at the
           right edge of the scrollport when the tabs overflow, so it stays
@@ -287,9 +294,13 @@ export function TabBar(props: {
             // get either a "Pin ▸" submenu (unpinned) or a single "Unpin"
             // row (pinned). Non-terminal tabs and missing onPinTab get no
             // pin entry at all — the menu stays exactly the legacy 5-item
-            // shape.
+            // shape. Pinned VIRTUAL tabs (injected from other sessions)
+            // get a stripped menu: only Unpin + Close (no float, no
+            // close-others/left/right — those are pane-scoped operations
+            // that don't apply to cross-session virtual tabs).
             const targetTab = tabMenuIndex >= 0 ? tabs[tabMenuIndex] : undefined
             const isTerminal = targetTab?.type === 'terminal'
+            const isPinnedVirtual = targetTab !== undefined && isPinnedVirtualTab(targetTab)
             const pinEntries = isTerminal && onPinTab !== undefined
               ? targetTab!.pin !== undefined
                 ? [{ id: 'unpin', label: t('unpinTerminal') }]
@@ -302,6 +313,12 @@ export function TabBar(props: {
                     ],
                   }]
               : []
+            if (isPinnedVirtual) {
+              return [
+                ...pinEntries,
+                { id: 'close', label: t('close') },
+              ]
+            }
             return [
               { id: 'float', label: t('moveToFreeWindow') },
               ...pinEntries,

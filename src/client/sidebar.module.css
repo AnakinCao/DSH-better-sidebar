@@ -458,7 +458,6 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
 .toggleCluster,
 .toggleButton,
 .tabBar,
-.pinnedRail,
 .floatHeader {
   -webkit-app-region: no-drag;
 }
@@ -866,85 +865,18 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   color: var(--dsw-alias-label-primary);
 }
 
-/* ── Pinned-terminal rail (v0.17.0+) ──────────────────────────────────── */
+/* ── Pinned-terminal tab (v0.17.0+) ───────────────────────────────────── */
 
-/* A compact strip above the tab bar showing pinned terminals from OTHER
-   sessions. Only renders when there is at least one visible pinned tab.
-   Hairline-separated from the tab bar below; token-driven so skins follow. */
-.pinnedRail {
-  flex: none;
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  padding: 0 4px;
-  border-bottom: 1px solid var(--dsw-alias-border-l1);
-  background: var(--dsw-alias-bg-layer-1);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.pinnedRail::-webkit-scrollbar {
-  display: none;
-}
-
-.pinnedRailLabel {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 6px 0 4px;
-  font: var(--dsw-font-xxxs-strong-11);
-  color: var(--dsw-alias-label-tertiary);
-  white-space: nowrap;
-}
-
+/* Pinned virtual tabs (injected from other sessions) render inline in the
+   tab bar with a pin icon and a subtle tint to distinguish them from the
+   session's own tabs. Token-driven so skins follow. */
 .pinnedTab {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 180px;
-  padding: 0 6px;
-  height: 28px;
-  font: var(--dsw-font-xxs-12);
-  color: var(--dsw-alias-label-secondary);
-  border-right: 1px solid var(--dsw-alias-border-l1);
-  background: transparent;
-  cursor: pointer;
-  user-select: none;
-  border-radius: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-style: italic;
 }
 
 .pinnedTab:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
-}
-
-.pinnedTabTitle {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pinnedTabClose {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--dsw-alias-label-tertiary);
-  cursor: pointer;
-  flex: none;
-}
-
-.pinnedTabClose:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-secondary);
 }
 
 /* ── Explorer ──────────────────────────────────────────────────────────── */

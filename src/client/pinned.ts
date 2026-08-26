@@ -3,9 +3,12 @@
  *
  * A pinned terminal tab lives in its HOME session's state (the only
  * authoritative copy) — switching sessions never copies or projects it.
- * The PinnedRail renders the tabs OTHER sessions have pinned that should
- * surface in the CURRENT (viewer) session, so it needs a read-only
- * resolution pass over every cached session state.
+ * The viewer session's TabBar renders the tabs OTHER sessions have pinned
+ * as VIRTUAL tabs appended to the first leaf's tab list, so the user sees
+ * them inline with their own tabs. Clicking a virtual tab activates it
+ * in-place: TerminalView connects to the home session's PTY via WebSocket
+ * (sessionId + tab query params resolve to the home PTY on the host side),
+ * so the terminal renders in the current workbench without jumping sessions.
  *
  * Visibility rule:
  *
@@ -20,11 +23,11 @@
  * resolves, the next store notify re-runs the resolver with the real cwd.
  *
  * The viewer's OWN session is excluded: its pinned tabs are already on its
- * tab strip, so rendering them again in the rail would double-show. Tabs
- * whose `pin` field is missing or whose `type` is not `'terminal'` are
+ * own tab strip, so rendering them again as virtual tabs would double-show.
+ * Tabs whose `pin` field is missing or whose `type` is not `'terminal'` are
  * ignored — only terminal tabs can be pinned.
  */
-import type { SidebarState, SidebarTab } from './state.ts'
+import type { SidebarState, SidebarTab, SplitNode } from './state.ts'
 
 /** A pinned terminal surfaced to the viewer, paired with its home session. */
 export interface PinnedTabEntry {
@@ -36,6 +39,87 @@ export interface PinnedTabEntry {
 export interface PinnedViewer {
   sessionId: string
   cwd: string | undefined
+}
+
+/** The home-session scope stored on a pinned virtual tab's meta, so
+ *  TerminalView connects to the home session's PTY (not the viewer's). */
+export interface PinnedHomeScope {
+  sessionId: string
+  cwd: string | undefined
+  /** The original tab id in the home session (TerminalView's `tab` param). */
+  tabId: string
+}
+
+const PINNED_META_KEY = '__pinnedHome'
+const PINNED_VID_PREFIX = 'pinned:'
+
+/** Whether a tab id is a pinned virtual id (prefixed). */
+export function isPinnedVirtualId(tabId: string): boolean {
+  return tabId.startsWith(PINNED_VID_PREFIX)
+}
+
+/** Parse a pinned virtual id into its home session id and original tab id.
+ *  Format: `pinned:<homeSessionId>:<originalTabId>` — session ids are UUIDs
+ *  (no colons), so the first colon after the prefix delimits the session. */
+export function parsePinnedVirtualId(tabId: string): { homeSessionId: string; tabId: string } {
+  const rest = tabId.slice(PINNED_VID_PREFIX.length)
+  const sep = rest.indexOf(':')
+  if (sep < 0) return { homeSessionId: rest, tabId: '' }
+  return { homeSessionId: rest.slice(0, sep), tabId: rest.slice(sep + 1) }
+}
+
+/** Extract the home scope from a pinned virtual tab's meta (undefined for
+ *  regular tabs). */
+export function getPinnedHomeScope(tab: SidebarTab): PinnedHomeScope | undefined {
+  const meta = tab.meta as Record<string, unknown> | undefined
+  return (meta?.[PINNED_META_KEY] as PinnedHomeScope | undefined) ?? undefined
+}
+
+/** Whether a tab is a pinned virtual tab (injected from another session). */
+export function isPinnedVirtualTab(tab: SidebarTab): boolean {
+  return getPinnedHomeScope(tab) !== undefined
+}
+
+/** Create a virtual SidebarTab for a pinned entry. The virtual id is unique
+ *  (prefixed with home session) to avoid collision with the viewer's own
+ *  tab ids; the original id is stored in meta for TerminalView. */
+export function createPinnedVirtualTab(entry: PinnedTabEntry): SidebarTab {
+  const { tab, homeSessionId } = entry
+  const home: PinnedHomeScope = {
+    sessionId: homeSessionId,
+    cwd: tab.pin?.homeCwd,
+    tabId: tab.id,
+  }
+  return {
+    ...tab,
+    id: PINNED_VID_PREFIX + homeSessionId + ':' + tab.id,
+    meta: { ...(tab.meta as Record<string, unknown> | undefined ?? {}), [PINNED_META_KEY]: home },
+  }
+}
+
+/** Inject pinned virtual tabs into the first leaf of a split tree, and
+ *  override that leaf's `active` when a pinned tab is activated. Returns
+ *  the original tree when there are no pinned tabs and no active override. */
+export function injectPinnedIntoTree(
+  tree: SplitNode,
+  pinned: readonly SidebarTab[],
+  activePinnedId: string | null,
+): SplitNode {
+  if (pinned.length === 0 && activePinnedId === null) return tree
+  if (tree.kind === 'leaf') {
+    return {
+      ...tree,
+      tabs: pinned.length > 0 ? [...tree.tabs, ...pinned] : tree.tabs,
+      active: activePinnedId ?? tree.active,
+    }
+  }
+  return {
+    ...tree,
+    children: [
+      injectPinnedIntoTree(tree.children[0]!, pinned, activePinnedId),
+      ...tree.children.slice(1),
+    ],
+  }
 }
 
 /**

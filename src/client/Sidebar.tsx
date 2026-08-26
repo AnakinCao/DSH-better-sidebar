@@ -41,7 +41,8 @@ import {
   resizeFloat, resizeSplitIn, setBottomHeight, setTabPin, setWidth, toggleBottomPanel, toggleExpanded, togglePanel,
   type DropZone, type SidebarState, type SidebarStore, type SidebarTab, type SplitNode,
 } from './state.ts'
-import { collectPinnedTabs, type PinnedTabEntry } from './pinned.ts'
+import { collectPinnedTabs, createPinnedVirtualTab, getPinnedHomeScope, injectPinnedIntoTree, isPinnedVirtualId, isPinnedVirtualTab, parsePinnedVirtualId, type PinnedTabEntry } from './pinned.ts'
+import { IconPinOutline16 } from './icons.tsx'
 import { IconPanelBottomOutline16, IconPanelRightOutline16 } from './icons.tsx'
 import { Workbench, type WorkbenchActions } from './split-pane.tsx'
 import { isNarrowWidth, useViewportSize } from './breakpoints.ts'
@@ -53,7 +54,6 @@ import { computeTitleBarStrip } from './titlebar-strip.ts'
 import type { NewTabOption } from './TabBar.tsx'
 import { TAB_DRAG_TYPE, parseDrag, type TabDragPayload } from './TabBar.tsx'
 import { FreeWindow } from './FreeWindow.tsx'
-import { PinnedRail } from './PinnedRail.tsx'
 import { relativeTo } from './paths.ts'
 import { OrphanedTab } from './OrphanedTab.tsx'
 import { RenderBoundary } from './RenderBoundary.tsx'
@@ -138,25 +138,22 @@ interface TabContentProps extends TabContentMemoKey {
 
 /** Render the content of one tab (dispatched by type). */
 const TabContent = memo(function TabContent(props: TabContentProps) {
-  const { tab, sessionId, cwd, expanded, revealed, onToggleDir, onReferenceFile, ctx, store, visible, onSubagentJump, onOpenDiff } = props
+  const { tab, effectiveTabId, sessionId, cwd, expanded, revealed, onToggleDir, onReferenceFile, ctx, store, visible, onSubagentJump, onOpenDiff } = props
   const scope = { sessionId, cwd }
   const descriptor = ctx.get('betterSidebar')?.getTab(tab.type)
   if (descriptor === undefined) {
     return <OrphanedTab ctx={ctx} store={store} scope={scope} tab={tab} visible={visible} />
   }
-  // One boundary per tab: a render crash in a viewer/editor shows a strip in
-  // THIS tab's pane only — the toggle cluster, the other tabs, and the panel
-  // stay alive (issue #31). The tab strip (close button) lives outside, so a
-  // crashing tab stays closable; the root boundary in index.tsx remains the
-  // last resort for errors in the sidebar shell itself. The descriptor is
-  // rendered as a REAL element (not called directly): a direct call would
-  // throw inside TabContent's own render, which the boundary cannot catch —
-  // as a child fiber, every render error (top-level or deep) lands in it.
+  // For pinned virtual tabs, the tab descriptor's component (e.g. TerminalView)
+  // must receive the ORIGINAL tab id so it connects to the home session's PTY.
+  // The virtual tab's own id is a unique display key (prefixed); effectiveTabId
+  // restores the real id at the component boundary.
+  const componentTab = effectiveTabId !== undefined ? { ...tab, id: effectiveTabId } : tab
   return createElement(
     RenderBoundary,
     { className: css.tabBoundaryError },
     createElement(descriptor.component, {
-      ctx, store, scope, tab, visible, expanded, revealed,
+      ctx, store, scope, tab: componentTab, visible, expanded, revealed,
       onToggleDir, onReferenceFile, onOpenDiff, onSubagentJump,
     }),
   )
@@ -630,51 +627,48 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   }, [sessionId, store, ctx])
 
   /**
-   * Pinned-terminal jump-back (v0.17.0+): clicking a rail entry from another
-   * session navigates to the home session and activates the pinned tab (or
-   * raises its free window). The ref records the target {homeSessionId,
-   * tabId}; once the current session becomes the home session, the effect
-   * fires: expand the panel if collapsed, then activate the tab (docked) or
-   * raise its float. Mirrors the subagentJumpRef pattern above.
-   *
-   * The railRevision state forces the entries useMemo to recompute after a
-   * rail action (unpin/close) that goes through reduceFor — which doesn't
-   * notify (targeted opens must not re-render the active session's UI). The
-   * revision bump is the only signal the rail has that another session's
-   * state changed.
-   */
-  const pinnedJumpRef = useRef<{ homeSessionId: string; tabId: string } | undefined>(undefined)
-  const [railRevision, setRailRevision] = useState(0)
-  useEffect(() => {
-    const pending = pinnedJumpRef.current
-    if (pending === undefined || sessionId !== pending.homeSessionId) return
-    pinnedJumpRef.current = undefined
-    store.reduce(s => s.panelOpen ? s : togglePanel(s))
-    store.reduce(s => {
-      // Docked: find in either tree and activate.
-      for (const leaf of allLeaves(s.splits).concat(allLeaves(s.bottomSplits))) {
-        if (leaf.tabs.some(tab => tab.id === pending.tabId)) {
-          return activateTab(s, leaf.id, pending.tabId)
-        }
-      }
-      // Floated: raise the window.
-      const floated = floatWithTab(s, pending.tabId)
-      if (floated !== undefined) return raiseFloat(s, floated.id)
-      return s
-    })
-  }, [sessionId, store])
+   /**
+    * Inline pinned terminals (v0.17.0+): pinned tabs from OTHER sessions
+    * inject as VIRTUAL tabs into the first leaf of the right panel's split
+    * tree. The virtual tabs have unique ids (prefixed with the home session)
+    * and carry the home scope in meta. Clicking a virtual tab sets
+    * `activePinnedTabId` — the augmented tree overrides the leaf's `active`
+    * so the pinned tab's content renders in-place (TerminalView connects to
+    * the home session's PTY via WS, no session jump).
+    *
+    * Closing/unpinning a virtual tab targets the HOME session via reduceFor
+    * (which doesn't notify — targeted opens must not re-render the active
+    * session). The `pinnedRevision` state bump forces the pinnedEntries
+    * useMemo to recompute after such an action.
+    */
+  const [activePinnedTabId, setActivePinnedTabId] = useState<string | null>(null)
+  const [pinnedRevision, setPinnedRevision] = useState(0)
 
   /**
-   * Cross-session pinned-tab collection for the rail. Recomputed on every
-   * store notify (active session state change), session-list change (cwd
-   * hydration), and rail action (the revision bump covers reduceFor updates
-   * that don't notify). The rail only shows tabs from OTHER sessions — the
-   * viewer's own pinned tabs are already on its tab strip.
+   * Cross-session pinned-tab collection. Recomputed on every store notify,
+   * session-list change, and pinned action (the revision bump covers
+   * reduceFor updates that don't notify). Only tabs from OTHER sessions —
+   * the viewer's own pinned tabs are already on its tab strip.
    */
   const pinnedEntries: readonly PinnedTabEntry[] = useMemo(() => {
     if (sessionId === undefined) return []
     return collectPinnedTabs(store.getSessionStates(), { sessionId, cwd })
-  }, [store, sessionId, cwd, snapshot, railRevision])
+  }, [store, sessionId, cwd, snapshot, pinnedRevision])
+
+  /** Virtual SidebarTab objects for the pinned entries (stable references
+   *  via useMemo so TabContent's memo comparator holds). */
+  const pinnedVirtualTabs = useMemo(
+    () => pinnedEntries.map(createPinnedVirtualTab),
+    [pinnedEntries],
+  )
+
+  /** The right panel's split tree with pinned virtual tabs injected into the
+   *  first leaf. When `activePinnedTabId` is set, that leaf's `active` is
+   *  overridden so the pinned tab's content is visible. */
+  const augmentedTree = useMemo(
+    () => state === undefined ? undefined : injectPinnedIntoTree(state.splits, pinnedVirtualTabs, activePinnedTabId),
+    [state, pinnedVirtualTabs, activePinnedTabId],
+  )
 
   // The app shell's center column: the bottom panel spans ONLY that column
   // ("squeezes the agent output area") — it starts at the app sidebar's
@@ -1263,46 +1257,75 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   }), [store, sessionId, cwd])
 
   /**
-   * Pinned-rail actions (v0.17.0+): unpin and close target the HOME session
-   * (which is NOT the current session — the rail only shows other sessions'
-   * pinned tabs). reduceFor updates the home session's state without
-   * notifying (targeted opens must not re-render the active session); the
-   * railRevision bump is the local signal that makes the entries useMemo
-   * recompute and the rail re-render.
+   * Wrap the base actions to intercept pinned VIRTUAL tab ids (injected from
+   * other sessions). Regular tab ids pass through unchanged. Virtual ids are
+   * detected by the `pinned:` prefix and routed to the HOME session via
+   * reduceFor (which doesn't notify — the revision bump is the local signal).
    */
-  const onUnpinPinned = useCallback((homeSessionId: string, tabId: string): void => {
-    store.reduceFor(homeSessionId, s => setTabPin(s, tabId, null))
-    setRailRevision(v => v + 1)
-  }, [store])
-
-  const onClosePinned = useCallback((homeSessionId: string, tabId: string): void => {
-    store.reduceFor(homeSessionId, s => {
-      // Docked: find in either tree and close (empties pane if last tab).
-      const leaf = leafWithTab(s.splits, tabId) ?? leafWithTab(s.bottomSplits, tabId)
-      if (leaf !== undefined) return closeTab(s, leaf.id, tabId)
-      // Floated: close the window (the tab leaves with it).
-      if (s.floats.some(f => f.tab.id === tabId)) return closeFloatByTab(s, tabId)
-      return s
-    })
-    // Kill the PTY (the tab is gone; the WS close frame may not reach the
-    // host if the terminal was in a non-active session).
-    if (isAgentTabId(tabId)) {
-      void api.agentPtyClose(agentUuidOf(tabId)).catch(() => { /* already released */ })
-    } else {
-      // The home cwd is the pin's homeCwd (snapshot at pin time); fall back
-      // to undefined for a global pin without homeCwd.
-      void api.ptyClose({ sessionId: homeSessionId }, tabId).catch(() => { /* already released */ })
+  const wrappedActions = useMemo<WorkbenchActions>(() => {
+    if (pinnedVirtualTabs.length === 0) return actions
+    const closePinnedInHome = (virtualId: string): void => {
+      const { homeSessionId, tabId: originalId } = parsePinnedVirtualId(virtualId)
+      store.reduceFor(homeSessionId, s => {
+        const leaf = leafWithTab(s.splits, originalId) ?? leafWithTab(s.bottomSplits, originalId)
+        if (leaf !== undefined) return closeTab(s, leaf.id, originalId)
+        if (s.floats.some(f => f.tab.id === originalId)) return closeFloatByTab(s, originalId)
+        return s
+      })
+      if (isAgentTabId(originalId)) {
+        void api.agentPtyClose(agentUuidOf(originalId)).catch(() => { /* already released */ })
+      } else {
+        void api.ptyClose({ sessionId: homeSessionId }, originalId).catch(() => { /* already released */ })
+      }
+      if (activePinnedTabId === virtualId) setActivePinnedTabId(null)
+      setPinnedRevision(v => v + 1)
     }
-    setRailRevision(v => v + 1)
-  }, [store])
-
-  const onFocusPinned = useCallback((homeSessionId: string, tabId: string): void => {
-    // Navigate to the home session (the sessions service switches the host
-    // current session; Sidebar's setSession effect follows). Record the
-    // jump target so the effect above can activate the tab once we land.
-    pinnedJumpRef.current = { homeSessionId, tabId }
-    ctx.sessions.open?.(homeSessionId)
-  }, [ctx])
+    return {
+      ...actions,
+      activateTab: (paneId, tabId) => {
+        if (isPinnedVirtualId(tabId)) {
+          setActivePinnedTabId(tabId)
+        } else {
+          setActivePinnedTabId(null)
+          actions.activateTab(paneId, tabId)
+        }
+      },
+      closeTab: (paneId, tabId) => {
+        if (isPinnedVirtualId(tabId)) {
+          closePinnedInHome(tabId)
+        } else {
+          actions.closeTab(paneId, tabId)
+        }
+      },
+      moveTabBefore: (payload, toPane, beforeTabId) => {
+        if (isPinnedVirtualId(payload.tabId)) return
+        if (isPinnedVirtualId(beforeTabId)) {
+          actions.moveTabToEdge(payload, toPane, 'center')
+        } else {
+          actions.moveTabBefore(payload, toPane, beforeTabId)
+        }
+      },
+      moveTabToEdge: (payload, toPane, zone) => {
+        if (isPinnedVirtualId(payload.tabId)) return
+        actions.moveTabToEdge(payload, toPane, zone)
+      },
+      floatTab: (tabId) => {
+        if (isPinnedVirtualId(tabId)) return
+        actions.floatTab(tabId)
+      },
+      pinTab: (tabId, scope) => {
+        if (isPinnedVirtualId(tabId)) {
+          if (scope !== null) return
+          const { homeSessionId, tabId: originalId } = parsePinnedVirtualId(tabId)
+          store.reduceFor(homeSessionId, s => setTabPin(s, originalId, null))
+          if (activePinnedTabId === tabId) setActivePinnedTabId(null)
+          setPinnedRevision(v => v + 1)
+        } else {
+          actions.pinTab?.(tabId, scope)
+        }
+      },
+    }
+  }, [actions, pinnedVirtualTabs, activePinnedTabId, store])
 
   /**
    * The explorer's @-reference button: append `@<relative path>` to the
@@ -1409,31 +1432,40 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   // the panels do (the AGENTS §7.5 contract; plugin components honor
   // `visible` to pause work, so tying floats to panelOpen would blank them
   // the moment the sidebar collapses).
-  const renderTab = (tab: SidebarTab, active: boolean, paneId: string, placement: 'top' | 'bottom' | 'float' = 'top') => (
-    <TabContent
-      tab={tab}
-      paneId={paneId}
-      sessionId={sessionId}
-      cwd={cwd}
-      expanded={state.expanded}
-      revealed={state.revealed ?? []}
-      onToggleDir={(path) => { store.reduce(s => toggleExpanded(s, path)) }}
-      onReferenceFile={referenceInChat}
-      ctx={ctx}
-      store={store}
-      visible={
-        placement === 'float'
-          ? true
-          : placement === 'bottom'
-            ? state.bottomOpen && active
-            : state.panelOpen && active
-      }
-      onSubagentJump={(childSessionId) => { subagentJumpRef.current = childSessionId }}
-      onOpenDiff={(diffTab) => { store.reduce(s => openDiffTab(s, paneId, diffTab)) }}
-      localeRevision={localeRevision}
-      tabsVersion={tabsVersion}
-    />
-  )
+  const renderTab = (tab: SidebarTab, active: boolean, paneId: string, placement: 'top' | 'bottom' | 'float' = 'top') => {
+    // Pinned virtual tabs: pass the home session's scope (sessionId + cwd) so
+    // TerminalView's WS URL resolves to the home PTY, and effectiveTabId so
+    // the descriptor component receives the ORIGINAL tab id (the virtual id
+    // is only a display key). Regular tabs: effectiveTabId is undefined (no
+    // override), scope is the current session's.
+    const home = getPinnedHomeScope(tab)
+    return (
+      <TabContent
+        tab={tab}
+        effectiveTabId={home?.tabId}
+        paneId={paneId}
+        sessionId={home?.sessionId ?? sessionId}
+        cwd={home?.cwd ?? cwd}
+        expanded={state.expanded}
+        revealed={state.revealed ?? []}
+        onToggleDir={(path) => { store.reduce(s => toggleExpanded(s, path)) }}
+        onReferenceFile={referenceInChat}
+        ctx={ctx}
+        store={store}
+        visible={
+          placement === 'float'
+            ? true
+            : placement === 'bottom'
+              ? state.bottomOpen && active
+              : state.panelOpen && active
+        }
+        onSubagentJump={(childSessionId) => { subagentJumpRef.current = childSessionId }}
+        onOpenDiff={(diffTab) => { store.reduce(s => openDiffTab(s, paneId, diffTab)) }}
+        localeRevision={localeRevision}
+        tabsVersion={tabsVersion}
+      />
+    )
+  }
 
   return (
     <div data-dsh-panel-host {...osFileDragShield}>
@@ -1534,16 +1566,11 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
             />
           )}
         <div className={css.panelBody}>
-          <PinnedRail
-            entries={pinnedEntries}
-            onFocus={onFocusPinned}
-            onUnpin={onUnpinPinned}
-            onClose={onClosePinned}
-          />
           <Workbench
             state={state}
+            tree={augmentedTree}
             newTabOptions={buildNewTabOptions(state, ctx, { sessionId, cwd })}
-            actions={actions}
+            actions={wrappedActions}
             onNewTab={onNewTab}
             renderTab={renderTab}
             getTabIcon={tabIconOf}
