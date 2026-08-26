@@ -355,6 +355,7 @@ export const ko: Record<string, string> = {
   pluginGithubWorkbenchDesc: 'better-sidebar "GitHub Workbench" Tab: 원격 저장소 트리 + Issues / Pull requests / Actions 탭. 읽기 외에 Issue·PR 생성, 댓글, 편집, 닫기/다시 열기, squash·merge·rebase 병합(강한 확인), CI 재실행/취소를 지원합니다. 저장소 전환 팝업은 접근 가능한 저장소를 자동으로 가져오고 공개 저장소 검색도 지원합니다. better-sidebar 미설치 시 독립 우측 패널로 자동 폴백합니다',
   pluginGitRemotesDesc: 'better-sidebar Git 원격 Tab: 브랜치/업스트림/ahead-behind 확인, fetch(prune 가능), ff-only pull, 확인 후에만 push. 내장 Git의 스테이징/커밋을 대체하지 않으며, force-push나 모델 자동 push도 제공하지 않습니다',
   pluginSentinelDesc: '조건 기반 agent 웨이크업 시스템: 파일/프로세스/포트/HTTP/명령/webhook 센서가 조건을 충족하면 휴면 세션을 자동으로 깨웁니다. "센티널(哨兵)" Tab을 등록하여 서버 전역 모니터링 표를 보여줍니다',
+  pluginServerDeckDesc: '서버 카드 대시보드: 호스트마다 한 장의 카드로 온라인 상태, OS, 업타임, CPU/메모리/디스크 사용률과 지연 시간을 표시합니다. 카드를 클릭하면 xterm.js 대화형 터미널이 열리고, ~/.ssh/config를 원클릭으로 가져옵니다(Git 호스팅 별칭은 자동 제외). better-sidebar 설치 시 네이티브 「서버」 탭을 등록하고, 미설치 시 독립 드로어를 유지합니다',
   pluginSidebarQaDesc: 'better-sidebar 기반 드래그 선택 질문 탭: 대화 드래그 선택 → 오른쪽 패널 질문 → 같은 작업 공간의 독립 후속 질문 세션(❓후속 질문·주제). 빠른 무사고 모델이 주 대화 컨텍스트를 압축한 후 인용과 함께 주입하며, 주 대화를 방해하지 않습니다. 후속 질문은 중첩, 계속, 보관이 가능합니다',
   pluginSidenoteDesc: 'Codex 스타일 사이드 챗 + 선택 주석: 현재 세션을 fork해 독립 사이드 세션으로 분기(세션 목록에서는 보관되어 숨겨짐, 다중 인스턴스, /side 명령, 새로고침/재시작 후에도 복원됨, 모델은 주 세션을 따름); assistant 메시지 선택 → 번호 배지 + 주석 편집기 → "N개 주석" 칩이 다음 메시지에 함께 전송되며, 사이드 챗에서 바로 질문할 수도 있습니다',
   pluginSshTunnelDesc: 'better-sidebar "SSH 터널" Tab: 다중 호스트 목록 + 프로젝트별 권한 + 키 로컬 보관. 모델 도구 SSHManager(exec/SFTP/세션 전략). 중앙 대화형 터미널과 이중 창 SFTP',

@@ -363,6 +363,7 @@ export const ja: Record<string, string> = {
   pluginGithubWorkbenchDesc: 'better-sidebar「GitHub ワークベンチ」タブ:リモートリポジトリのツリー + Issues / Pull requests / Actions タブ。読み取りに加え、Issue・PR の作成、コメント、編集、クローズ/再オープン、squash・merge・rebase マージ(強確認)、CI の再実行/キャンセルに対応。リポジトリ切替ポップアップはアクセス可能なリポジトリを自動取得し、公開リポジトリの検索にも対応。better-sidebar 未導入時は独立右パネルへ自動フォールバック',
   pluginGitRemotesDesc: 'better-sidebar Git リモート Tab：ブランチ/アップストリーム/ahead-behind 表示、fetch（prune 可）、ff-only pull、確認後のみ push。内蔵 Git のステージ/コミットは置き換えず、force-push やモデル自動 push ツールは提供しない',
   pluginSentinelDesc: '条件駆動の agent 起動システム：ファイル/プロセス/ポート/HTTP/コマンド/webhook センサーが条件達成時に休眠会話を自動起動。「Sentinel」Tab を登録しサーバー全体の監視テーブルを表示',
+  pluginServerDeckDesc: 'サーバーカードダッシュボード：各サーバーを1枚のカードで表示し、オンライン状態・OS・稼働時間・CPU/メモリ/ディスク使用率とレイテンシを確認。カードをクリックすると xterm.js の対話ターミナルを開き、~/.ssh/config をワンクリック取り込み（Git ホスティングの別名は自動スキップ）。better-sidebar インストール時はネイティブな「サーバー」タブを登録、未インストール時は独立ドロワーを維持',
   pluginSidebarQaDesc: 'better-sidebar ベースの選択して質問 Tab：会話選択 → 右パネルで質問 → 同ワークスペースの独立追問会話（❓追問・主題）。高速 no-thinking モデルが主対話コンテキストを圧縮し引用と一緒に注入、主対話を中断しない。追問はネスト、継続、アーカイブ可能',
   pluginSidenoteDesc: 'Codex スタイルのサイドチャット + 選択注釈：現在の会話を fork して独立したサイド会話を作成（一覧からはアーカイブで隠蔽、複数共存、/side コマンド、リロード/再起動後も復元、モデルは主会話に追従）。assistant メッセージを選択 → 番号バッジ + 注釈エディタ →「N 件の注釈」チップが次のメッセージに同梱、またはサイドチャットで直接質問',
   pluginSshTunnelDesc: 'better-sidebar「SSH トンネル」Tab：複数ホストインベントリ + プロジェクト単位の認可 + 鍵のローカル保管。モデルツール SSHManager（exec/SFTP/セッション戦略）。中央対話ターミナルと双欄 SFTP',

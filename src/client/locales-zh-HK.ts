@@ -378,6 +378,7 @@ export const zhHK: Record<string, string> = {
   pluginGithubWorkbenchDesc: 'better-sidebar「GitHub 工作台」Tab：遠端儲存庫目錄樹 + Issues / Pull requests / Actions 頁簽，讀取之外支援新建 Issue/PR、評論、編輯、關閉重開、squash·merge·rebase 合併（強確認）與重跑/取消 CI；儲存庫彈出層自動拉取有權限列表並支援公開儲存庫搜尋；未安裝 better-sidebar 時自動降級為獨立右側面板',
   pluginGitRemotesDesc: 'better-sidebar Git 遠端 Tab：看分支/上游/ahead-behind，fetch（可 prune）、ff-only pull、確認後才 push。不替換內建 Git 的暫存/提交，也不提供 force-push 或模型自動推送',
   pluginSentinelDesc: '條件驅動的 agent 喚醒系統：檔案/程序/連接埠/HTTP/命令/webhook 感測器，條件達成自動喚醒休眠工作階段；註冊「哨兵」Tab 展示伺服器全域監控表',
+  pluginServerDeckDesc: '伺服器卡片儀表板：每台伺服器一張卡片，展示線上狀態、OS、運行時長、CPU/記憶體/磁碟用量與延遲；點卡片進入 xterm.js 互動終端機，支援 ~/.ssh/config 一鍵匯入（自動跳過 Git 託管別名）；安裝 better-sidebar 後註冊原生「伺服器」分頁，未安裝時保留獨立抽屜',
   pluginSidebarQaDesc: '基於 better-sidebar 的劃選提問tab分頁: 對話劃選 → 右側面板提問 → 同工作區獨立追問工作階段（❓追問·主題）：快速無思考模型壓縮主對話上下文後與引文一起注入，不打斷主對話；追問可巢狀、可繼續、可歸檔',
   pluginSidenoteDesc: 'Codex 風格側邊聊天與劃選註解：從目前工作階段 fork 出獨立側邊工作階段（歸檔隱藏、多實例並存、/side 命令、重新整理/重啟後恢復、模型跟隨主工作階段）；assistant 訊息劃選 → 編號角標 + 註解編輯器 →「N 條註解」chip 隨訊息送出，也可直接進入側邊聊天提問',
   pluginSshTunnelDesc: 'better-sidebar「SSH 隧道」Tab：多機主機清單 + 按專案授權 + 密鑰本地保管；模型工具 SSHManager（exec/SFTP/工作階段策略）；中央互動終端與雙欄 SFTP',
