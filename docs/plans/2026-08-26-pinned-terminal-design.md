@@ -114,6 +114,16 @@ getSessionStates(): ReadonlyMap<string, SidebarState>
 | 底部面板/窄屏迁移 | pinned tab 若在 bottomSplits，`migrateBottomTabs` 照常迁移（pin 语义不受影响） |
 | 自由窗口中的 pinned tab | 允许；rail 点击切回 home 会话后 `raiseFloat`（floatWithTab 命中走置顶，openTabInActivePane 已有此分支） |
 
+## 12. 实施偏差记录
+
+### M3：断开信号收敛
+
+设计 §6 原表「Agent 终端被 reconcile 移除」行提到「标题渲染时追加 `（已断开）`」。实施时收敛为：**M3 只做豁免，断开的用户可见信号由 xterm 现有重连失败 banner 承担**。原因：rail/tab 标题渲染处无法知道宿主列表（`reconcileAgentTerminals` 的 uuid 匹配是 state 级的，渲染层不持有该信息），改 meta 会写持久化（违反「reconcile uuid 匹配不受影响」）。xterm 的 WS 连接 1011/超时已有 fatal UI，足以承担断开信号。设计 §6 表相应行实施时修正为「banner 承担断开信号」。
+
+### M4：railRevision 状态
+
+设计 §3 提到「store 任意会话更新已全局 notify，rail 随 uSES 自动重渲染」。实施时发现 `reduceFor` **不 notify**（targeted opens 的契约：UI 不跟随）。rail 的 unpin/close 走 `reduceFor`（目标是其他会话），store 不 notify → rail 不重渲染。解决方案：Sidebar 维护 `railRevision` 状态，rail action 后 bump，强制 `collectPinnedTabs` useMemo 重算。这是自包含的组件级方案，不改变 `reduceFor` 的 notify 契约。
+
 ## 7. 测试计划（Unit + 组件，vitest）
 
 | 文件 | 覆盖 |
