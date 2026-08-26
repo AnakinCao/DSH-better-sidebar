@@ -569,6 +569,9 @@ export function setTabPin(
 ): SidebarState {
   let changed = false
   const apply = (tab: SidebarTab): SidebarTab => {
+    // Pin is terminal-only (design YAGNI): a defensive guard keeps the
+    // invariant even if a caller accidentally targets a non-terminal tab.
+    if (tab.type !== 'terminal') return tab
     // Idempotent: setting the same pin (deep-equal on scope + homeCwd) is a
     // no-op so re-clicking the menu item never churns the state.
     if (pin === null) {
@@ -586,15 +589,34 @@ export function setTabPin(
   }
   const walk = (node: SplitNode): SplitNode => {
     if (node.kind === 'leaf') {
-      const tabs = node.tabs.map(tab => (tab.id === tabId ? apply(tab) : tab))
-      return tabs === node.tabs ? node : { ...node, tabs }
+      // Find the target tab without rebuilding the whole array: only clone
+      // when the tab is actually here and apply changed it (idempotent
+      // no-ops return the same tab reference, so === holds).
+      const idx = node.tabs.findIndex(tab => tab.id === tabId)
+      if (idx < 0) return node
+      const oldTab = node.tabs[idx]!
+      const newTab = apply(oldTab)
+      if (newTab === oldTab) return node
+      const tabs = node.tabs.slice()
+      tabs[idx] = newTab
+      return { ...node, tabs }
     }
     const children = node.children.map(walk)
-    return children === node.children ? node : { ...node, children }
+    // Only rebuild if at least one child actually changed reference.
+    if (children.every((child, i) => child === node.children[i])) return node
+    return { ...node, children }
   }
   const splits = walk(state.splits)
   const bottomSplits = walk(state.bottomSplits)
-  const floats = state.floats.map(float => (float.tab.id === tabId ? { ...float, tab: apply(float.tab) } : float))
+  const floatIdx = state.floats.findIndex(f => f.tab.id === tabId)
+  const floats = floatIdx < 0 ? state.floats : (() => {
+    const oldFloat = state.floats[floatIdx]!
+    const newTab = apply(oldFloat.tab)
+    if (newTab === oldFloat.tab) return state.floats
+    const next = state.floats.slice()
+    next[floatIdx] = { ...oldFloat, tab: newTab }
+    return next
+  })()
   return changed ? { ...state, splits, bottomSplits, floats } : state
 }
 
@@ -1341,8 +1363,10 @@ function sanitizePersistedTab(tab: unknown): SidebarTab | 'diff' | undefined {
   // shape so a hand-edited / corrupted pin never crashes the rail's
   // resolver: an unknown scope or a non-string homeCwd drops the pin
   // silently (the tab survives, just unpinned — the legacy behavior).
+  // Pin is terminal-only: a non-terminal tab carrying a persisted pin
+  // (e.g. from a hand-edited state) has it stripped here.
   const pin = (candidate as Record<string, unknown>).pin
-  if (pin !== null && typeof pin === 'object' && !Array.isArray(pin)) {
+  if (pin !== null && typeof pin === 'object' && !Array.isArray(pin) && result.type === 'terminal') {
     const pinRecord = pin as Record<string, unknown>
     if (pinRecord.scope === 'workspace' || pinRecord.scope === 'global') {
       const homeCwd = pinRecord.homeCwd
@@ -1525,7 +1549,7 @@ export class SidebarStore {
    * visible until first load — accepted as YAGNI by the design).
    */
   getSessionStates(): ReadonlyMap<string, SidebarState> {
-    return this.bySession
+    return new Map(this.bySession)
   }
 
   /** Apply a pure reducer (returns the next state). */

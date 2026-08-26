@@ -1266,6 +1266,11 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     if (pinnedVirtualTabs.length === 0) return actions
     const closePinnedInHome = (virtualId: string): void => {
       const { homeSessionId, tabId: originalId } = parsePinnedVirtualId(virtualId)
+      // The home cwd lives in the virtual tab's meta (snapshotted at pin
+      // time) — pass it to ptyClose so the host resolves the PTY in the
+      // correct workspace container (same scope the WS open used).
+      const vtab = pinnedVirtualTabs.find(t => t.id === virtualId)
+      const homeCwd = vtab !== undefined ? getPinnedHomeScope(vtab)?.cwd : undefined
       store.reduceFor(homeSessionId, s => {
         const leaf = leafWithTab(s.splits, originalId) ?? leafWithTab(s.bottomSplits, originalId)
         if (leaf !== undefined) return closeTab(s, leaf.id, originalId)
@@ -1275,7 +1280,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       if (isAgentTabId(originalId)) {
         void api.agentPtyClose(agentUuidOf(originalId)).catch(() => { /* already released */ })
       } else {
-        void api.ptyClose({ sessionId: homeSessionId }, originalId).catch(() => { /* already released */ })
+        void api.ptyClose({ sessionId: homeSessionId, ...(homeCwd !== undefined ? { cwd: homeCwd } : {}) }, originalId).catch(() => { /* already released */ })
       }
       if (activePinnedTabId === virtualId) setActivePinnedTabId(null)
       setPinnedRevision(v => v + 1)
