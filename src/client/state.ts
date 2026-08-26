@@ -1002,7 +1002,13 @@ export function reconcileAgentTerminals(
   const existingUuids = new Set(existingAgentTabs.map(tab => agentUuidOf(tab.id)))
   const serverUuids = new Set(agentTerminals.map(t => t.uuid))
   const toAdd = agentTerminals.filter(t => !existingUuids.has(t.uuid))
-  const toRemove = existingAgentTabs.filter(tab => !serverUuids.has(agentUuidOf(tab.id)))
+  // Pinned agent terminals (v0.17.0+) are EXEMPT from removal: the agent
+  // closed them or the pty exited, but the user pinned them so the tab
+  // stays as a disconnected surface. The xterm view's reconnect-failure
+  // banner is the user-visible "disconnected" signal (the design's M3
+  // convergence: no title suffix, no meta write — the tab keeps its uuid
+  // so a later reconcile push revives it if the agent reopens the same one).
+  const toRemove = existingAgentTabs.filter(tab => !serverUuids.has(agentUuidOf(tab.id)) && tab.pin === undefined)
   if (toAdd.length === 0 && toRemove.length === 0) return state
   // Remove tabs whose uuids vanished from the server list (the agent closed
   // them, or the pty exited and was reaped). Reuse closeTab's leaf cleanup;
