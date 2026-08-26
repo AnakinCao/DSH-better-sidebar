@@ -37,7 +37,7 @@ import { appendToDraft } from './conversation-draft.ts'
 import {
   BOTTOM_MIN, PANEL_MIN, agentUuidOf, dockFloat, firstLeaf, floatTab, isAgentTabId, leafWithTab, migrateBottomTabs,
   moveFloat, moveTab, moveTabToEdge, openDiffTab, raiseFloat, reconcileAgentTerminals,
-  resizeFloat, resizeSplitIn, setBottomHeight, setWidth, toggleBottomPanel, toggleExpanded, togglePanel,
+  resizeFloat, resizeSplitIn, setBottomHeight, setTabPin, setWidth, toggleBottomPanel, toggleExpanded, togglePanel,
   type DropZone, type SidebarState, type SidebarStore, type SidebarTab, type SplitNode,
 } from './state.ts'
 import { IconPanelBottomOutline16, IconPanelRightOutline16 } from './icons.tsx'
@@ -1202,6 +1202,13 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       const x = rect !== null ? (rect.left + rect.right) / 2 : window.innerWidth / 2
       const y = rect !== null ? (rect.top + rect.bottom) / 2 : window.innerHeight / 2
       store.reduce(s => floatTab(s, tabId, x, y))
+    },
+    // Pin/unpin a terminal tab (v0.17.0+): the home cwd is snapshotted at
+    // pin time so a workspace-scoped pin only resurfaces in sessions whose
+    // cwd matches. Unpin passes null — the tab stays open in its home
+    // session, just unmarked.
+    pinTab: (tabId, scope) => {
+      store.reduce(s => setTabPin(s, tabId, scope === null ? null : { scope, homeCwd: cwd }))
     },
   }), [store, sessionId, cwd])
 

@@ -14,6 +14,7 @@ import {
   IconCloseFill14, IconPlusOutline16, Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarTab } from './state.ts'
+import { isAgentTabId } from './state.ts'
 import { t } from './locales.ts'
 import css from './sidebar.module.css'
 
@@ -67,6 +68,13 @@ export function TabBar(props: {
   /** Float a tab out as a free window (the tab context menu's entry; the
    *  drag-to-conversation gesture is handled at the Sidebar shell level). */
   onFloatTab: (tabId: string) => void
+  /**
+   * Pin/unpin a terminal tab (v0.17.0+). Called with `'workspace'` or
+   * `'global'` to pin (the shell snapshots the home cwd), or `null` to
+   * unpin. Non-terminal tabs never trigger this callback. Optional: the
+   * menu hides the pin entry when unset (legacy callers).
+   */
+  onPinTab?: (tabId: string, scope: 'workspace' | 'global' | null) => void
   /** Icon resolver for tab labels (reads from the tab descriptor registry). */
   getTabIcon?: (tab: SidebarTab) => ReactNode
   /** Badge resolver for tab labels (reads the descriptor's `badge`; the
@@ -74,7 +82,7 @@ export function TabBar(props: {
   getTabBadge?: (tab: SidebarTab) => ReactNode
 }) {
   const {
-    paneId, tabs, active, onActivate, onClose, onNewTab, newTabOptions, onDropTab, onFloatTab, getTabIcon, getTabBadge,
+    paneId, tabs, active, onActivate, onClose, onNewTab, newTabOptions, onDropTab, onFloatTab, onPinTab, getTabIcon, getTabBadge,
   } = props
   const [menuOpen, setMenuOpen] = useState(false)
   // The tab right-click context menu: the target tab plus the cursor
@@ -274,13 +282,35 @@ export function TabBar(props: {
         <Menu
           open={tabMenu !== null && tabMenuIndex >= 0}
           onClose={() => { setTabMenu(null) }}
-          items={[
-            { id: 'float', label: t('moveToFreeWindow') },
-            { id: 'close', label: t('close') },
-            { id: 'closeOthers', label: t('closeOtherTabs'), ...(tabs.length <= 1 ? { disabled: true } : {}) },
-            { id: 'closeLeft', label: t('closeLeftTabs'), ...(tabMenuIndex <= 0 ? { disabled: true } : {}) },
-            { id: 'closeRight', label: t('closeRightTabs'), ...(tabMenuIndex >= tabs.length - 1 ? { disabled: true } : {}) },
-          ]}
+          items={(() => {
+            // The target tab drives the pin entry's shape: terminal tabs
+            // get either a "Pin ▸" submenu (unpinned) or a single "Unpin"
+            // row (pinned). Non-terminal tabs and missing onPinTab get no
+            // pin entry at all — the menu stays exactly the legacy 5-item
+            // shape.
+            const targetTab = tabMenuIndex >= 0 ? tabs[tabMenuIndex] : undefined
+            const isTerminal = targetTab?.type === 'terminal'
+            const pinEntries = isTerminal && onPinTab !== undefined
+              ? targetTab!.pin !== undefined
+                ? [{ id: 'unpin', label: t('unpinTerminal') }]
+                : [{
+                    id: 'pin',
+                    label: isAgentTabId(targetTab!.id) ? t('pinAgentTerminal') : t('pinTerminal'),
+                    submenu: [
+                      { id: 'pinWorkspace', label: t('pinToWorkspace') },
+                      { id: 'pinGlobal', label: t('pinToGlobal') },
+                    ],
+                  }]
+              : []
+            return [
+              { id: 'float', label: t('moveToFreeWindow') },
+              ...pinEntries,
+              { id: 'close', label: t('close') },
+              { id: 'closeOthers', label: t('closeOtherTabs'), ...(tabs.length <= 1 ? { disabled: true } : {}) },
+              { id: 'closeLeft', label: t('closeLeftTabs'), ...(tabMenuIndex <= 0 ? { disabled: true } : {}) },
+              { id: 'closeRight', label: t('closeRightTabs'), ...(tabMenuIndex >= tabs.length - 1 ? { disabled: true } : {}) },
+            ]
+          })()}
           onSelect={(id) => {
             const target = tabMenu
             if (target === null) return
@@ -289,6 +319,12 @@ export function TabBar(props: {
             if (index < 0) return
             if (id === 'float') {
               onFloatTab(target.tabId)
+            } else if (id === 'pinWorkspace') {
+              onPinTab?.(target.tabId, 'workspace')
+            } else if (id === 'pinGlobal') {
+              onPinTab?.(target.tabId, 'global')
+            } else if (id === 'unpin') {
+              onPinTab?.(target.tabId, null)
             } else if (id === 'close') {
               onClose(target.tabId)
             } else if (id === 'closeOthers') {
