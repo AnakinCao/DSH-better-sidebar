@@ -445,9 +445,7 @@ All changes since v0.14.0:
 
 Since v0.4.0 the plugin exposes the `ctx.betterSidebar` service — other plugins can register sidebar pages and file viewers (the 7 built-in tabs + 6 viewers register through the same service). v0.12.1 completed the base capabilities (complete type exports, capability detection, state subscription, tab badges, lifecycle callbacks, targeted open, plugin-owned settings, etc.).
 
-Full integration docs:
-- **[`AGENTS.md`](./AGENTS.md)** — the in-repo integration doc (full fields, matching algorithm, HMR pitfalls, declarative settings, version detection);
-- **[`docs/external-plugin-guide.md`](./docs/external-plugin-guide.md)** — the external-plugin guide (with a complete minimal example).
+Full integration docs (complete fields, matching algorithm, HMR pitfalls, declarative settings, version detection, float windows and the skinning contract): **[`docs/external-plugin-guide.md`](./docs/external-plugin-guide.md)**; repository rules (hard constraints / CI / release) live in [`AGENTS.md`](./AGENTS.md).
 
 ### ➕ Add Plugins (recommended plugin catalog)
 
