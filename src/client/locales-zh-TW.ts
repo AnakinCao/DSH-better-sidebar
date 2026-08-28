@@ -378,6 +378,7 @@ export const zhTW: Record<string, string> = {
   pluginGitRemotesDesc: 'better-sidebar Git 遠端 Tab：看分支/上游/ahead-behind，fetch（可 prune）、ff-only pull、確認後才 push。不替換內建 Git 的暫存/提交，也不提供 force-push 或模型自動推送',
   pluginSentinelDesc: '條件驅動的 agent 喚醒系統：檔案/程序/連接埠/HTTP/命令/webhook 感測器，條件達成自動喚醒休眠工作階段；註冊「哨兵」Tab 展示伺服器全域監控表',
   pluginSidebarQaDesc: '基於 better-sidebar 的劃選提問tab分頁: 對話劃選 → 右側面板提問 → 同工作區獨立追問工作階段（❓追問·主題）：快速無思考模型壓縮主對話上下文後與引文一起注入，不打斷主對話；追問可巢狀、可繼續、可歸檔',
+  pluginSidenoteDesc: 'Codex 風格側邊聊天與劃選註解：從目前工作階段 fork 出獨立側邊工作階段（歸檔隱藏、多實例並存、/side 命令、重新整理/重啟後恢復、模型跟隨主工作階段）；assistant 訊息劃選 → 編號角標 + 註解編輯器 →「N 條註解」chip 隨訊息送出，也可直接進入側邊聊天提問',
   pluginSshTunnelDesc: 'better-sidebar「SSH 隧道」Tab：多機主機清單 + 按專案授權 + 密鑰本地保管；模型工具 SSHManager（exec/SFTP/工作階段策略）；中央互動終端與雙欄 SFTP',
   pluginTurnReviewDesc: '對「剛剛這一回合」的 diff 做 Approve / Request changes 的人閘門：只審上一回合，不 fork 工作階段；檔案按主工作階段/子代理/未歸因分組，按檔案勾選打回 + 可選評語，點檔案先看回合開始快照 vs 現在的 diff。不是 /rewind',
   pluginVideoPreviewDesc: '在 better-sidebar 編輯器內聯預覽影片檔案（.mp4/.webm/.mov/.mkv/.avi 等），自帶支援 HTTP Range（206）的 /video 宿主路由，可拖曳進度條、不受 20MB mediaLimit 限制',

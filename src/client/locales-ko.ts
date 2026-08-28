@@ -355,6 +355,7 @@ export const ko: Record<string, string> = {
   pluginGitRemotesDesc: 'better-sidebar Git 원격 Tab: 브랜치/업스트림/ahead-behind 확인, fetch(prune 가능), ff-only pull, 확인 후에만 push. 내장 Git의 스테이징/커밋을 대체하지 않으며, force-push나 모델 자동 push도 제공하지 않습니다',
   pluginSentinelDesc: '조건 기반 agent 웨이크업 시스템: 파일/프로세스/포트/HTTP/명령/webhook 센서가 조건을 충족하면 휴면 세션을 자동으로 깨웁니다. "센티널(哨兵)" Tab을 등록하여 서버 전역 모니터링 표를 보여줍니다',
   pluginSidebarQaDesc: 'better-sidebar 기반 드래그 선택 질문 탭: 대화 드래그 선택 → 오른쪽 패널 질문 → 같은 작업 공간의 독립 후속 질문 세션(❓후속 질문·주제). 빠른 무사고 모델이 주 대화 컨텍스트를 압축한 후 인용과 함께 주입하며, 주 대화를 방해하지 않습니다. 후속 질문은 중첩, 계속, 보관이 가능합니다',
+  pluginSidenoteDesc: 'Codex 스타일 사이드 챗 + 선택 주석: 현재 세션을 fork해 독립 사이드 세션으로 분기(세션 목록에서는 보관되어 숨겨짐, 다중 인스턴스, /side 명령, 새로고침/재시작 후에도 복원됨, 모델은 주 세션을 따름); assistant 메시지 선택 → 번호 배지 + 주석 편집기 → "N개 주석" 칩이 다음 메시지에 함께 전송되며, 사이드 챗에서 바로 질문할 수도 있습니다',
   pluginSshTunnelDesc: 'better-sidebar "SSH 터널" Tab: 다중 호스트 목록 + 프로젝트별 권한 + 키 로컬 보관. 모델 도구 SSHManager(exec/SFTP/세션 전략). 중앙 대화형 터미널과 이중 창 SFTP',
   pluginTurnReviewDesc: '방금 끝난 턴의 diff에 대해 Approve / Request changes를 하는 사람 게이트: 지난 턴만 검토하며 세션을 fork하지 않습니다. 파일을 주 세션/서브 에이전트/미귀속으로 그룹화하고, 파일별로 선택하여 반려 + 선택적 코멘트. 파일을 클릭하면 턴 시작 스냅샷 vs 현재 diff를 먼저 봅니다. /rewind가 아닙니다',
   pluginVideoPreviewDesc: 'better-sidebar 편집기에서 비디오 파일(.mp4/.webm/.mov/.mkv/.avi 등)을 인라인 미리보기합니다. HTTP Range(206)를 지원하는 /video 호스트 라우트를 내장하며, 진행 바를 드래그할 수 있고 20MB mediaLimit 제한을 받지 않습니다',
