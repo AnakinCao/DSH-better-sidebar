@@ -360,6 +360,7 @@ export const ja: Record<string, string> = {
   pluginOfficeDesc: 'better-sidebar エディター向け Office スイートプレビュー（.docx / .xlsx / .pptx）。重い Office レンダリングライブラリをコアバンドルから分離、必要に応じてインストール',
   pluginFlowglassDesc: 'ライブセッションフローグラフ：ユーザー、アシスタント、ツール呼び出しの 3 レーン泳道、並列グループ、サブエージェント支線、ドリルダウン、ライブ状態をサポート。better-sidebar インストール時にネイティブ「Flowglass」Tab を登録、未インストール時は独立ドロワーを保持',
   pluginGitForgeDesc: 'better-sidebar「Git Forge」Tab：GitHub/Gitea 等 Forge アカウントライブラリ + プロジェクト単位の認可 + push ポリシー硬核拒絶。token はローカル secrets のみ、モデルコンテキストに入らない。読み取り専用 GitForge ツールと agent HTTPS credential helper を提供',
+  pluginGithubWorkbenchDesc: 'better-sidebar「GitHub ワークベンチ」タブ:リモートリポジトリのツリー + Issues / Pull requests / Actions タブ。読み取りに加え、Issue・PR の作成、コメント、編集、クローズ/再オープン、squash・merge・rebase マージ(強確認)、CI の再実行/キャンセルに対応。リポジトリ切替ポップアップはアクセス可能なリポジトリを自動取得し、公開リポジトリの検索にも対応。better-sidebar 未導入時は独立右パネルへ自動フォールバック',
   pluginGitRemotesDesc: 'better-sidebar Git リモート Tab：ブランチ/アップストリーム/ahead-behind 表示、fetch（prune 可）、ff-only pull、確認後のみ push。内蔵 Git のステージ/コミットは置き換えず、force-push やモデル自動 push ツールは提供しない',
   pluginSentinelDesc: '条件駆動の agent 起動システム：ファイル/プロセス/ポート/HTTP/コマンド/webhook センサーが条件達成時に休眠会話を自動起動。「Sentinel」Tab を登録しサーバー全体の監視テーブルを表示',
   pluginSidebarQaDesc: 'better-sidebar ベースの選択して質問 Tab：会話選択 → 右パネルで質問 → 同ワークスペースの独立追問会話（❓追問・主題）。高速 no-thinking モデルが主対話コンテキストを圧縮し引用と一緒に注入、主対話を中断しない。追問はネスト、継続、アーカイブ可能',

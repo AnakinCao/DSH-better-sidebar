@@ -375,6 +375,7 @@ export const zhHK: Record<string, string> = {
   pluginOfficeDesc: '為 better-sidebar 編輯器提供 Office 三件套預覽（.docx / .xlsx / .pptx），把重型 Office 渲染庫拆出主套件、按需安裝',
   pluginFlowglassDesc: '即時工作階段流程圖：三列泳道展示使用者、助手與工具呼叫，支援並行分組、子代理支線、逐層鑽取和即時狀態；安裝 better-sidebar 後註冊原生「流鏡」Tab，未安裝時保留獨立抽屜',
   pluginGitForgeDesc: 'better-sidebar「Git 憑證」Tab：GitHub/Gitea 等 Forge 帳號庫 + 按專案授權 + push 策略硬攔；token 僅存本地 secrets，不進模型上下文；提供唯讀 GitForge 工具與 agent HTTPS credential helper',
+  pluginGithubWorkbenchDesc: 'better-sidebar「GitHub 工作台」Tab：遠端儲存庫目錄樹 + Issues / Pull requests / Actions 頁簽，讀取之外支援新建 Issue/PR、評論、編輯、關閉重開、squash·merge·rebase 合併（強確認）與重跑/取消 CI；儲存庫彈出層自動拉取有權限列表並支援公開儲存庫搜尋；未安裝 better-sidebar 時自動降級為獨立右側面板',
   pluginGitRemotesDesc: 'better-sidebar Git 遠端 Tab：看分支/上游/ahead-behind，fetch（可 prune）、ff-only pull、確認後才 push。不替換內建 Git 的暫存/提交，也不提供 force-push 或模型自動推送',
   pluginSentinelDesc: '條件驅動的 agent 喚醒系統：檔案/程序/連接埠/HTTP/命令/webhook 感測器，條件達成自動喚醒休眠工作階段；註冊「哨兵」Tab 展示伺服器全域監控表',
   pluginSidebarQaDesc: '基於 better-sidebar 的劃選提問tab分頁: 對話劃選 → 右側面板提問 → 同工作區獨立追問工作階段（❓追問·主題）：快速無思考模型壓縮主對話上下文後與引文一起注入，不打斷主對話；追問可巢狀、可繼續、可歸檔',

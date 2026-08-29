@@ -68,6 +68,16 @@ export const builtinTabPlugins: readonly PluginEntry[] = [
     install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add git+https://github.com/yq04/dsh-git-remotes.git',
   },
   {
+    id: 'dsh-github-workbench',
+    name: 'dsh-github-workbench GitHub 工作台',
+    url: 'https://github.com/meyaomiao/dsh-github-workbench',
+    description: () => t('pluginGithubWorkbenchDesc'),
+    // Full GitHub workbench tab: remote repo tree + Issues/PRs/Actions tabs
+    // with write support (create/comment/merge/re-run). lib/ is committed,
+    // so the pinned github:-form install works without a local build.
+    install: 'cd ~/.dsh && dsh plugin --profile web add "github:meyaomiao/dsh-github-workbench#v0.1.0"',
+  },
+  {
     id: 'dsh-sidebar-qa',
     name: 'dsh-sidebar-qa 划选追问',
     url: 'https://github.com/ChenRuoT/dsh-sidebar-qa',
