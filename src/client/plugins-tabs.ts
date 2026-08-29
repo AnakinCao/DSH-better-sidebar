@@ -96,6 +96,16 @@ export const builtinTabPlugins: readonly PluginEntry[] = [
     install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add dsh-sidenote',
   },
   {
+    id: 'dsh-server-deck',
+    name: 'dsh-server-deck 服务器甲板',
+    url: 'https://github.com/meyaomiao/DSH-server-deck',
+    description: () => t('pluginServerDeckDesc'),
+    // Published on npm; dual-mount like flowglass — registers the native
+    // "Servers" tab when better-sidebar is present, standalone drawer
+    // otherwise. Install the prerequisite first.
+    install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add dsh-server-deck@latest',
+  },
+  {
     id: 'dsh-ssh-tunnel',
     name: 'dsh-ssh-tunnel SSH 隧道',
     url: 'https://github.com/thirsty5034/dsh-ssh-tunnel',
