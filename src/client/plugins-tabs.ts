@@ -77,6 +77,15 @@ export const builtinTabPlugins: readonly PluginEntry[] = [
     install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add git+https://github.com/ChenRuoT/dsh-sidebar-qa.git',
   },
   {
+    id: 'dsh-sidenote',
+    name: 'dsh-sidenote 侧边聊天',
+    url: 'https://github.com/g-yixuan/dsh-sidenote',
+    description: () => t('pluginSidenoteDesc'),
+    // dsh-sidenote hard-depends on dsh-better-sidebar (required peer), so
+    // the install line installs the prerequisite first, then the plugin.
+    install: 'cd ~/.dsh && dsh plugin --profile web add dsh-better-sidebar && dsh plugin --profile web add dsh-sidenote',
+  },
+  {
     id: 'dsh-ssh-tunnel',
     name: 'dsh-ssh-tunnel SSH 隧道',
     url: 'https://github.com/thirsty5034/dsh-ssh-tunnel',

@@ -363,6 +363,7 @@ export const ja: Record<string, string> = {
   pluginGitRemotesDesc: 'better-sidebar Git リモート Tab：ブランチ/アップストリーム/ahead-behind 表示、fetch（prune 可）、ff-only pull、確認後のみ push。内蔵 Git のステージ/コミットは置き換えず、force-push やモデル自動 push ツールは提供しない',
   pluginSentinelDesc: '条件駆動の agent 起動システム：ファイル/プロセス/ポート/HTTP/コマンド/webhook センサーが条件達成時に休眠会話を自動起動。「Sentinel」Tab を登録しサーバー全体の監視テーブルを表示',
   pluginSidebarQaDesc: 'better-sidebar ベースの選択して質問 Tab：会話選択 → 右パネルで質問 → 同ワークスペースの独立追問会話（❓追問・主題）。高速 no-thinking モデルが主対話コンテキストを圧縮し引用と一緒に注入、主対話を中断しない。追問はネスト、継続、アーカイブ可能',
+  pluginSidenoteDesc: 'Codex スタイルのサイドチャット + 選択注釈：現在の会話を fork して独立したサイド会話を作成（一覧からはアーカイブで隠蔽、複数共存、/side コマンド、リロード/再起動後も復元、モデルは主会話に追従）。assistant メッセージを選択 → 番号バッジ + 注釈エディタ →「N 件の注釈」チップが次のメッセージに同梱、またはサイドチャットで直接質問',
   pluginSshTunnelDesc: 'better-sidebar「SSH トンネル」Tab：複数ホストインベントリ + プロジェクト単位の認可 + 鍵のローカル保管。モデルツール SSHManager（exec/SFTP/セッション戦略）。中央対話ターミナルと双欄 SFTP',
   pluginTurnReviewDesc: '「直近のターン」の diff に Approve / Request changes のヒューマンゲート。直前ターンのみ審査、会話を fork しない。ファイルをメイン会話/サブエージェント/未帰属グループ分け、ファイル単位でチェックして差し戻し + 任意コメント、ファイルをクリックするとターン開始スナップショット vs 現在の diff を先に表示。/rewind ではない',
   pluginVideoPreviewDesc: 'better-sidebar エディター内で動画ファイルをインラインプレビュー（.mp4/.webm/.mov/.mkv/.avi 等）。HTTP Range (206) をサポートする専用 /video ホストルートを搭載、プログレスバードラッグ可、20MB mediaLimit 制限なし',
