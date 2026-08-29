@@ -353,6 +353,7 @@ export const ko: Record<string, string> = {
   pluginFlowglassDesc: '실시간 세션 흐름도: 사용자, 어시스턴트, 도구 호출을 3열 레인으로 표시하며, 병렬 그룹, 서브 에이전트 지선, 단계별 드릴다운과 실시간 상태를 지원합니다. better-sidebar 설치 시 기본 "흐름 거울(流镜)" Tab을 등록하고, 미설치 시 독립 서랍을 유지합니다',
   pluginGitForgeDesc: 'better-sidebar "Git 자격 증명" Tab: GitHub/Gitea 등 Forge 계정 라이브러리 + 프로젝트별 권한 + push 정책 하드 차단. 토큰은 로컬 secrets에만 저장되고 모델 컨텍스트에 들어가지 않습니다. 읽기 전용 GitForge 도구와 agent HTTPS credential helper를 제공합니다',
   pluginGithubWorkbenchDesc: 'better-sidebar "GitHub Workbench" Tab: 원격 저장소 트리 + Issues / Pull requests / Actions 탭. 읽기 외에 Issue·PR 생성, 댓글, 편집, 닫기/다시 열기, squash·merge·rebase 병합(강한 확인), CI 재실행/취소를 지원합니다. 저장소 전환 팝업은 접근 가능한 저장소를 자동으로 가져오고 공개 저장소 검색도 지원합니다. better-sidebar 미설치 시 독립 우측 패널로 자동 폴백합니다',
+  pluginMdExportDesc: 'better-sidebar의 Markdown 툴바에 "내보내기" 버튼을 추가: 클릭 한 번으로 현재 .md를 독립 실행형 HTML(표/코드 블록/Mermaid 다이어그램 인라인, 레이아웃은 미리보기 테마 따름)로 렌더링해 같은 폴더에 저장하거나, 인쇄 대화상자로 PDF를 내보냅니다',
   pluginGitRemotesDesc: 'better-sidebar Git 원격 Tab: 브랜치/업스트림/ahead-behind 확인, fetch(prune 가능), ff-only pull, 확인 후에만 push. 내장 Git의 스테이징/커밋을 대체하지 않으며, force-push나 모델 자동 push도 제공하지 않습니다',
   pluginSentinelDesc: '조건 기반 agent 웨이크업 시스템: 파일/프로세스/포트/HTTP/명령/webhook 센서가 조건을 충족하면 휴면 세션을 자동으로 깨웁니다. "센티널(哨兵)" Tab을 등록하여 서버 전역 모니터링 표를 보여줍니다',
   pluginServerDeckDesc: '서버 카드 대시보드: 호스트마다 한 장의 카드로 온라인 상태, OS, 업타임, CPU/메모리/디스크 사용률과 지연 시간을 표시합니다. 카드를 클릭하면 xterm.js 대화형 터미널이 열리고, ~/.ssh/config를 원클릭으로 가져옵니다(Git 호스팅 별칭은 자동 제외). better-sidebar 설치 시 네이티브 「서버」 탭을 등록하고, 미설치 시 독립 드로어를 유지합니다',

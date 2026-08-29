@@ -357,6 +357,7 @@ export const ja: Record<string, string> = {
   addPluginsEmpty: 'まだプラグインが収録されていません、GitHub topic であなたのプラグインを公開してください',
   openPlugin: '開く',
   copyInstall: 'インストールコマンドをコピー',
+  pluginMdExportDesc: 'better-sidebar の Markdown ツールバーに「エクスポート」ボタンを追加：現在の .md を単体 HTML（テーブル・コードブロック・Mermaid 図表をインライン化、プレビューテーマに追従したレイアウト）にレンダリングして .md と同じディレクトリに保存、または印刷ダイアログ経由で PDF にエクスポート',
   pluginOfficeDesc: 'better-sidebar エディター向け Office スイートプレビュー（.docx / .xlsx / .pptx）。重い Office レンダリングライブラリをコアバンドルから分離、必要に応じてインストール',
   pluginFlowglassDesc: 'ライブセッションフローグラフ：ユーザー、アシスタント、ツール呼び出しの 3 レーン泳道、並列グループ、サブエージェント支線、ドリルダウン、ライブ状態をサポート。better-sidebar インストール時にネイティブ「Flowglass」Tab を登録、未インストール時は独立ドロワーを保持',
   pluginGitForgeDesc: 'better-sidebar「Git Forge」Tab：GitHub/Gitea 等 Forge アカウントライブラリ + プロジェクト単位の認可 + push ポリシー硬核拒絶。token はローカル secrets のみ、モデルコンテキストに入らない。読み取り専用 GitForge ツールと agent HTTPS credential helper を提供',
