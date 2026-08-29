@@ -377,6 +377,7 @@ export const zhTW: Record<string, string> = {
   pluginGitForgeDesc: 'better-sidebar「Git 憑證」Tab：GitHub/Gitea 等 Forge 帳號庫 + 按專案授權 + push 策略硬攔；token 僅存本地 secrets，不進模型上下文；提供唯讀 GitForge 工具與 agent HTTPS credential helper',
   pluginGithubWorkbenchDesc: 'better-sidebar「GitHub 工作台」Tab：遠端儲存庫目錄樹 + Issues / Pull requests / Actions 頁籤，讀取之外支援建立 Issue/PR、留言、編輯、關閉重開、squash·merge·rebase 合併（強確認）與重跑/取消 CI；儲存庫彈出視窗自動載入有權限清單並支援公開儲存庫搜尋；未安裝 better-sidebar 時自動降級為獨立右側面板',
   pluginMdExportDesc: '在 better-sidebar 的 Markdown 工具列上新增「匯出」按鈕：一鍵把目前 .md 渲染為獨立 HTML（表格/程式碼區塊/Mermaid 圖表內嵌，版面跟隨預覽主題）直接儲存到同目錄，或透過列印對話框匯出為 PDF',
+  pluginCodeNavDesc: '程式碼預覽導覽：按檔案類型自動識別語言並高亮語法，符號大綱（類別/方法/變數篩選 + 一鍵跳轉），檔案內搜尋（全部符合高亮、上/下一處、區分大小寫），接管 better-sidebar 的程式碼檔案預覽',
   pluginGitRemotesDesc: 'better-sidebar Git 遠端 Tab：看分支/上游/ahead-behind，fetch（可 prune）、ff-only pull、確認後才 push。不替換內建 Git 的暫存/提交，也不提供 force-push 或模型自動推送',
   pluginSentinelDesc: '條件驅動的 agent 喚醒系統：檔案/程序/連接埠/HTTP/命令/webhook 感測器，條件達成自動喚醒休眠工作階段；註冊「哨兵」Tab 展示伺服器全域監控表',
   pluginServerDeckDesc: '伺服器卡片儀表板：每台伺服器一張卡片，展示線上狀態、OS、執行時間、CPU/記憶體/磁碟用量與延遲；點擊卡片開啟 xterm.js 互動終端機，支援 ~/.ssh/config 一鍵匯入（自動略過 Git 託管別名）；安裝 better-sidebar 後註冊原生「伺服器」分頁，未安裝時保留獨立抽屜',
