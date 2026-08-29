@@ -370,4 +370,5 @@ export const ja: Record<string, string> = {
   pluginVideoPreviewDesc: 'better-sidebar エディター内で動画ファイルをインラインプレビュー（.mp4/.webm/.mov/.mkv/.avi 等）。HTTP Range (206) をサポートする専用 /video ホストルートを搭載、プログレスバードラッグ可、20MB mediaLimit 制限なし',
   pluginDocsPanelDesc: 'DSH サイドバー内の「グローバルドキュメント」：任意のワークスペースから読めるグローバル Markdown ノート。リストで選んで閲覧、ホバーでアウトラインジャンプ、Chrome / VS Code で外部オープン、コードコピー。ディレクトリは設定可（デフォルト ~/.dsh/docs）',
   pluginEgoBrowserDesc: 'DeepSeek Harness 用エージェントブラウザ：32 個の ego_* ツールが本物の Chromium を操作し、サイドバーのネイティブ「ego ブラウザ」Tab がエージェントの訪れる全ページをライブ表示。クリック・ドラッグ・入力で操作を引き継げます。better-sidebar があれば Tab を自動登録、なければフローティングバブルにフォールバック',
+  pluginBilingualReaderDesc: 'DSH サイドバーで論文 PDF を読む：ネイティブ PDF 表示、テキストを選択して LLM で翻訳。コンテキストを使い、メイン会話から完全に分離',
 }
